@@ -1,0 +1,15 @@
+{
+  "name": "dev-workflow",
+  "version": "0.1.0",
+  "description": "Brainstorm and plan commands with triage, convention compliance, and knowledge compounding",
+  "author": {
+    "name": "Bruno Azevedo"
+  },
+  "license": "MIT",
+  "keywords": [
+    "brainstorm",
+    "planning",
+    "workflow",
+    "conventions"
+  ]
+}
