@@ -1,8 +1,8 @@
 {
   "name": "dev-workflow",
-  "metadata": {
-    "description": "Brainstorm and plan commands with triage, convention compliance, and knowledge compounding",
-    "version": "1.0.0"
+  "owner": {
+    "name": "Bruno Azevedo",
+    "url": "https://github.com/azevedo"
   },
   "plugins": [
     {
@@ -13,7 +13,7 @@
         "name": "Bruno Azevedo"
       },
       "tags": ["brainstorm", "planning", "workflow", "conventions"],
-      "source": "."
+      "source": "./"
     }
   ]
 }
