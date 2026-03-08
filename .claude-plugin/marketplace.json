@@ -1,0 +1,19 @@
+{
+  "name": "dev-workflow",
+  "metadata": {
+    "description": "Brainstorm and plan commands with triage, convention compliance, and knowledge compounding",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "dev-workflow",
+      "description": "Brainstorm and plan commands with triage, convention compliance, and knowledge compounding",
+      "version": "0.1.0",
+      "author": {
+        "name": "Bruno Azevedo"
+      },
+      "tags": ["brainstorm", "planning", "workflow", "conventions"],
+      "source": "."
+    }
+  ]
+}
