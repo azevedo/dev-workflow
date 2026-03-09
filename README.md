@@ -15,6 +15,15 @@ claude plugin marketplace add azevedo/dev-workflow
 claude plugin install dev-workflow
 ```
 
+### Updating
+
+The plugin is installed from a cached snapshot. To pull the latest version:
+
+```bash
+claude plugin marketplace remove dev-workflow
+claude plugin marketplace add azevedo/dev-workflow
+```
+
 ## Commands
 
 ### `/ba:brainstorm [idea]`
@@ -25,7 +34,7 @@ Explores requirements and approaches through collaborative dialogue before plann
 
 | Level | When | What happens | Output |
 |---|---|---|---|
-| **FAST-TRACK** | Clear requirements, single approach, ≤3 files | Quick confirmation, proceed to plan | No doc (captured in plan) |
+| **FAST-TRACK** | Clear requirements, single approach, ≤3 files | Quick confirmation, auto-chains to plan | Minimal brainstorm doc |
 | **STANDARD** | Mostly clear, 2-3 approaches, needs validation | Codebase research, 2-4 questions, propose approaches | Brief brainstorm doc |
 | **FULL** | Vague requirements, architectural decisions, security/payments | Deep research, extended dialogue, full design | Comprehensive brainstorm doc |
 
