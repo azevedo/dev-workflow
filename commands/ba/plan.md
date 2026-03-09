@@ -487,9 +487,9 @@ Key sections:
 - [Number of phases, if COMPREHENSIVE]
 
 Convention compliance: [N aligned, N overrides, N debt items]
-
-Next: Implement the plan or run `/ba:execute` when ready.
 ```
+
+**IMPORTANT:** The plan is DONE. Do NOT suggest running `/ba:plan` again — it just ran. The only forward options are: implement, refine, create issue, or stop.
 
 ## Important Guidelines
 

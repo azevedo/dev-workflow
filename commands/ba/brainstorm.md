@@ -73,10 +73,45 @@ When triage result is FAST-TRACK:
 2. State your understanding in 2-3 sentences.
 
 3. Use **AskUserQuestion** to confirm: "I understand [X], using the [Y] pattern. Sound right?"
-   - If confirmed → announce "Proceeding to planning." and suggest the user run `/ba:plan <feature_description>`
+   - If confirmed → write the FAST-TRACK artifact, then **auto-chain to `/ba:plan`** (see below)
    - If user adds nuance → **escalate to STANDARD**
 
-**No brainstorm document is written for FAST-TRACK.** The understanding is captured in the plan's Overview section.
+### FAST-TRACK Artifact
+
+Even for FAST-TRACK, write a minimal brainstorm doc so the plan command can find it. This preserves context across commands.
+
+```bash
+mkdir -p docs/brainstorms/
+```
+
+Write to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`:
+
+```markdown
+---
+date: YYYY-MM-DD
+topic: <kebab-case-topic>
+status: approved
+triage_level: fast-track
+tags: [component-names]
+---
+
+# <Topic Title>
+
+## What We're Building
+[The 2-3 sentence understanding you confirmed with the user]
+
+## Key Decisions
+- [Any decisions from the confirmation, e.g., "Follow existing pattern X"]
+
+## Acceptance Criteria
+- [Testable criteria extracted from the feature description]
+```
+
+### FAST-TRACK Auto-Chain
+
+After writing the artifact, **immediately invoke `/ba:plan`** with the feature description. Do NOT ask the user to run it manually — the whole point of FAST-TRACK is speed.
+
+Announce: "Brainstorm captured. Proceeding to plan."
 
 ---
 
