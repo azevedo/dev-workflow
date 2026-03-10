@@ -457,13 +457,15 @@ Use **AskUserQuestion** to present next steps:
 **Question:** "Plan ready at `docs/plans/[filename]`. What would you like to do next?"
 
 **Options:**
-1. **Start implementation** — Begin executing this plan
-2. **Review and refine** — Improve specific sections of the plan
-3. **Create issue** — Create issue in project tracker (GitHub/Linear)
-4. **Done for now** — Return later
+1. **Start implementation** — Begin executing this plan in the current session
+2. **Fresh-context implementation** — Clear context and implement with only the plan loaded (saves tokens)
+3. **Review and refine** — Improve specific sections of the plan
+4. **Create issue** — Create issue in project tracker (GitHub/Linear)
+5. **Done for now** — Return later
 
 **Based on selection:**
-- **Start implementation** → Suggest: "Use `/ba:execute` (when available) or implement manually following the plan phases."
+- **Start implementation** → Begin implementing the plan directly in this session.
+- **Fresh-context implementation** → Tell the user: "Run `/clear` then read the plan and implement it: `docs/plans/[filename]`". This gives a clean context window with only the plan, no brainstorm/research token overhead.
 - **Review and refine** → Ask which section, make changes, return to options
 - **Create issue** → Detect tracker from CLAUDE.md and create:
   - GitHub: `gh issue create --title "<type>: <title>" --body-file <plan_path>`
