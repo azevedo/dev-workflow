@@ -239,13 +239,20 @@ Use **AskUserQuestion** to present next steps:
 **Question:** "Brainstorm captured! What would you like to do next?"
 
 **Options:**
-1. **Proceed to planning** — Run `/ba:plan` (will auto-detect this brainstorm)
-2. **Review and refine** — Revisit and improve specific sections
-3. **Ask more questions** — I'll probe deeper on edge cases and constraints
-4. **Done for now** — Return later
+1. **Proceed to planning** — Run `/ba:plan` in this session (will auto-detect this brainstorm)
+2. **Fresh-context planning** — Clear context and plan with only the brainstorm loaded (saves tokens)
+3. **Review and refine** — Revisit and improve specific sections
+4. **Ask more questions** — I'll probe deeper on edge cases and constraints
+5. **Done for now** — Return later
 
 **Based on selection:**
-- **Proceed to planning** → Suggest: "Run `/ba:plan <feature_description>` — it will auto-detect this brainstorm."
+- **Proceed to planning** → Invoke `/ba:plan <feature_description>` directly in this session.
+- **Fresh-context planning** → Tell the user the exact command to copy-paste after clearing:
+  ```
+  Run `/clear`, then paste this:
+  /ba:plan — read docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md and plan that feature
+  ```
+  Use the **actual filename** of the brainstorm just written — not a placeholder.
 - **Review and refine** → Ask which section to improve, make changes, return to Phase 4
 - **Ask more questions** → Return to Phase 1.2 and continue dialogue, then return to Phase 4
 - **Done for now** → Display summary and exit
