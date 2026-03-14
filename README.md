@@ -57,6 +57,17 @@ Transforms feature descriptions into implementation plans with exact file paths 
 
 Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`.
 
+### `/ba:review-plan [path]`
+
+Runs discovery-based reviews against a plan before implementation. Automatically finds review agents and skills available in your environment (copy auditors, code reviewers, complexity assessors, test strategy reviewers) and offers to run them against the plan.
+
+This catches issues at plan time — where fixing things is cheap — instead of after code is written.
+
+- **Auto-detects the latest plan** if no path is given
+- **Discovery-based** — works with whatever review tools are installed (personal agents in `~/.claude/agents/`, project agents, plugin skills)
+- **Plan-aware framing** — tells each reviewer it's evaluating a proposal, not finished code
+- **Consolidated findings** — presents results as Must Address / Consider / Looks Good
+
 ## Convention Compliance
 
 Both commands run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
