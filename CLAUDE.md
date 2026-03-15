@@ -50,3 +50,4 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Convention-compliance check is mandatory before writing planning artifacts (brainstorms, plans) to disk
 - Research docs (`docs/research/`) are exempt — they are pre-convention ephemeral artifacts
 - Agents may declare `tools` in frontmatter to restrict available tools (e.g., locator agents use Grep, Glob, LS only — no Read)
+- Update README.md whenever commands, agents, or artifact paths are added or changed

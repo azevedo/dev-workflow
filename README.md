@@ -1,10 +1,10 @@
 # dev-workflow
 
-A Claude Code plugin that adds structured brainstorm, plan, and execute commands to your development workflow.
+A Claude Code plugin that adds structured research, brainstorm, plan, and execute commands to your development workflow.
 
 ## Why
 
-The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), review before writing code (`/ba:review-plan`), then implement against the approved plan (`/ba:execute`).
+The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), review before writing code (`/ba:review-plan`), then implement against the approved plan (`/ba:execute`).
 
 The design synthesizes patterns from three production agent workflow systems ([compound-engineering](https://github.com/EveryInc/compound-engineering-plugin), [humanlayer](https://github.com/humanlayer/12-factor-agents), [superpowers](https://github.com/obra/superpowers)), taking the best ideas from each and closing gaps they all share.
 
@@ -27,6 +27,17 @@ claude plugin install dev-workflow
 ```
 
 ## Commands
+
+### `/ba:research [question]`
+
+Conducts comprehensive codebase investigation using 5 parallel specialized agents, then writes a persistent research document.
+
+- **Parallel sub-agents** — all 5 agents run simultaneously; each has strict tool restrictions enforcing a "find before read" discipline
+- **Persistent docs** — results saved to `docs/research/` with YAML frontmatter and GitLab permalinks, surviving context resets
+- **Follow-up support** — additional questions append to the same document with timestamps; prior research detected across sessions
+- **Auto-detected by brainstorm/plan** — matching research docs within 14 days are surfaced as supplementary context automatically
+
+Research docs are gitignored ephemeral artifacts. Findings worth preserving permanently graduate to `docs/solutions/` via `/ba:compound`.
 
 ### `/ba:brainstorm [idea]`
 
@@ -81,7 +92,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 
 ## Convention Compliance
 
-Both commands run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
+Both brainstorm and plan commands run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
 
 The `convention-checker` agent reads your CLAUDE.md and project conventions, compares them against the draft, and classifies each as:
 
@@ -92,6 +103,8 @@ The `convention-checker` agent reads your CLAUDE.md and project conventions, com
 
 Violations are presented to you with options: comply, justify the override, or flag as known debt.
 
+Research docs (`docs/research/`) are exempt from compliance checks — they are pre-convention ephemeral artifacts.
+
 ## Agents
 
 | Agent | Purpose |
@@ -100,15 +113,23 @@ Violations are presented to you with options: comply, justify the override, or f
 | `learnings-researcher` | Searches `docs/solutions/` for prior learnings and gotchas |
 | `spec-flow-analyzer` | Maps user flows, discovers edge cases, identifies spec gaps |
 | `convention-checker` | Validates artifacts against project conventions |
+| `codebase-locator` | Finds WHERE files and components live (Grep/Glob/LS only — no file reading) |
+| `codebase-analyzer` | Understands HOW specific code works, with precise file:line references |
+| `codebase-pattern-finder` | Finds SIMILAR implementations and existing patterns with code examples |
+| `research-locator` | Discovers relevant docs in `docs/research/` (Grep/Glob/LS only) |
+| `research-analyzer` | Extracts high-value insights from research documents |
 
 ## Knowledge Compounding
 
 The plugin supports a `docs/solutions/` knowledge base. When you solve a problem, document it there. The `learnings-researcher` agent surfaces relevant learnings during future brainstorm and plan sessions, so the same mistakes aren't repeated.
 
+Research docs in `docs/research/` form a second, ephemeral layer: raw investigations that inform current work. Findings worth keeping permanently graduate to `docs/solutions/`.
+
 ## Artifact Paths
 
 | Artifact | Path |
 |---|---|
+| Research docs | `docs/research/YYYY-MM-DD-<description>-research.md` |
 | Brainstorm docs | `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md` |
 | Plan docs | `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` |
 | Learnings | `docs/solutions/<category>/<filename>.md` |
