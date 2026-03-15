@@ -1,10 +1,10 @@
 # dev-workflow
 
-A Claude Code plugin that adds structured brainstorm and plan commands to your development workflow.
+A Claude Code plugin that adds structured brainstorm, plan, and execute commands to your development workflow.
 
 ## Why
 
-The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: explore what to build (`/ba:brainstorm`), then define how to build it (`/ba:plan`), then implement.
+The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), review before writing code (`/ba:review-plan`), then implement against the approved plan (`/ba:execute`).
 
 The design synthesizes patterns from three production agent workflow systems ([compound-engineering](https://github.com/EveryInc/compound-engineering-plugin), [humanlayer](https://github.com/humanlayer/12-factor-agents), [superpowers](https://github.com/obra/superpowers)), taking the best ideas from each and closing gaps they all share.
 
@@ -68,6 +68,17 @@ This catches issues at plan time — where fixing things is cheap — instead of
 - **Plan-aware framing** — tells each reviewer it's evaluating a proposal, not finished code
 - **Consolidated findings** — presents results as Must Address / Consider / Looks Good
 
+### `/ba:execute [plan]`
+
+Implements an approved plan systematically: code changes, targeted testing, progress tracking, deviation reporting, and atomic commits.
+
+- **Auto-detects the latest actionable plan** if no path is given; skips `status: completed` plans
+- **Three plan detail levels** — MINIMAL (per acceptance criterion), STANDARD (per file block), COMPREHENSIVE (per phase with phase gates)
+- **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
+- **Resume across sessions** — updates plan checkboxes `[ ]` → `[x]` as tasks complete; detects and resumes from partial progress
+- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
+- **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
+
 ## Convention Compliance
 
 Both commands run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
@@ -104,10 +115,10 @@ The plugin supports a `docs/solutions/` knowledge base. When you solve a problem
 
 ## Roadmap
 
-- `/ba:execute` — hybrid plan execution (continuous with phase gates, opt-in batch mode, opt-in swarm for parallel tasks)
 - `/ba:validate` — post-implementation validation against plan
 - `/ba:compound` — capture solved problems to `docs/solutions/`
 - `/ba:handoff` — session continuity for multi-session work
+- `/ba:execute` V3 — batch mode and subagent-driven execution
 
 ## License
 
