@@ -81,6 +81,14 @@ Run these agents **in parallel** to gather local context:
 
 Wait for both agents before proceeding.
 
+**Also check for recent research docs:**
+
+```bash
+ls -t docs/research/*.md 2>/dev/null | head -5
+```
+
+If research docs exist within 14 days and their frontmatter tags match the feature topic, read the **Summary** section from the most relevant doc(s) and incorporate as supplementary context alongside agent findings. This supplements — does not replace — the repo-researcher and learnings-researcher agents.
+
 ## Step 1.5: Research Decision
 
 Based on signals from Step 0 and findings from Step 1, decide on external research.

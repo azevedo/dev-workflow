@@ -1,12 +1,13 @@
 {
   "name": "dev-workflow",
-  "version": "0.2.0",
-  "description": "Brainstorm, plan, and execute commands with triage, convention compliance, and knowledge compounding",
+  "version": "0.3.0",
+  "description": "Research, brainstorm, plan, and execute commands with triage, convention compliance, and knowledge compounding",
   "author": {
     "name": "Bruno Azevedo"
   },
   "license": "MIT",
   "keywords": [
+    "research",
     "brainstorm",
     "planning",
     "execute",
