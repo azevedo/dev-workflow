@@ -4,9 +4,15 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 ## Commands
 
+### Planning Commands (research and document — never write code)
+
 - `/ba:brainstorm [idea]` — Explore requirements and approaches before planning
 - `/ba:plan [feature]` — Create implementation plans from feature descriptions
 - `/ba:review-plan [path]` — Discovery-based plan review with available agents and skills
+
+### Execution Commands (implement approved plans)
+
+- `/ba:execute [plan]` — Execute an approved implementation plan
 
 ## Agents
 
@@ -29,5 +35,6 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Agent names: lowercase-with-hyphens
 - All artifacts require YAML frontmatter
 - Bump `version` in `.claude-plugin/plugin.json` for every release
-- Commands must never write code — only research and document
+- Planning commands (brainstorm, plan, review-plan) must never write code — only research and document
+- Execution commands (execute) implement approved plans — the plan is the authority on what to build
 - Convention-compliance check is mandatory before writing any artifact to disk
