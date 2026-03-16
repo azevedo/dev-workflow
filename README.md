@@ -25,6 +25,39 @@ claude plugin marketplace remove dev-workflow && claude plugin marketplace add a
 
 ## Commands
 
+### Starting a flow
+
+Two valid entry points — choose based on how well you understand the codebase area you're about to design in:
+
+```
+Do you understand the codebase area well enough to start a design conversation?
+    YES → /ba:brainstorm   (runs its own research internally)
+    NO  → Why not?
+
+        Unfamiliar or large codebase area?               → /ba:research first
+        Findings needed independently (team/stakeholders)?→ /ba:research first
+        Same research will feed multiple features?       → /ba:research first
+        Just need to explore an idea?                    → /ba:brainstorm (it'll guide you)
+```
+
+`/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
+
+**After `/ba:research`, should you brainstorm or plan next?**
+
+```
+After reading the research doc, do you know exactly what to do?
+    YES → /ba:plan   (plan also auto-detects the research doc)
+    NO  → /ba:brainstorm first
+
+        Research surfaced multiple approaches?           → /ba:brainstorm (pick one)
+        Scope or acceptance criteria still unclear?      → /ba:brainstorm (define them)
+        Single obvious fix, no design decisions?         → /ba:plan directly
+```
+
+Brainstorm produces scope boundaries and acceptance criteria that plan relies on. For a clear, single-approach fix that's well-understood, plan can consume the research doc directly and those artifacts aren't needed.
+
+---
+
 ### `/ba:research [question]`
 
 Conducts comprehensive codebase investigation using 5 parallel specialized agents, then writes a persistent research document.
