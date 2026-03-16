@@ -20,10 +20,7 @@ claude plugin install dev-workflow
 The plugin is installed from a cached snapshot. To pull the latest version:
 
 ```bash
-claude plugin marketplace remove dev-workflow
-# Install again
-claude plugin marketplace add azevedo/dev-workflow
-claude plugin install dev-workflow
+claude plugin marketplace remove dev-workflow && claude plugin marketplace add azevedo/dev-workflow && claude plugin install dev-workflow
 ```
 
 ## Commands
