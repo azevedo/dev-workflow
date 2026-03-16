@@ -18,6 +18,10 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 - `/ba:execute [plan]` — Execute an approved implementation plan
 
+### Quality Commands (review code — never write production code, only apply review fixes)
+
+- `/ba:review [ref range]` — Post-implementation code review with built-in and discovered reviewers
+
 ## Agents
 
 - `repo-researcher` — Codebase structure, patterns, and CLAUDE.md conventions
@@ -29,6 +33,11 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - `codebase-pattern-finder` — Find SIMILAR implementations and existing patterns (Read, Grep, Glob, LS)
 - `research-locator` — Discover relevant docs in `docs/research/` (Grep, Glob, LS only)
 - `research-analyzer` — Extract insights from research documents (Read, Grep, Glob, LS)
+- `architecture-reviewer` — Code patterns, coupling, separation of concerns, naming (built-in reviewer)
+- `security-reviewer` — XSS, sensitive data, auth patterns, input validation (built-in reviewer)
+- `simplification-reviewer` — Over-engineering, unnecessary abstraction, YAGNI (built-in reviewer)
+- `error-handling-reviewer` — Edge cases, error paths, graceful failures (built-in reviewer)
+- `test-coverage-reviewer` — Missing test scenarios, test quality, coverage gaps (built-in reviewer)
 
 ## Artifact Paths
 
@@ -50,4 +59,5 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Convention-compliance check is mandatory before writing planning artifacts (brainstorms, plans) to disk
 - Research docs (`docs/research/`) are exempt — they are pre-convention ephemeral artifacts
 - Agents may declare `tools` in frontmatter to restrict available tools (e.g., locator agents use Grep, Glob, LS only — no Read)
+- External review agents may declare `replaces: "<agent-name>"` in frontmatter to supersede a built-in reviewer in `/ba:review`
 - Update README.md whenever commands, agents, or artifact paths are added or changed

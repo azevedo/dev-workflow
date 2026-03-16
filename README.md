@@ -90,6 +90,17 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
+### `/ba:review [ref range]`
+
+Runs post-implementation code review using five built-in review agents plus any additional reviewers discovered in the environment.
+
+- **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
+- **Five built-in reviewers** — architecture, security, simplification, error handling, and test coverage; always available out of the box
+- **Extensible** — discovers external review agents and skills; external agents can declare `replaces: "<agent-name>"` to supersede a built-in
+- **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
+- **Structured findings** — Must Address / Consider / Looks Good with file:line references and conflict detection across reviewers
+- **Fix application** — apply all fixes, must-address only, or one-by-one with Accept/Skip per finding; runs targeted tests after applying
+
 ## Convention Compliance
 
 Both brainstorm and plan commands run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
@@ -118,6 +129,11 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `codebase-pattern-finder` | Finds SIMILAR implementations and existing patterns with code examples |
 | `research-locator` | Discovers relevant docs in `docs/research/` (Grep/Glob/LS only) |
 | `research-analyzer` | Extracts high-value insights from research documents |
+| `architecture-reviewer` | Reviews code changes for architectural consistency, coupling, separation of concerns, and naming conventions |
+| `security-reviewer` | Reviews code changes for security issues: XSS, sensitive data handling, auth patterns, and input validation |
+| `simplification-reviewer` | Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations |
+| `error-handling-reviewer` | Reviews code changes for edge cases, error paths, graceful failures, and loading/error states |
+| `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
 
 ## Knowledge Compounding
 
@@ -136,7 +152,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 
 ## Roadmap
 
-- `/ba:validate` — post-implementation validation against plan
+- `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
 - `/ba:compound` — capture solved problems to `docs/solutions/`
 - `/ba:handoff` — session continuity for multi-session work
 - `/ba:execute` V3 — batch mode and subagent-driven execution

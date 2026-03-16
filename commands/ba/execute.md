@@ -264,12 +264,14 @@ Use **AskUserQuestion**:
 **Question:** "All tasks complete. What would you like to do next?"
 
 **Options:**
-1. **Create MR/PR** — Generate a merge/pull request for the implemented changes
-2. **Review changes** — Show `git diff` against the base branch
-3. **Continue working** — Open-ended mode for additional changes beyond the plan
-4. **Done** — Wrap up
+1. **Review code** — Run `/ba:review` for post-implementation code quality review
+2. **Create MR/PR** — Generate a merge/pull request for the implemented changes
+3. **Review changes** — Show `git diff` against the base branch
+4. **Continue working** — Open-ended mode for additional changes beyond the plan
+5. **Done** — Wrap up
 
 **Based on selection:**
+- **Review code** → Invoke `/ba:review` directly. The review command will auto-detect scope from the current branch.
 - **Create MR/PR** → Detect VCS platform from git remote (GitHub → `gh pr create`, GitLab → `glab mr create`). Also check for available MR/PR skills or custom commands in the environment. If unclear, ask the user which tool to use. Use the plan title and overview + completion summary as the description.
 - **Review changes** → Show the diff, then return to options.
 - **Continue working** → Ask what they want to work on. Exit structured execution flow.

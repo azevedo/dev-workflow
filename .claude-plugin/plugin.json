@@ -1,6 +1,6 @@
 {
   "name": "dev-workflow",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Research, brainstorm, plan, and execute commands with triage, convention compliance, and knowledge compounding",
   "author": {
     "name": "Bruno Azevedo"
@@ -12,6 +12,7 @@
     "planning",
     "execute",
     "workflow",
-    "conventions"
+    "conventions",
+    "review"
   ]
 }
