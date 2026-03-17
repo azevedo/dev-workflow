@@ -14,78 +14,75 @@ Review actual code changes for quality, security, and design using built-in revi
 
 ---
 
-## Step 1: Determine Review Scope
+## Step 1: Determine Review Scope & Capture Diff
 
-### If explicit ref range provided above
+> **CRITICAL: Run git diff exactly ONCE.** This step captures the stat summary AND full diff in a single pass. Do NOT re-run `git diff` after this step — reuse the captured output for all subsequent steps including reviewer dispatch.
 
-Use it directly as the diff range.
+### 1a. Detect scope
 
-### If no arguments provided — smart scope detection
+**If explicit ref range provided above**, use it directly.
 
-Run these checks in order. Use the first that succeeds:
-
-**1. Feature branch detection:**
+**If no arguments provided**, run this single bash block to detect scope and capture everything at once:
 
 ```bash
+# Detect scope type
 DEFAULT_BRANCH=$(git rev-parse --verify main 2>/dev/null && echo main || (git rev-parse --verify master 2>/dev/null && echo master || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'))
 CURRENT_BRANCH=$(git branch --show-current)
+MERGE_BASE=$(git merge-base HEAD "$DEFAULT_BRANCH" 2>/dev/null)
+
+if [ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ] && [ -n "$MERGE_BASE" ]; then
+  DIFF_RANGE="$MERGE_BASE..HEAD"
+  SCOPE_TYPE="branch"
+elif [ -n "$(git diff --staged --name-only)" ]; then
+  DIFF_RANGE="--staged"
+  SCOPE_TYPE="staged"
+elif [ -n "$(git log --oneline -1 2>/dev/null)" ]; then
+  DIFF_RANGE="HEAD~5..HEAD"
+  SCOPE_TYPE="recent"
+else
+  echo "NO_CHANGES"
+  exit 0
+fi
+
+echo "---SCOPE---"
+echo "SCOPE_TYPE=$SCOPE_TYPE"
+echo "DIFF_RANGE=$DIFF_RANGE"
+echo "CURRENT_BRANCH=$CURRENT_BRANCH"
+echo "DEFAULT_BRANCH=$DEFAULT_BRANCH"
+echo "---STAT---"
+git diff $DIFF_RANGE --stat
+echo "---CHANGED_FILES---"
+git diff $DIFF_RANGE --name-only
+echo "---DIFF---"
+git diff $DIFF_RANGE
 ```
 
-If `CURRENT_BRANCH` differs from `DEFAULT_BRANCH`:
-- Base ref: `git merge-base HEAD $DEFAULT_BRANCH`
-- Diff: `git diff $(git merge-base HEAD $DEFAULT_BRANCH)..HEAD --stat`
-- Use this scope.
+If output contains `NO_CHANGES`, tell the user: "No changes detected to review. Run with a git ref range, e.g., `/ba:review abc123..def456`" and exit.
 
-**2. Staged changes:**
+### 1b. Announce scope
 
-```bash
-git diff --staged --stat
-```
-
-If output is non-empty, review staged changes.
-
-**3. Recent commits:**
-
-```bash
-git log --oneline -5
-```
-
-If commits exist, review the last 5 commits.
-
-**4. Nothing found:**
-
-Tell the user: "No changes detected to review. Run with a git ref range, e.g., `/ba:review abc123..def456`" and exit.
-
-### Announce scope
-
-Always announce what will be reviewed before proceeding:
+From the `---STAT---` section, announce:
 
 "Reviewing [scope type]: [details] ([N] files, [N] lines changed)."
 
-Examples:
-- "Reviewing branch `feature/auth` vs `main` (12 files, 340 lines changed)."
-- "Reviewing staged changes (3 files, 45 lines changed)."
-- "Reviewing last 5 commits (8 files, 520 lines changed)."
+### 1c. Gather plan context
 
-### Gather context
-
-Check for a recent plan that may provide intent:
+Check for a recent plan in parallel (this is the only other bash call needed):
 
 ```bash
 ls -t docs/plans/*.md 2>/dev/null | head -1
 ```
 
-If found and created within last 7 days, read its Overview and Acceptance Criteria sections. Pass this context to reviewers so they understand what was being implemented.
+If found and created within last 7 days, read its Overview and Acceptance Criteria sections. Pass this context to reviewers.
 
-### Capture the diff
+### 1d. Store captured data
 
-Store the full diff for passing to reviewers:
+You now have everything needed for the rest of the workflow:
+- **STAT** — from the `---STAT---` section
+- **CHANGED_FILES** — from the `---CHANGED_FILES---` section
+- **FULL_DIFF** — from the `---DIFF---` section
 
-```bash
-git diff <base_ref>..HEAD    # for branch scope
-git diff --staged             # for staged scope
-git diff HEAD~5..HEAD         # for recent commits scope
-```
+**Do NOT run any more `git diff` commands.** Pass the captured diff directly to reviewers in Step 3.
 
 If the diff exceeds 2000 lines, warn: "Large diff detected ([N] lines). Review quality may decrease for very large changes. Proceed?"
 
@@ -107,12 +104,26 @@ List the five built-in review agents from `agents/review/`:
 
 ### 2b. Discover external reviewers
 
-Search for additional review agents and skills in the environment:
+Scan for review-capable agents and skills using concrete file discovery. Run these in parallel:
 
-- Check available skills listed in the system context
-- Check for agents in `~/.claude/agents/` and project `.claude/agents/`
-- Look for agents/skills with "review", "code-review", "quality", "lint", "audit" in name/description
-- Filter: only include those relevant to reviewing actual code (not plan reviewers)
+**Agent files** — Use the Glob tool to find agent definitions:
+
+```
+Glob("**/*.md", path="~/.claude/agents/")
+Glob("**/*.md", path=".claude/agents/")
+```
+
+Read each discovered file's frontmatter (first 15 lines). Include the agent if its `name` or `description` contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit".
+
+Exclude agents that are clearly not code reviewers (e.g., plan reviewers, test runners, implementation specialists).
+
+**Skills** — Scan the available skills listed in the system-reminder context. Include any skill whose name or description matches the same keywords above. Exclude plan-review skills (like `ba:review-plan`).
+
+For each discovered external reviewer, record:
+- **name**: from frontmatter
+- **description**: from frontmatter
+- **source**: "agent" or "skill"
+- **replaces**: value of `replaces` field in frontmatter, if present (e.g., `replaces: architecture-reviewer`)
 
 ### 2c. Deduplicate
 
