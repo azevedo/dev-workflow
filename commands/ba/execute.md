@@ -142,27 +142,41 @@ If a concern is found: surface it as a brief note to the user. Do NOT block exec
 
 Update the plan file: change the completed task's `[ ]` to `[x]` using the Edit tool.
 
-### 2f. Commit Decision
+### 2f. Commit Check (MANDATORY)
 
-Evaluate whether to commit now based on detail level:
+**You MUST commit at logical boundaries. Do NOT defer all commits to the end.**
 
-- **MINIMAL**: Commit after all acceptance criteria pass (single commit at end).
-- **STANDARD**: Commit after completing each logical group of file changes (typically each "Changes Required" section).
-- **COMPREHENSIVE**: Commit after each completed phase (before the phase gate).
+Evaluate after each task using this table:
 
-Also commit immediately if:
-- About to start a risky or experimental change
-- Context switch between unrelated areas of code
-- Significant chunk of work done (>3 files changed uncommitted)
+| Commit when... | Don't commit when... |
+|----------------|---------------------|
+| Logical unit complete (types, function, component, test file) | Small part of a larger unit |
+| Tests pass + meaningful progress | Tests failing |
+| About to switch contexts (data layer → UI layer) | Purely scaffolding with no behavior |
+| >3 files changed since last commit | Would need a "WIP" commit message |
+| About to start risky or experimental changes | |
 
-**Commit format**:
-```
-<type>(<scope>): <description>
+**Heuristic:** "Can I write a commit message that describes a complete, valuable change? If yes, commit now. If the message would be 'WIP' or 'partial X', wait — but no longer than 3 files."
 
-Plan: docs/plans/<filename>
+**Detail-level boundaries:**
+- **MINIMAL**: Single commit after all acceptance criteria pass.
+- **STANDARD**: One commit per "Changes Required" section or logical group. Typically 3-6 commits per plan.
+- **COMPREHENSIVE**: One commit per completed phase (before the phase gate).
+
+**Commit workflow:**
+```bash
+# 1. Stage only files related to this logical unit (NOT `git add .`)
+git add <files related to this logical unit>
+
+# 2. Commit with conventional message referencing the plan
+git commit -m "<type>(<scope>): <description>
+
+Plan: docs/plans/<filename>"
 ```
 
 Where `<type>` matches the plan's type (feat, fix, refactor). The scope is the primary affected area.
+
+**IMPORTANT**: If you realize you have >3 files changed without a commit, STOP implementing and commit immediately before continuing.
 
 ---
 
@@ -285,7 +299,7 @@ Use **AskUserQuestion**:
 - **Track progress in the plan file.** Every completed task gets `[x]`. This is how resume works.
 - **Test after every task — targeted, not full suite.** Run tests related to changed files. Defer full suite + lint to completion or CI.
 - **Report deviations immediately.** Don't silently work around plan/reality mismatches.
-- **Commit at logical boundaries.** Each commit should pass tests and represent a coherent unit of work.
+- **Commit at logical boundaries — this is mandatory, not optional.** Each commit should pass tests and represent a coherent unit of work. Never reach completion with zero incremental commits on a STANDARD or COMPREHENSIVE plan.
 - **Evidence-based completion.** Never claim "done" without showing passing tests.
 - **No convention-checker during execution.** Tests and linting are the quality gates for code.
 - **Respect phase gates.** For COMPREHENSIVE plans, never skip manual verification between phases without user consent.
