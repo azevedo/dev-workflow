@@ -43,10 +43,21 @@ Search for review agents and skills available in the current environment. Look f
 | **Test strategy review** | Agents or skills with "test" in name/description | Test proposals, coverage gaps, testing approach |
 | **Security review** | Agents with "security", "sentinel" in name/description | Security implications of the proposed changes |
 
-**Discovery method:**
-- Check ALL skills listed in the system-reminder context — skills match if name or description contains: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "copy", "content", "writing", "security", "complexity", "test"
-- Check for agents in `~/.claude/agents/` and `.claude/agents/`
-- Skills are valid reviewers even if they are not in an `/agents` directory
+**Discovery method — run all Glob calls in parallel:**
+
+```
+Glob("**/*.md", path="~/.claude/agents/")
+Glob("**/*.md", path=".claude/agents/")
+Glob("**/*.md", path="~/.claude/skills/")
+Glob("**/*.md", path="~/.claude/commands/")
+Glob("**/*.md", path=".claude/commands/")
+```
+
+Read each discovered file's frontmatter (first 15 lines). The frontmatter is the authoritative source — it may be richer than the system-reminder summary. Include if `name`, `description`, or any frontmatter field contains: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "copy", "content", "writing", "security", "complexity", "test", "pattern", "architecture", "composition".
+
+Also scan the system-reminder skills list as a fallback for skills not stored as files. Apply the same keyword matching.
+
+Skills and commands are valid reviewers regardless of which directory they live in.
 
 **Present ALL discovered reviewers to the user — let the user decide which to run.** Code reviewers (like `architecture-reviewer`, `security-reviewer`) are meaningful for plans too: they can evaluate architectural decisions and security implications of the proposed approach. Only exclude tools that truly cannot operate on text (e.g., linters, formatters, type checkers that require actual compilable source files).
 

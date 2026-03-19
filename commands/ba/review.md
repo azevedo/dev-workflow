@@ -106,24 +106,23 @@ List the five built-in review agents from `agents/review/`:
 
 ### 2b. Discover external reviewers
 
-Scan for review-capable agents and skills using concrete file discovery. Run these in parallel:
-
-**Agent files** — Use the Glob tool to find agent definitions:
+Scan for review-capable agents and skills using concrete file discovery. Run all Glob calls in parallel:
 
 ```
 Glob("**/*.md", path="~/.claude/agents/")
 Glob("**/*.md", path=".claude/agents/")
+Glob("**/*.md", path="~/.claude/skills/")
+Glob("**/*.md", path="~/.claude/commands/")
+Glob("**/*.md", path=".claude/commands/")
 ```
 
-Read each discovered file's frontmatter (first 15 lines). Include the agent if its `name` or `description` contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance".
+Read each discovered file's frontmatter (first 15 lines). The frontmatter is the authoritative source — it may be richer than the system-reminder summary. Include the file if its `name`, `description`, or any frontmatter field contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "pattern", "architecture", "composition".
 
-Exclude agents that are clearly not code reviewers (e.g., plan reviewers, test runners, implementation specialists). Exclude the built-in agents already listed in 2a (they're already included).
+Exclude files that are clearly orchestration commands or non-review tools (e.g., plan writers, test runners, implementation specialists). Exclude the built-in agents already listed in 2a.
 
-**Skills** — Scan ALL skills listed in the system-reminder context. Include any skill whose name or description matches any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance".
+**Also scan the system-reminder skills list** as a fallback for skills not stored as files. Include any skill whose name or description matches the same keywords above. Exclude: `ba:review`, `ba:review-plan`, and other orchestration skills.
 
-Exclude: `ba:review`, `ba:review-plan`, and other orchestration skills (not reviewers themselves).
-
-**Skills are valid reviewers even if they are not in an `/agents` directory.** A skill that performs code review, audit, or quality assessment should be included — it will be invoked via the Skill tool in Step 3 rather than the Agent tool.
+**Skills and commands are valid reviewers regardless of which directory they live in.** A skill that performs code review, audit, or quality assessment should be included.
 
 For each discovered external reviewer, record:
 - **name**: from frontmatter
