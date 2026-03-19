@@ -44,11 +44,11 @@ Search for review agents and skills available in the current environment. Look f
 | **Security review** | Agents with "security", "sentinel" in name/description | Security implications of the proposed changes |
 
 **Discovery method:**
-- Check the available skills listed in the system context
-- Check for agents in `~/.claude/agents/` and project `.claude/agents/`
-- Note which ones are relevant to reviewing a *plan* (not all are — a linter isn't useful on a markdown plan)
+- Check ALL skills listed in the system-reminder context — skills match if name or description contains: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "copy", "content", "writing", "security", "complexity", "test"
+- Check for agents in `~/.claude/agents/` and `.claude/agents/`
+- Skills are valid reviewers even if they are not in an `/agents` directory
 
-**Important:** Not all discovered tools are appropriate for plan review. A plan contains *proposed* code and *strategy*, not finished implementation. Filter for reviewers that can meaningfully evaluate proposals, approaches, and design — skip tools that only work on actual source code (e.g., linters, formatters, type checkers).
+**Present ALL discovered reviewers to the user — let the user decide which to run.** Code reviewers (like `architecture-reviewer`, `security-reviewer`) are meaningful for plans too: they can evaluate architectural decisions and security implications of the proposed approach. Only exclude tools that truly cannot operate on text (e.g., linters, formatters, type checkers that require actual compilable source files).
 
 ---
 
@@ -68,7 +68,11 @@ Include all relevant reviewers found. The user picks which to run.
 
 ## Step 3: Run Selected Reviewers
 
-Run the selected reviewers **in parallel** where possible. For each:
+Run the selected reviewers **in parallel** where possible. Every reviewer runs in its own isolated subagent context via the Agent tool — regardless of whether it is an agent or a skill.
+
+For **skill-based reviewers**, instruct the subagent to invoke the skill (e.g., "Use the `[skill-name]` skill to review this plan.") and pass the plan content as context.
+
+For each:
 
 1. Provide the plan content as context
 2. Frame the review appropriately: "This is a *plan*, not finished code. Review the proposed approach, not implementation details that don't exist yet."

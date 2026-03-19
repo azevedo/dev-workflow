@@ -102,6 +102,8 @@ List the five built-in review agents from `agents/review/`:
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Missing test scenarios, test quality |
 
+**All five built-in reviewers MUST appear as options in Step 2d. Do not filter or omit any.**
+
 ### 2b. Discover external reviewers
 
 Scan for review-capable agents and skills using concrete file discovery. Run these in parallel:
@@ -113,11 +115,15 @@ Glob("**/*.md", path="~/.claude/agents/")
 Glob("**/*.md", path=".claude/agents/")
 ```
 
-Read each discovered file's frontmatter (first 15 lines). Include the agent if its `name` or `description` contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit".
+Read each discovered file's frontmatter (first 15 lines). Include the agent if its `name` or `description` contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance".
 
-Exclude agents that are clearly not code reviewers (e.g., plan reviewers, test runners, implementation specialists).
+Exclude agents that are clearly not code reviewers (e.g., plan reviewers, test runners, implementation specialists). Exclude the built-in agents already listed in 2a (they're already included).
 
-**Skills** — Scan the available skills listed in the system-reminder context. Include any skill whose name or description matches the same keywords above. Exclude plan-review skills (like `ba:review-plan`).
+**Skills** — Scan ALL skills listed in the system-reminder context. Include any skill whose name or description matches any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance".
+
+Exclude: `ba:review`, `ba:review-plan`, and other orchestration skills (not reviewers themselves).
+
+**Skills are valid reviewers even if they are not in an `/agents` directory.** A skill that performs code review, audit, or quality assessment should be included — it will be invoked via the Skill tool in Step 3 rather than the Agent tool.
 
 For each discovered external reviewer, record:
 - **name**: from frontmatter
@@ -150,7 +156,9 @@ If the user selects nothing, ask: "No reviewers selected. Would you like to exit
 
 ## Step 3: Run Reviews in Parallel
 
-For each selected reviewer, dispatch a fresh subagent using the Agent tool:
+For each selected reviewer, dispatch a fresh subagent using the Agent tool — regardless of whether it is an agent or a skill. Every reviewer must run in its own isolated context.
+
+For **agent-based reviewers**, prompt the subagent directly:
 
 - Task <reviewer-agent>("Review these code changes for [dimension focus].
 
@@ -164,6 +172,21 @@ Diff:
 Changed files: [list of changed file paths]
 
 Review the diff AND read the full content of changed files for context. Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
+
+For **skill-based reviewers**, instruct the subagent to invoke the skill:
+
+- Task general-purpose("Use the `[skill-name]` skill to review these code changes.
+
+Context:
+- Scope: [scope description]
+- Plan context: [overview + acceptance criteria from plan, if available]
+
+Diff:
+[the captured diff]
+
+Changed files: [list of changed file paths]
+
+Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
 
 Run all selected reviewers **in parallel**.
 
