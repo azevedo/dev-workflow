@@ -43,7 +43,7 @@ Search for review agents and skills available in the current environment. Look f
 | **Test strategy review** | Agents or skills with "test" in name/description | Test proposals, coverage gaps, testing approach |
 | **Security review** | Agents with "security", "sentinel" in name/description | Security implications of the proposed changes |
 
-**Discovery method — run all Glob calls in parallel:**
+**Discovery method — this step is mandatory, do not skip it. Run all Glob calls in parallel:**
 
 ```
 Glob("**/*.md", path="~/.claude/agents/")
@@ -65,15 +65,15 @@ Skills and commands are valid reviewers regardless of which directory they live 
 
 ## Step 2: Present Available Reviewers
 
-Use **AskUserQuestion** with `multiSelect: true`:
+Use **AskUserQuestion** with `multiSelect: true`.
 
-**Question:** "I found these reviewers available in your environment. Which ones should I run against the plan?"
+**Each reviewer gets its own individual option.** Never bundle, group, or create preset combinations — the user needs fine-grained control.
 
-List each discovered reviewer as an option with:
-- **Label**: The reviewer name
-- **Description**: What it will check in the plan
+**Question:** "Which reviewers should I run against the plan?"
 
-Include all relevant reviewers found. The user picks which to run.
+One option per reviewer. If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."
+
+Include all discovered reviewers — none pre-selected. The user picks which to run.
 
 ---
 

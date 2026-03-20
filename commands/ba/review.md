@@ -106,7 +106,7 @@ List the five built-in review agents from `agents/review/`:
 
 ### 2b. Discover external reviewers
 
-Scan for review-capable agents and skills using concrete file discovery. Run all Glob calls in parallel:
+**This step is mandatory.** Do not skip it or substitute it with a curated list. Run all Glob calls in parallel:
 
 ```
 Glob("**/*.md", path="~/.claude/agents/")
@@ -139,15 +139,24 @@ For each discovered external reviewer:
 
 ### 2d. Present unified list
 
-Use **AskUserQuestion** with `multiSelect: true`:
+Use **AskUserQuestion** with `multiSelect: true`.
 
-**Question:** "Which reviewers should I run against your changes?"
+**Each reviewer gets its own individual option.** Never bundle, group, or create preset combinations. The user needs fine-grained control — they may want all reviewers except one, which is impossible with bundles.
 
-List each reviewer as an option:
-- **Label**: Reviewer name (mark built-in vs external)
-- **Description**: What it focuses on
+**Question:** "Which reviewers should I run?"
 
-Pre-select all built-in reviewers. External reviewers are unselected by default.
+One option per reviewer, in this order: built-ins first (pre-selected), then external/discovered (unselected):
+
+```
+[✓] Architecture reviewer (built-in) — Codebase patterns, coupling, separation of concerns, naming
+[✓] Security reviewer (built-in) — XSS, sensitive data, auth patterns
+[✓] Simplification reviewer (built-in) — Over-engineering, unnecessary abstraction, YAGNI
+[✓] Error handling reviewer (built-in) — Edge cases, error paths, graceful failures
+[✓] Test coverage reviewer (built-in) — Missing test scenarios, test quality
+[ ] <each discovered external reviewer, one per line>
+```
+
+If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."
 
 If the user selects nothing, ask: "No reviewers selected. Would you like to exit or re-select?"
 
