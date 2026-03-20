@@ -139,6 +139,20 @@ Use **AskUserQuestion**:
 3. **Review one by one** — Go through each finding and decide
 4. **Done** — Acknowledge findings, don't modify the plan
 
+### Handling "Consider" items
+
+Before writing any "Consider" fix into the plan, classify it:
+
+**Implementation decision** — something the implementer can resolve with full context during execution (e.g., which utility to use, how to structure a helper). Write it into the plan as concrete guidance: a decision already made, not a question left open.
+
+**Spec decision** — something that affects acceptance criteria, user-facing behaviour, scope, or requires stakeholder input (e.g., "should this error be dismissible?", "do we support X edge case?"). These must be resolved **before execution begins**.
+
+For spec decisions, the valid resolutions are:
+1. **Decide now** — answer the question, update the plan with the decision
+2. **Iterate the plan** — flag it as a blocker, return to brainstorm/planning before executing
+
+**Never write a spec decision into the plan as an open question.** An open question in a plan is a spec gap that will be silently decided during implementation, outside any review or planning process. If the answer is unknown, the plan is not ready to execute.
+
 If applying fixes, edit the plan file directly, then confirm: "Plan updated at `[path]`."
 
 ---
