@@ -33,6 +33,24 @@ Read the plan file thoroughly before proceeding.
 
 Search for review agents and skills available in the current environment. Look for anything that can review a plan's proposals.
 
+### 1a. Built-in reviewers
+
+Always include these five built-in reviewers — they live in `agents/review/` and are always available:
+
+| Agent | Focus |
+|---|---|
+| `architecture-reviewer` | Architectural consistency, coupling, separation of concerns |
+| `security-reviewer` | Security implications of proposed changes |
+| `simplification-reviewer` | Over-engineering, unnecessary abstraction, YAGNI |
+| `error-handling-reviewer` | Edge cases, error paths, graceful failures |
+| `test-coverage-reviewer` | Test proposals, coverage gaps, testing approach |
+
+**All five MUST appear as options in Step 2. Do not filter or omit any.**
+
+### 1b. External reviewers
+
+Search for additional review agents and skills available in the current environment. Look for anything that can review a plan's proposals.
+
 **Check for these categories of reviewers (not an exhaustive list — discover what's available):**
 
 | Category | What to look for | What it reviews in the plan |
@@ -61,6 +79,8 @@ Skills and commands are valid reviewers regardless of which directory they live 
 
 **Present ALL discovered reviewers to the user — let the user decide which to run.** Code reviewers (like `architecture-reviewer`, `security-reviewer`) are meaningful for plans too: they can evaluate architectural decisions and security implications of the proposed approach. Only exclude tools that truly cannot operate on text (e.g., linters, formatters, type checkers that require actual compilable source files).
 
+For each external reviewer, check if it declares `replaces: "<agent-name>"` in its frontmatter. If so, remove the built-in it replaces and add the external in its place.
+
 ---
 
 ## Step 2: Present Available Reviewers
@@ -71,9 +91,18 @@ Use **AskUserQuestion** with `multiSelect: true`.
 
 **Question:** "Which reviewers should I run against the plan?"
 
-One option per reviewer. If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."
+One option per reviewer, in this order: built-ins first (pre-selected), then external/discovered (unselected):
 
-Include all discovered reviewers — none pre-selected. The user picks which to run.
+```
+[✓] Architecture reviewer — Architectural consistency, coupling, separation of concerns
+[✓] Security reviewer — Security implications of proposed changes
+[✓] Simplification reviewer — Over-engineering, unnecessary abstraction, YAGNI
+[✓] Error handling reviewer — Edge cases, error paths, graceful failures
+[✓] Test coverage reviewer — Test proposals, coverage gaps, testing approach
+[ ] <each discovered external reviewer, one per line>
+```
+
+If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."
 
 ---
 
