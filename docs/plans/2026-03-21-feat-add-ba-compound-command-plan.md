@@ -1,7 +1,7 @@
 ---
 title: "feat: Add /ba:compound knowledge documentation command"
 type: feat
-status: in-progress
+status: completed
 date: 2026-03-21
 origin: docs/brainstorms/2026-03-21-ba-compound-brainstorm.md
 detail_level: standard
