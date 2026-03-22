@@ -124,6 +124,15 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 
 Runs post-implementation code review using five built-in review agents plus any additional reviewers discovered in the environment.
 
+### `/ba:compound [context]`
+
+Documents solved problems into `docs/solutions/` so the `learnings-researcher` agent surfaces them in future brainstorm and plan sessions. Closes the knowledge compounding loop.
+
+- **5 parallel subagents** — Context Analyzer, Solution Extractor, Related-Docs Finder, Prevention Strategist, Category Classifier
+- **Auto-trigger** — fires on solution-confirmation phrases ("that worked", "it's fixed", "problem solved") with a brief confirmation prompt
+- **Explicit invocation** — `/ba:compound` or `/ba:compound [context hint]` for immediate documentation
+- **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
+
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
 - **Five built-in reviewers** — architecture, security, simplification, error handling, and test coverage; always available out of the box
 - **Extensible** — discovers external review agents and skills; external agents can declare `replaces: "<agent-name>"` to supersede a built-in
@@ -167,9 +176,9 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 
 ## Knowledge Compounding
 
-The plugin supports a `docs/solutions/` knowledge base. When you solve a problem, document it there. The `learnings-researcher` agent surfaces relevant learnings during future brainstorm and plan sessions, so the same mistakes aren't repeated.
+The plugin includes a `docs/solutions/` knowledge base and the `/ba:compound` command to populate it. When you solve a problem, run `/ba:compound` (or let it auto-trigger) to document the solution. The `learnings-researcher` agent surfaces relevant learnings during future brainstorm and plan sessions, so the same mistakes aren't repeated.
 
-Research docs in `docs/research/` form a second, ephemeral layer: raw investigations that inform current work. Findings worth keeping permanently graduate to `docs/solutions/`.
+Research docs in `docs/research/` form a second, ephemeral layer: raw investigations that inform current work. Findings worth keeping permanently graduate to `docs/solutions/` via `/ba:compound`.
 
 ## Artifact Paths
 
@@ -183,7 +192,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 ## Roadmap
 
 - `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
-- `/ba:compound` — capture solved problems to `docs/solutions/`
+- `/ba:compound` — capture solved problems to `docs/solutions/` ✅
 - `/ba:handoff` — session continuity for multi-session work
 - `/ba:execute` V3 — batch mode and subagent-driven execution
 

@@ -22,6 +22,10 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 - `/ba:review [ref range]` — Post-implementation code review with built-in and discovered reviewers
 
+### Knowledge Commands (capture and document — never write code)
+
+- `/ba:compound [context]` — Document solved problems to `docs/solutions/` for future learnings
+
 ## Agents
 
 - `repo-researcher` — Codebase structure, patterns, and CLAUDE.md conventions
