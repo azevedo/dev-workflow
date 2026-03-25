@@ -196,6 +196,28 @@ Changed files: [list of changed file paths]
 
 Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
 
+For **user-typed reviewers** (names typed manually that are not in the built-in or discovered lists):
+
+Before dispatching, **resolve the name** against known skills and agents:
+
+1. **Normalize:** strip any leading `/` from the typed name to get the bare name
+2. **Match against skills:** check if the bare name (or any prefix-qualified variant like `namespace:bare-name`) appears in the system-reminder skills list. Also check if a `/bare-name` skill exists. If matched → dispatch as a **skill-based reviewer** (same template as above)
+3. **Match against agent types:** check if the bare name is a registered agent type (from the Agent tool's available types). If matched → dispatch as an **agent-based reviewer** (same template as above)
+4. **No match → custom review dimension:** dispatch as a `general-purpose` subagent — do NOT use the typed name as `subagent_type` since it won't be a registered agent type:
+
+- Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens.
+
+Context:
+- Scope: [scope description]
+- Plan context: [overview + acceptance criteria from plan, if available]
+
+Diff:
+[the captured diff]
+
+Changed files: [list of changed file paths]
+
+Review the diff AND read the full content of changed files for context. Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
+
 Run all selected reviewers **in parallel**.
 
 If a reviewer fails or returns empty: note it for the summary but do not block other results.
