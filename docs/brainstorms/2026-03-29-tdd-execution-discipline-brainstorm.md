@@ -32,7 +32,7 @@ Rationale: iterate and experiment in isolation. If it proves itself, consider me
 
 - **Behaviors come from the plan**: `/ba:plan` gains an optional "Behaviors to Test" section where testable behaviors are identified and user-prioritized during planning. `/ba:tdd` consumes this section for its tracer-bullet loop. This keeps the plan as the authority.
 
-- **Per-cycle gate via dedicated agent**: A `tdd-cycle-gate` agent validates each red-to-green cycle silently and surfaces only violations. This encodes Pocock's per-cycle checklist ("test describes behavior not implementation, test uses public interface only, test would survive internal refactor, code is minimal") as an automated gate.
+- **Per-cycle gate via dedicated agent**: A `tdd-cycle-gate` agent validates each red-to-green cycle silently and surfaces only violations. This encodes Pocock's per-cycle checklist ("test describes behavior not implementation, test uses public interface only, test would survive internal refactor, code is minimal") as an automated gate. The gate should also detect LLM-specific anti-patterns: tests being mutated during the green phase to make them pass (instead of writing real implementation), and tests that aren't responsive to the previous implementation cycle — each test should be a "conversation with its own code," interrogating actual behavior discovered in the prior cycle, not pre-planned checkbox items.
 
 - **Single refactor phase at end**: After ALL behaviors are green, one refactor phase dispatches the `refactor-advisor` agent. This matches Pocock's "never refactor while RED" principle and gives Ousterhout principles a structured moment to guide design improvements.
 
@@ -63,7 +63,7 @@ Rationale: iterate and experiment in isolation. If it proves itself, consider me
 - Command reads a plan file (auto-detect or explicit path, same as `/ba:execute`)
 - Command extracts "Behaviors to Test" from the plan (or falls back to acceptance criteria / interactive definition)
 - Execution follows the tracer-bullet loop: one failing test → minimal implementation → gate check → repeat
-- `tdd-cycle-gate` agent validates each cycle (test describes behavior, uses public interface, survives refactor, code is minimal)
+- `tdd-cycle-gate` agent validates each cycle (test describes behavior, uses public interface, survives refactor, code is minimal, test not mutated to pass, test responsive to prior cycle)
 - After all behaviors green, refactor phase dispatches `refactor-advisor` agent
 - `refactor-advisor` agent provides Ousterhout-informed guidance (deep modules, interface simplification, duplication extraction)
 - Tests must stay green throughout refactor phase
