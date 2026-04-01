@@ -38,6 +38,10 @@ Do you understand the codebase area well enough to start a design conversation?
         Findings needed independently (team/stakeholders)?→ /ba:research first
         Same research will feed multiple features?       → /ba:research first
         Just need to explore an idea?                    → /ba:brainstorm (it'll guide you)
+
+After planning, choose your execution mode:
+    Plan has testable behaviors / want test-first discipline? → /ba:tdd
+    Straightforward implementation?                          → /ba:execute
 ```
 
 `/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
@@ -120,6 +124,17 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
+### `/ba:tdd [plan]`
+
+Executes an approved plan using test-driven development discipline: one failing test, minimal implementation, per-cycle validation, repeat. After all behaviors are green, a dedicated refactor phase with Ousterhout deep-module principles.
+
+- **Behaviors from the plan** — extracts "Behaviors to Test" section, falls back to acceptance criteria, or asks interactively
+- **Tracer-bullet loop** — RED (write failing test) → confirm RED → GREEN (minimal implementation) → confirm GREEN → regression check → cycle gate → repeat
+- **Per-cycle gate** — `tdd-cycle-gate` agent validates each cycle silently; surfaces only violations (test describes behavior, uses public interface, code is minimal, no test mutation)
+- **LLM-specific anti-patterns** — detects tests mutated during GREEN phase and tests not responsive to prior implementation cycle
+- **Refactor phase** — after all behaviors green, `refactor-advisor` agent provides Ousterhout-guided suggestions (deep modules, dependency injection, return results over side effects)
+- **Same infrastructure as `/ba:execute`** — branch check, resume detection, targeted testing, checkpoint tracking, commit discipline, completion menu
+
 ### `/ba:review [ref range]`
 
 Runs post-implementation code review using five built-in review agents plus any additional reviewers discovered in the environment.
@@ -173,6 +188,8 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `simplification-reviewer` | Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations |
 | `error-handling-reviewer` | Reviews code changes for edge cases, error paths, graceful failures, and loading/error states |
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
+| `tdd-cycle-gate` | Validates each TDD red-to-green cycle for discipline compliance and LLM anti-patterns |
+| `refactor-advisor` | Provides Ousterhout deep-module refactoring guidance after TDD behaviors are green |
 
 ## Knowledge Compounding
 
@@ -193,8 +210,10 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 
 - `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
 - `/ba:compound` — capture solved problems to `docs/solutions/` ✅
+- `/ba:tdd` — TDD execution discipline with per-cycle validation and deep-module refactoring ✅
 - `/ba:handoff` — session continuity for multi-session work
 - `/ba:execute` V3 — batch mode and subagent-driven execution
+- Merge `/ba:tdd` into `/ba:execute` as an execution mode — after `/ba:tdd` is validated through real usage
 
 ## License
 

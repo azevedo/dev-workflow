@@ -210,6 +210,11 @@ tags: [feature, component-names]
 
 [Explicit scope boundaries — prevents scope creep]
 
+## Behaviors to Test *(optional — consumed by `/ba:tdd`)*
+
+- [ ] [Testable behavior derived from acceptance criteria]
+- [ ] [Another testable behavior]
+
 ## Context
 
 [Critical information: relevant files, patterns to follow]
@@ -244,6 +249,12 @@ tags: [feature, component-names]
 ## What We're NOT Doing
 
 [Explicit scope boundaries]
+
+## Behaviors to Test *(optional — consumed by `/ba:tdd`)*
+
+- [ ] [Testable behavior 1 — what the code should do, not how]
+- [ ] [Testable behavior 2]
+- [ ] [Testable behavior 3]
 
 ## Proposed Solution
 
@@ -305,6 +316,12 @@ tags: [feature, component-names]
 ## What We're NOT Doing
 
 [Explicit scope boundaries]
+
+## Behaviors to Test *(optional — consumed by `/ba:tdd`)*
+
+- [ ] [Testable behavior 1 — what the code should do, not how]
+- [ ] [Testable behavior 2]
+- [ ] [Testable behavior 3]
 
 ## Proposed Solution
 
