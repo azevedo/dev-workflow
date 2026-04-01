@@ -1,7 +1,7 @@
 ---
 title: "feat: Add /ba:tdd command for test-driven execution"
 type: feat
-status: in-progress
+status: completed
 date: 2026-03-30
 origin: docs/brainstorms/2026-03-29-tdd-execution-discipline-brainstorm.md
 detail_level: comprehensive
