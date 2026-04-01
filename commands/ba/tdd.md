@@ -216,7 +216,9 @@ Validate against all 6 criteria. Return only violations.")
   2. **Override and continue** — Accept the violation, proceed to next behavior
   3. **Abort execution** — Stop TDD loop, keep progress
 
-### 2h. System-Wide Self-Check
+### 2h. System-Wide Self-Check (at area transitions only)
+
+Run this check when the next behavior switches to a different module or area of the codebase, OR after the final behavior completes (before the refactor phase). Skip it for consecutive behaviors within the same module.
 
 Silently review these 5 questions (inherited from `/ba:execute`):
 
