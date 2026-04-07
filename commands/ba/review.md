@@ -1,7 +1,7 @@
 ---
 name: ba:review
 description: Run post-implementation code review with built-in and discovered reviewers
-argument-hint: "[git ref range, or leave empty for auto-detect]"
+argument-hint: "[MR URL, !N, #N, git ref range, --local, or empty]"
 ---
 
 # Post-Implementation Code Review
@@ -16,39 +16,141 @@ Review actual code changes for quality, security, and design using built-in revi
 
 ## Step 1: Determine Review Scope & Capture Diff
 
-> **CRITICAL: Run git diff exactly ONCE.** This step captures the stat summary AND full diff in a single pass. Do NOT re-run `git diff` after this step — reuse the captured output for all subsequent steps including reviewer dispatch.
+> **CRITICAL:** The scope is determined ONCE in step 1a. Execute ONLY the matching path (1b OR 1c) — never both. The diff captured in that path is the SOLE source of truth for the entire review. Do NOT run `git diff`, `git log`, or any local git commands to second-guess or supplement a remote MR diff.
 
-### 1a. Detect scope
+### 1a. Classify the argument
 
-**If explicit ref range provided above**, use it directly.
+Parse `<review_scope>` to determine the scope type. **Match the FIRST row that fits — then skip directly to the indicated step.**
 
-**If no arguments provided**, run this single bash block to detect scope and capture everything at once:
+| Pattern | Scope | Go to | Examples |
+|---|---|---|---|
+| GitLab MR URL | `mr` | **1b** | `https://gitlab.com/group/repo/-/merge_requests/123` |
+| GitHub PR URL | `mr` | **1b** | `https://github.com/owner/repo/pull/123` |
+| Bare number, `!N`, or `#N` | `mr` | **1b** | `42`, `!42`, `#42` |
+| Contains `..` | `local-range` | **1c** | `abc123..def456` |
+| `--staged` | `local-staged` | **1c** | |
+| `--local` | `local-auto` | **1c** | |
+| Empty | `local-auto` | **1c** | |
+
+---
+
+### 1b. Fetch diff — MR/PR scope (remote)
+
+> **MANDATORY: When this path is taken, do NOT run `git diff` or use local branch state at any point during the review. The remote MR diff is the sole input. Skip step 1c entirely.**
+
+**Step 1 — Detect platform.** If the argument is a full URL, parse the platform from it. Otherwise, detect from the repo remote:
 
 ```bash
-# Detect scope type
-DEFAULT_BRANCH=$(git rev-parse --verify main 2>/dev/null && echo main || (git rev-parse --verify master 2>/dev/null && echo master || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'))
-CURRENT_BRANCH=$(git branch --show-current)
-MERGE_BASE=$(git merge-base HEAD "$DEFAULT_BRANCH" 2>/dev/null)
+git remote get-url origin 2>/dev/null
+```
 
-if [ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ] && [ -n "$MERGE_BASE" ]; then
+- URL contains `gitlab` → GitLab (use `glab`)
+- URL contains `github` → GitHub (use `gh`)
+
+**Step 2 — Extract the MR/PR number.** Strip everything except the number:
+- `https://gitlab.com/group/repo/-/merge_requests/123` → `123`
+- `https://github.com/owner/repo/pull/123` → `123`
+- `!42` or `#42` → `42`
+- `42` → `42`
+
+**Step 3 — Fetch diff and metadata in parallel:**
+
+**GitHub:**
+```bash
+gh pr diff <N>
+```
+```bash
+gh pr view <N> --json title,body,baseRefName,headRefName,additions,deletions,changedFiles,files
+```
+
+**GitLab:**
+```bash
+glab mr diff <N> --color=never
+```
+```bash
+glab mr view <N> --output json
+```
+
+**Step 4 — Extract the standard data from the commands above (not from local git):**
+- **FULL_DIFF** — from `pr diff` / `mr diff` output
+- **CHANGED_FILES** — from API metadata (`files` field), or parse `+++ b/path` lines from the diff
+- **STAT** — from API metadata (additions, deletions, file count)
+- **MR_TITLE** — from API metadata
+- **MR_DESCRIPTION** — from API metadata (use as additional review context alongside plan)
+- **BASE_BRANCH** / **HEAD_BRANCH** — from API metadata
+
+If the CLI command fails (not installed, auth error, MR not found), report the error clearly and exit. Do not silently fall back to local.
+
+**Then skip to step 1d.** Do NOT execute step 1c.
+
+---
+
+### 1c. Fetch diff — local scope
+
+> **Only reached when `<review_scope>` matched `local-range`, `local-staged`, `local-auto`, or was empty. If scope is `mr`, you should not be here.**
+
+**For `local-range`:** use the provided range directly as `DIFF_RANGE`.
+
+**For `local-staged`:** set `DIFF_RANGE="--staged"`.
+
+**For `local-auto`:** run this bash block to detect scope:
+
+```bash
+# Detect default branch (redirect stdout — only check exit code)
+if git rev-parse --verify main >/dev/null 2>&1; then
+  DEFAULT_BRANCH=main
+elif git rev-parse --verify master >/dev/null 2>&1; then
+  DEFAULT_BRANCH=master
+elif git symbolic-ref refs/remotes/origin/HEAD >/dev/null 2>&1; then
+  DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's|refs/remotes/origin/||')
+else
+  DEFAULT_BRANCH=""
+fi
+
+CURRENT_BRANCH=$(git branch --show-current)
+MERGE_BASE=""
+DIFF_BASE=""
+
+# Find the nearest ancestor branch (stacked branch support).
+# For main→A→B, this picks A as the base when reviewing B,
+# instead of diffing all the way back to main.
+if [ -n "$CURRENT_BRANCH" ] && [ "$CURRENT_BRANCH" != "${DEFAULT_BRANCH:-}" ]; then
+  BEST_COUNT=999999
+  for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+    [ "$branch" = "$CURRENT_BRANCH" ] && continue
+    mb=$(git merge-base HEAD "$branch" 2>/dev/null) || continue
+    count=$(git rev-list --count "$mb..HEAD" 2>/dev/null) || continue
+    if [ "$count" -gt 0 ] && [ "$count" -lt "$BEST_COUNT" ]; then
+      BEST_COUNT=$count
+      MERGE_BASE=$mb
+      DIFF_BASE=$branch
+    fi
+  done
+fi
+
+if [ -n "$MERGE_BASE" ]; then
   DIFF_RANGE="$MERGE_BASE..HEAD"
   SCOPE_TYPE="branch"
 elif [ -n "$(git diff --staged --name-only)" ]; then
   DIFF_RANGE="--staged"
   SCOPE_TYPE="staged"
 elif [ -n "$(git log --oneline -1 2>/dev/null)" ]; then
-  DIFF_RANGE="HEAD~5..HEAD"
+  COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+  if [ "$COMMIT_COUNT" -le 5 ]; then
+    DIFF_RANGE="$(git rev-list --max-parents=0 HEAD | head -1)..HEAD"
+  else
+    DIFF_RANGE="HEAD~5..HEAD"
+  fi
   SCOPE_TYPE="recent"
 else
   echo "NO_CHANGES"
   exit 0
 fi
+```
 
-echo "---SCOPE---"
-echo "SCOPE_TYPE=$SCOPE_TYPE"
-echo "DIFF_RANGE=$DIFF_RANGE"
-echo "CURRENT_BRANCH=$CURRENT_BRANCH"
-echo "DEFAULT_BRANCH=$DEFAULT_BRANCH"
+If `SCOPE_TYPE` resolved, capture everything in one pass:
+
+```bash
 echo "---STAT---"
 git diff $DIFF_RANGE --stat
 echo "---CHANGED_FILES---"
@@ -57,32 +159,35 @@ echo "---DIFF---"
 git diff $DIFF_RANGE
 ```
 
-If output contains `NO_CHANGES`, tell the user: "No changes detected to review. Run with a git ref range, e.g., `/ba:review abc123..def456`" and exit.
+If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba:review !123` or `/ba:review abc123..def456`" and exit.
 
-### 1b. Announce scope
+---
 
-From the `---STAT---` section, announce:
+### 1d. Announce scope
 
-"Reviewing [scope type]: [details] ([N] files, [N] lines changed)."
+- For **mr** scope: "Reviewing MR !N: *[MR_TITLE]* — `[HEAD_BRANCH]` into `[BASE_BRANCH]` ([N] files, +[additions] -[deletions])."
+- For **branch** scope: "Reviewing branch `[CURRENT_BRANCH]` against `[DIFF_BASE]` ([N] files, [N] lines changed)."
+- For **staged** scope: "Reviewing staged changes ([N] files, [N] lines changed)."
+- For **recent** scope: "Reviewing last [N] commits ([N] files, [N] lines changed)."
 
-### 1c. Gather plan context
+### 1e. Gather plan context
 
-Check for a recent plan in parallel (this is the only other bash call needed):
+Check for a recent plan in parallel:
 
 ```bash
 ls -t docs/plans/*.md 2>/dev/null | head -1
 ```
 
-If found and created within last 7 days, read its Overview and Acceptance Criteria sections. Pass this context to reviewers.
+If found and created within last 7 days, read its Overview and Acceptance Criteria sections. For MR scope, also use **MR_DESCRIPTION** as context. Pass all context to reviewers.
 
-### 1d. Store captured data
+### 1f. Store captured data
 
 You now have everything needed for the rest of the workflow:
-- **STAT** — from the `---STAT---` section
-- **CHANGED_FILES** — from the `---CHANGED_FILES---` section
-- **FULL_DIFF** — from the `---DIFF---` section
+- **STAT** — file-level change summary
+- **CHANGED_FILES** — list of affected file paths
+- **FULL_DIFF** — the complete unified diff
 
-**Do NOT run any more `git diff` commands.** Pass the captured diff directly to reviewers in Step 3.
+**STOP. From this point forward, the captured data above is the ONLY diff you use.** Do not run `git diff`, `git log`, `glab mr diff`, `gh pr diff`, or any other command that produces a diff. If you are reviewing an MR, do not compare the remote diff against local state — local state is irrelevant. Pass the captured data directly to reviewers in Step 3.
 
 If the diff exceeds 2000 lines, warn: "Large diff detected ([N] lines). Review quality may decrease for very large changes. Proceed?"
 
@@ -172,6 +277,7 @@ For **agent-based reviewers**, prompt the subagent directly:
 
 Context:
 - Scope: [scope description]
+- MR context: [MR title + description, if MR scope]
 - Plan context: [overview + acceptance criteria from plan, if available]
 
 Diff:
@@ -264,6 +370,10 @@ Reviewers: [N] ran, [N] succeeded, [N] failed
 
 ## Step 5: Resolution
 
+The options depend on the scope type.
+
+### For local scopes (branch, staged, recent, local-range)
+
 Use **AskUserQuestion**:
 
 **Question:** "How would you like to handle the findings?"
@@ -289,6 +399,17 @@ Use **AskUserQuestion**:
 1. **Create MR/PR** — Generate merge/pull request
 2. **Re-run review** — Run `/ba:review` again (e.g., after manual fixes)
 3. **Done** — Exit
+
+### For MR/PR scope (remote)
+
+Use **AskUserQuestion**:
+
+**Question:** "How would you like to handle the findings?"
+
+**Options:**
+1. **Post inline comments** — Post each finding as an inline comment on the relevant file and line in the MR/PR (using `gh api` / `glab api` to create review comments on specific diff lines). Group into a single review submission where the platform supports it (e.g., GitHub pull request reviews).
+2. **Review one by one** — Walk through each finding for discussion
+3. **Done** — Acknowledge findings without further action
 
 ---
 
