@@ -407,9 +407,39 @@ Use **AskUserQuestion**:
 **Question:** "How would you like to handle the findings?"
 
 **Options:**
-1. **Post inline comments** — Post each finding as an inline comment on the relevant file and line in the MR/PR (using `gh api` / `glab api` to create review comments on specific diff lines). Group into a single review submission where the platform supports it (e.g., GitHub pull request reviews).
+1. **Post inline comments** — Post findings as inline comments on the MR/PR (details below)
 2. **Review one by one** — Walk through each finding for discussion
 3. **Done** — Acknowledge findings without further action
+
+#### Posting inline comments
+
+Use `gh api` / `glab api` to create review comments on specific diff lines. Group into a single review submission where the platform supports it (e.g., GitHub pull request reviews).
+
+**Format each comment as a [Conventional Comment](https://conventionalcomments.org/).**
+
+Translate internal categories to CC labels using this mapping:
+
+| Internal category | CC format | When |
+|---|---|---|
+| Must Address (correctness, security, data loss) | `issue (blocking): <subject>` | Would cause real problems if shipped — rare |
+| Must Address (all other) | `issue: <subject>` | Worth fixing, but not a merge gate |
+| Consider | `suggestion (non-blocking): <subject>` | Improvement the author can take or leave |
+| Consider (trivial) | `nitpick (non-blocking): <subject>` | Style, naming, formatting preferences |
+| Looks Good | `praise: <subject>` | Positive reinforcement |
+
+**Default to non-blocking.** Most findings are `issue:` or `suggestion (non-blocking):`. Only use `(blocking)` for genuine correctness bugs, security vulnerabilities, or data-loss risks.
+
+Additional CC labels to use when they fit naturally:
+- `question:` — "Is this intentional?" or "Did you consider X?" — when unsure if something is a problem
+- `thought:` — An idea sparked by the code, not a request to change anything
+- `todo:` — Small necessary housekeeping (missing import, unused variable)
+
+Each comment body follows the CC template:
+```
+<label> [decorations]: <subject>
+
+<discussion — why this matters, suggested fix if any>
+```
 
 ---
 
