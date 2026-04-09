@@ -227,7 +227,7 @@ Glob("**/*.md", path=".agents/commands/")
 
 Read each discovered file's frontmatter (first 15 lines). The frontmatter is the authoritative source — it may be richer than the system-reminder summary. Include the file if its `name`, `description`, or any frontmatter field contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "pattern", "architecture", "composition".
 
-Exclude files that are clearly orchestration commands or non-review tools (e.g., plan writers, test runners, implementation specialists). Exclude the built-in agents already listed in 2a.
+**If a file matches the keywords above, include it.** Only exclude if it is one of these specific categories: plan writers (`ba:plan`, `ba:brainstorm`), execution commands (`ba:execute`, `ba:tdd`), or the built-in agents already listed in 2a. When in doubt, include — let the user decide.
 
 **Also scan the system-reminder skills list** as a fallback for skills not stored as files. Include any skill whose name or description matches the same keywords above. Exclude: `ba:review`, `ba:review-plan`, and other orchestration skills.
 
@@ -391,6 +391,17 @@ Use **AskUserQuestion**:
 3. **Review one by one** — Go through each finding and decide Accept/Skip
 4. **Done** — Acknowledge findings without modifying code
 
+**"Review one by one" flow:**
+
+For each finding, use a single **AskUserQuestion** that includes the full finding context in the question text — do NOT output the finding as separate text before the question. The AskUserQuestion widget covers preceding text, so the user must be able to see everything they need inside the question itself.
+
+**Question format:** `"Finding [N]/[total]: [title]\n\nFiles: [file:line references]\n\n[code snippet or description]\n\nAgree?"` — include enough context for the user to decide without scrolling up.
+
+**Options:**
+1. **Agree** — Include this in the review comments
+2. **Skip** — Not worth flagging
+3. **Modify** — Adjust the wording or severity before posting
+
 **After applying fixes:**
 - Run targeted tests for affected files
 - If tests fail, report which changes likely caused it
@@ -417,6 +428,8 @@ Use **AskUserQuestion**:
 1. **Post inline comments** — Post findings as inline comments on the MR/PR (details below)
 2. **Review one by one** — Walk through each finding for discussion
 3. **Done** — Acknowledge findings without further action
+
+**"Review one by one" flow:** Same as local scope — include the full finding context inside each AskUserQuestion's question text. Never output finding details as separate text before the question widget.
 
 #### Posting inline comments
 
