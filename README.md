@@ -150,7 +150,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
 - **Five built-in reviewers** — architecture, security, simplification, error handling, and test coverage; always available out of the box
-- **Extensible** — discovers external review agents and skills; external agents can declare `replaces: "<agent-name>"` to supersede a built-in
+- **Extensible** — discovers external review agents and skills; shows all reviewers (built-in and external) with overlap notes so you choose
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
 - **Structured findings** — Must Address / Consider / Looks Good with file:line references and conflict detection across reviewers
 - **Fix application** — apply all fixes, must-address only, or one-by-one with Accept/Skip per finding; runs targeted tests after applying

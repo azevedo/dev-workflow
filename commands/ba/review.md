@@ -233,20 +233,14 @@ For each discovered external reviewer, record:
 - **name**: from frontmatter
 - **description**: from frontmatter
 - **source**: "agent" or "skill"
-- **replaces**: value of `replaces` field in frontmatter, if present (e.g., `replaces: architecture-reviewer`)
 
-### 2c. Deduplicate
-
-For each discovered external reviewer:
-1. Check if it declares `replaces: "<agent-name>"` in its frontmatter/description
-2. If it replaces a built-in, remove the built-in from the list and add the external in its place
-3. If no replacement declared, add it as an additional reviewer
-
-### 2d. Present unified list
+### 2c. Present unified list
 
 Use **AskUserQuestion** with `multiSelect: true`.
 
 **Each reviewer gets its own individual option.** Never bundle, group, or create preset combinations. The user needs fine-grained control — they may want all reviewers except one, which is impossible with bundles.
+
+**Never hide or remove reviewers.** All built-in reviewers and all discovered external reviewers must appear as separate options. If an external reviewer overlaps with a built-in (e.g., both cover architecture or naming), show both — append "(overlaps with [built-in name])" to the external's description so the user can make an informed choice.
 
 **Question:** "Which reviewers should I run?"
 
@@ -258,7 +252,7 @@ One option per reviewer, in this order: built-ins first (pre-selected), then ext
 [✓] Simplification reviewer (built-in) — Over-engineering, unnecessary abstraction, YAGNI
 [✓] Error handling reviewer (built-in) — Edge cases, error paths, graceful failures
 [✓] Test coverage reviewer (built-in) — Missing test scenarios, test quality
-[ ] <each discovered external reviewer, one per line>
+[ ] <each discovered external reviewer, one per line — with "(overlaps with X)" if applicable>
 ```
 
 If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."

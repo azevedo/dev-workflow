@@ -79,7 +79,7 @@ Skills and commands are valid reviewers regardless of which directory they live 
 
 **Present ALL discovered reviewers to the user — let the user decide which to run.** Code reviewers (like `architecture-reviewer`, `security-reviewer`) are meaningful for plans too: they can evaluate architectural decisions and security implications of the proposed approach. Only exclude tools that truly cannot operate on text (e.g., linters, formatters, type checkers that require actual compilable source files).
 
-For each external reviewer, check if it declares `replaces: "<agent-name>"` in its frontmatter. If so, remove the built-in it replaces and add the external in its place.
+Show all discovered external reviewers alongside built-ins. If an external overlaps with a built-in, note the overlap — never hide or remove a built-in.
 
 ---
 
