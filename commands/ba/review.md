@@ -207,7 +207,7 @@ List the five built-in review agents from `agents/review/`:
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Missing test scenarios, test quality |
 
-**All five built-in reviewers MUST appear as options in Step 2d. Do not filter or omit any.**
+**All five built-in reviewers MUST appear as options in Step 2c. Do not filter or omit any.**
 
 ### 2b. Discover external reviewers
 
@@ -238,30 +238,39 @@ For each discovered external reviewer, record:
 - **description**: from frontmatter
 - **source**: "agent" or "skill"
 
-### 2c. Present unified list
+### 2c. Present unified selection
 
-Use **AskUserQuestion** with `multiSelect: true`.
-
-**Each reviewer gets its own individual option.** Never bundle, group, or create preset combinations. The user needs fine-grained control — they may want all reviewers except one, which is impossible with bundles.
+Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each reviewer gets its own individual option — never bundle multiple reviewers into a single option.
 
 **Never hide or remove reviewers.** All built-in reviewers and all discovered external reviewers must appear as separate options. If an external reviewer overlaps with a built-in (e.g., both cover architecture or naming), show both — append "(overlaps with [built-in name])" to the external's description so the user can make an informed choice.
 
-**Question:** "Which reviewers should I run?"
+**AskUserQuestion limits:** 1-4 questions per call, 2-4 options per question. Distribute reviewers across multiple questions within a single call to stay within these limits.
 
-One option per reviewer, in this order: built-ins first (pre-selected), then external/discovered (unselected):
+**Distribution rules:**
 
-```
-[✓] Architecture reviewer (built-in) — Codebase patterns, coupling, separation of concerns, naming
-[✓] Security reviewer (built-in) — XSS, sensitive data, auth patterns
-[✓] Simplification reviewer (built-in) — Over-engineering, unnecessary abstraction, YAGNI
-[✓] Error handling reviewer (built-in) — Edge cases, error paths, graceful failures
-[✓] Test coverage reviewer (built-in) — Missing test scenarios, test quality
-[ ] <each discovered external reviewer, one per line — with "(overlaps with X)" if applicable>
-```
+1. Collect all reviewers into an ordered list: 5 built-ins first, then discovered externals.
+2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize the number of questions. Never leave 1 reviewer alone in a group — merge it into the adjacent group (keeping that group at ≤4).
+3. Use short `header` values (max 12 chars) to label each question, e.g.: `"Analysis"`, `"Quality"`, `"External"`.
+4. If total reviewers exceed 16 (4 questions × 4 options), present the first 16 and list any remaining in a follow-up text message.
 
-If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/agents/, .claude/commands/, .agents/, .agents/agents/, .agents/skills/, .agents/commands/."
+**Typical distributions:**
 
-If the user selects nothing, ask: "No reviewers selected. Would you like to exit or re-select?"
+| Scenario | Questions |
+|---|---|
+| 5 built-in, 0 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage (header "Quality") |
+| 5 built-in, 1 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage, external-1 (header "Quality") |
+| 5 built-in, 2-3 external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + externals (header "More") |
+| 5 built-in, 4+ external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + up to 3 externals (header "More") · Q3-Q4: remaining externals (header "External") |
+
+**Question text:** First question: `"Which reviewers should I run? (select all that apply)"`. Subsequent questions: `"Additional reviewers:"`.
+
+**Option format:**
+- Built-in: label = `"Architecture reviewer"`, description = `"Codebase patterns, coupling, separation of concerns, naming"`
+- External: label = `"dragon-test-reviewer (agent)"`, description = `"Dragon testing conventions (overlaps with Test coverage reviewer)"`
+
+If no external reviewers were found after running the Globs, say so explicitly after presenting built-ins: "No external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/agents/, .claude/commands/, .agents/, .agents/agents/, .agents/skills/, .agents/commands/."
+
+If the user selects nothing across all questions, ask: "No reviewers selected. Would you like to exit or re-select?"
 
 ---
 

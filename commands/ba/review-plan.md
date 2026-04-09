@@ -89,24 +89,33 @@ Show all discovered external reviewers alongside built-ins. If an external overl
 
 ## Step 2: Present Available Reviewers
 
-Use **AskUserQuestion** with `multiSelect: true`.
+Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each reviewer gets its own individual option — never bundle multiple reviewers into a single option.
 
-**Each reviewer gets its own individual option.** Never bundle, group, or create preset combinations — the user needs fine-grained control.
+**AskUserQuestion limits:** 1-4 questions per call, 2-4 options per question. Distribute reviewers across multiple questions within a single call to stay within these limits.
 
-**Question:** "Which reviewers should I run against the plan?"
+**Distribution rules:**
 
-One option per reviewer, in this order: built-ins first (pre-selected), then external/discovered (unselected):
+1. Collect all reviewers into an ordered list: 5 built-ins first, then discovered externals (with overlap notes if applicable).
+2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize questions. Never leave 1 reviewer alone — merge it into the adjacent group (keeping that group at ≤4).
+3. Use short `header` values (max 12 chars), e.g.: `"Analysis"`, `"Quality"`, `"External"`.
+4. If total reviewers exceed 16 (4 × 4), present the first 16 and list any remaining in a follow-up text message.
 
-```
-[✓] Architecture reviewer — Architectural consistency, coupling, separation of concerns
-[✓] Security reviewer — Security implications of proposed changes
-[✓] Simplification reviewer — Over-engineering, unnecessary abstraction, YAGNI
-[✓] Error handling reviewer — Edge cases, error paths, graceful failures
-[✓] Test coverage reviewer — Test proposals, coverage gaps, testing approach
-[ ] <each discovered external reviewer, one per line>
-```
+**Typical distributions:**
 
-If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."
+| Scenario | Questions |
+|---|---|
+| 5 built-in, 0 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage (header "Quality") |
+| 5 built-in, 1 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage, external-1 (header "Quality") |
+| 5 built-in, 2-3 external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + externals (header "More") |
+| 5 built-in, 4+ external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + up to 3 externals (header "More") · Q3-Q4: remaining externals (header "External") |
+
+**Question text:** First question: `"Which reviewers should I run against the plan? (select all that apply)"`. Subsequent questions: `"Additional reviewers:"`.
+
+**Option format:**
+- Built-in: label = `"Architecture reviewer"`, description = `"Architectural consistency, coupling, separation of concerns"`
+- External: label = `"code-reviewer (agent)"`, description = `"S-I-D naming, functional patterns (overlaps with Architecture reviewer)"`
+
+If no external reviewers were found after running the Globs, say so explicitly after presenting built-ins: "No external reviewers found in ~/.claude/agents/, .claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/commands/."
 
 ---
 
