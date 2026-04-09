@@ -220,7 +220,9 @@ Glob("**/*.md", path="~/.claude/commands/")
 Glob("**/*.md", path=".claude/agents/")
 Glob("**/*.md", path=".claude/commands/")
 Glob("**/*.md", path=".agents/")
+Glob("**/*.md", path=".agents/agents/")
 Glob("**/*.md", path=".agents/skills/")
+Glob("**/*.md", path=".agents/commands/")
 ```
 
 Read each discovered file's frontmatter (first 15 lines). The frontmatter is the authoritative source — it may be richer than the system-reminder summary. Include the file if its `name`, `description`, or any frontmatter field contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "pattern", "architecture", "composition".
@@ -257,7 +259,7 @@ One option per reviewer, in this order: built-ins first (pre-selected), then ext
 [ ] <each discovered external reviewer, one per line — with "(overlaps with X)" if applicable>
 ```
 
-If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/agents/, .claude/commands/, .agents/, .agents/skills/."
+If no external reviewers were found after running the Globs, say so explicitly: "No external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/agents/, .claude/commands/, .agents/, .agents/agents/, .agents/skills/, .agents/commands/."
 
 If the user selects nothing, ask: "No reviewers selected. Would you like to exit or re-select?"
 

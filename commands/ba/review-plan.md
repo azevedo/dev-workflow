@@ -70,7 +70,9 @@ Glob("**/*.md", path="~/.claude/commands/")
 Glob("**/*.md", path=".claude/agents/")
 Glob("**/*.md", path=".claude/commands/")
 Glob("**/*.md", path=".agents/")
+Glob("**/*.md", path=".agents/agents/")
 Glob("**/*.md", path=".agents/skills/")
+Glob("**/*.md", path=".agents/commands/")
 ```
 
 Read each discovered file's frontmatter (first 15 lines). The frontmatter is the authoritative source — it may be richer than the system-reminder summary. Include if `name`, `description`, or any frontmatter field contains: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "copy", "content", "writing", "security", "complexity", "test", "pattern", "architecture", "composition".
