@@ -1,7 +1,7 @@
 ---
 name: ba:execute
 description: Execute an approved implementation plan — implement changes, test continuously, track progress
-argument-hint: "[path to plan file, or leave empty to auto-detect latest]"
+argument-hint: "[path to plan file] [--slice N]"
 ---
 
 # Execute an Implementation Plan
@@ -11,6 +11,15 @@ Take a plan produced by `/ba:plan` and implement it systematically: make code ch
 ## Plan File
 
 <plan_path> #$ARGUMENTS </plan_path>
+
+### Parse Arguments
+
+Check the argument string for recognized flags before interpreting the plan path:
+
+- **`--slice N`**: Scan for the token `--slice` followed by the next whitespace-delimited token. Validate that token as a positive integer. If valid, extract the slice number and strip both tokens (`--slice` and `N`) from the argument string. If the token is missing, zero, negative, a float, or non-numeric, announce: "Invalid slice number: `[raw token]`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop.
+- **Everything else** after stripping flags: Treat as the plan file path.
+
+**Note:** This flag-parsing pattern is specific to ba:execute for slice support. Other commands continue to treat `#$ARGUMENTS` as a plain path or description.
 
 ### Locate the Plan
 
@@ -45,6 +54,15 @@ Read the plan file thoroughly. Extract:
 
 4. **Already complete**: If ALL checkboxes are `[x]`, announce "This plan is already fully complete." Use **AskUserQuestion** with options: Re-verify (run tests to confirm), Review changes (`git diff` against base), Done.
 
+5. **Sliced plan detection**: Check for `sliced: true` in YAML frontmatter.
+   - **If sliced AND `--slice N` provided**: Validate N <= `slice_count` from frontmatter. If N > slice_count, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the file. Extract only tasks between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of implementation sections. These are the tasks for this execution run.
+   - **If sliced AND no `--slice N`**: Scan the `## Slices` summary table for the first slice with Status `pending`. Use **AskUserQuestion**:
+     - "This plan is sliced into [M] slices. Slice [X] ([name]) is next. What would you like to do?"
+     - Options:
+       1. **Execute slice [X]** -- Proceed with the next incomplete slice
+       2. **Pick a different slice** -- Enter a slice number
+   - **If NOT sliced**: Proceed with existing behavior (no change).
+
 ---
 
 ## Step 1: Initialize
@@ -60,6 +78,7 @@ git branch --show-current
 - **If on `main` or `master`**: Use **AskUserQuestion** to offer creating a feature branch. Suggest a name derived from the plan filename (e.g., `2026-03-14-feat-add-auth-plan.md` → `feat/add-auth`). If the user declines, confirm they want to work on main and proceed.
 - **If on another branch**: Announce the branch name and proceed. If the branch name seems unrelated to the plan, mention it and ask the user to confirm.
 - **If detached HEAD**: Warn the user and suggest creating a branch before proceeding.
+- **If executing a slice (`--slice N`)**: Suggest a branch name incorporating the slice: `<plan-branch>-slice-N` (e.g., `feat/add-auth-slice-1`). Branch from the current branch regardless of slice number. The user is responsible for ensuring prior slice changes are present in their working tree.
 
 ### Resume Detection
 
@@ -176,6 +195,16 @@ Plan: docs/plans/<filename>"
 
 Where `<type>` matches the plan's type (feat, fix, refactor). The scope is the primary affected area.
 
+**Sliced execution commit format:**
+```bash
+git commit -m "<type>(<scope>): <description>
+
+Plan: docs/plans/<filename>
+Slice: N/M"
+```
+
+Where N is the current slice number and M is the total slice count from frontmatter.
+
 **IMPORTANT**: If you realize you have >3 files changed without a commit, STOP implementing and commit immediately before continuing.
 
 ---
@@ -270,6 +299,37 @@ Commits made:
 - [hash] [message]
 - [hash] [message]
 ```
+
+### Slice Completion (Sliced Execution Only)
+
+If this was a sliced execution (`--slice N`):
+
+1. **Update slice status**: Edit the `## Slices` summary table in the plan -- change this slice's Status from `pending` to `done`. Target the specific table row by matching the full row pattern including the slice number (e.g., `| N | [name] | ... | pending |`), not just the word "pending".
+
+2. **LoC check**: Count the lines of code changed in this slice (use `git diff --stat` against the branch base, exclude test files). If the changed LoC exceeds 200:
+   - Warn: "This slice exceeded the 200 LoC target ([actual] LoC). The slice is complete, but consider re-slicing the remaining work: run `/ba:slice` on the plan and choose 'Re-slice from scratch'."
+
+3. **Last slice check**: If this was the final slice (N == slice_count AND all slices in the table show `done`), update plan frontmatter `status: completed` and proceed to the standard completion menu below.
+
+4. **If more slices remain**, use a slice-aware completion menu instead of the standard one:
+
+Use **AskUserQuestion**:
+
+**Question:** "Slice [N]/[M] complete ([name]). [remaining] slices left. What's next?"
+
+**Options:**
+1. **Review code** -- Run `/ba:review` on this slice's changes
+2. **Create MR/PR** -- Generate a merge/pull request for this slice
+3. **Next slice (fresh session)** -- Start slice [N+1] with clean context (recommended)
+4. **Next slice (continue here)** -- Execute slice [N+1] in this session
+5. **Done for now** -- Return later
+
+**Based on selection:**
+- **Review code** -> Invoke `/ba:review` for this slice's diff.
+- **Create MR/PR** -> Same as existing behavior. Use the slice name as MR title prefix: "[Slice N/M] [slice name]". Include slice acceptance criteria in description.
+- **Next slice (fresh session)** -> Tell the user: "Run `/clear` then `/ba:execute --slice [N+1] docs/plans/[filename]`". This gives a clean context window for the next slice.
+- **Next slice (continue here)** -> Proceed immediately to execute slice N+1 in the current session. **If this is the second or more consecutive slice in this session**, add a note: "You've executed [count] slices in this session. Fresh context is recommended for best results -- consider `/clear` before the next slice."
+- **Done for now** -> Display summary including which slices are done and which remain, then exit.
 
 ### Next Steps
 
