@@ -12,6 +12,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 - `/ba:brainstorm [idea]` — Explore requirements and approaches before planning
 - `/ba:plan [feature]` — Create implementation plans from feature descriptions
+- `/ba:slice [plan]` — Decompose plans into MR-sized slices for incremental delivery
 - `/ba:review-plan [path]` — Discovery-based plan review with available agents and skills
 
 ### Execution Commands (implement approved plans)

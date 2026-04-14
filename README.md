@@ -40,8 +40,10 @@ Do you understand the codebase area well enough to start a design conversation?
         Just need to explore an idea?                    → /ba:brainstorm (it'll guide you)
 
 After planning, choose your execution mode:
+    Plan is large (multiple MRs worth of work)?              → /ba:slice first
     Plan has testable behaviors / want test-first discipline? → /ba:tdd
     Straightforward implementation?                          → /ba:execute
+    Plan is sliced?                                          → /ba:execute --slice N
 ```
 
 `/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
@@ -102,6 +104,18 @@ Transforms feature descriptions into implementation plans with exact file paths 
 
 Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`.
 
+### `/ba:slice [plan]`
+
+Decomposes an approved plan into MR-sized slices for incremental delivery. Each slice targets <=150 LoC (excluding tests) and represents one merge request's worth of work.
+
+- **Auto-detects the latest plan** if no path is given; reads plan structure and estimates LoC per task
+- **Inline annotations** -- slices live as HTML comment markers in the plan file (one file, one source of truth)
+- **Three detail levels** -- handles MINIMAL, STANDARD, and COMPREHENSIVE plans; respects phase boundaries in COMPREHENSIVE
+- **Re-sliceable** -- run ba:slice again and choose "Re-slice from scratch" to re-decompose when estimates prove wrong
+- **Pipeline chaining** -- completion menu offers to start slice 1 immediately or with fresh context
+
+After slicing, execute one slice at a time with `/ba:execute --slice N`. Each slice gets its own branch and MR.
+
 ### `/ba:review-plan [path]`
 
 Runs discovery-based reviews against a plan before implementation. Automatically finds review agents and skills available in your environment (copy auditors, code reviewers, complexity assessors, test strategy reviewers) and offers to run them against the plan.
@@ -122,6 +136,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
 - **Resume across sessions** — updates plan checkboxes `[ ]` → `[x]` as tasks complete; detects and resumes from partial progress
 - **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
+- **Slice-aware execution** — `--slice N` executes a single slice; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
 ### `/ba:tdd [plan]`
@@ -211,6 +226,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 - `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
 - `/ba:compound` — capture solved problems to `docs/solutions/` ✅
 - `/ba:tdd` — TDD execution discipline with per-cycle validation and deep-module refactoring ✅
+- `/ba:slice` — plan decomposition into MR-sized slices for incremental delivery ✅
 - `/ba:handoff` — session continuity for multi-session work
 - `/ba:execute` V3 — batch mode and subagent-driven execution
 - Merge `/ba:tdd` into `/ba:execute` as an execution mode — after `/ba:tdd` is validated through real usage
