@@ -16,7 +16,7 @@ Take a plan produced by `/ba:plan` and implement it systematically: make code ch
 
 Check the argument string for recognized flags before interpreting the plan path:
 
-- **`--slice N`**: Scan for the token `--slice` followed by the next whitespace-delimited token. Validate that token as a positive integer. If valid, extract the slice number and strip both tokens (`--slice` and `N`) from the argument string. If the token is missing, zero, negative, a float, or non-numeric, announce: "Invalid slice number: `[raw token]`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop.
+- **`--slice N`**: Scan for the token `--slice` followed by the next whitespace-delimited token. Validate that token as a positive integer. If valid, extract the slice number and strip both tokens (`--slice` and `N`) from the argument string. If `--slice` is the last token with nothing after it, announce: "Missing slice number after `--slice`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop. If the token is zero, negative, a float, or non-numeric, announce: "Invalid slice number: `[raw token]`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop.
 - **Everything else** after stripping flags: Treat as the plan file path.
 
 **Note:** This flag-parsing pattern is specific to ba:execute for slice support. Other commands continue to treat `#$ARGUMENTS` as a plain path or description.
@@ -55,7 +55,7 @@ Read the plan file thoroughly. Extract:
 4. **Already complete**: If ALL checkboxes are `[x]`, announce "This plan is already fully complete." Use **AskUserQuestion** with options: Re-verify (run tests to confirm), Review changes (`git diff` against base), Done.
 
 5. **Sliced plan detection**: Check for `sliced: true` in YAML frontmatter.
-   - **If sliced AND `--slice N` provided**: Validate N <= `slice_count` from frontmatter. If N > slice_count, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the file. Extract only tasks between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of implementation sections. These are the tasks for this execution run.
+   - **If sliced AND `--slice N` provided**: Validate 1 <= N <= `slice_count` from frontmatter. If N is out of range, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the file. If the marker is not found, announce: "Slice [N] marker not found in the plan file. The plan may need re-slicing — run `/ba:slice` to fix." and stop. Extract only tasks between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of implementation sections. These are the tasks for this execution run.
    - **If sliced AND no `--slice N`**: Scan the `## Slices` summary table for the first slice with Status `pending`. Use **AskUserQuestion**:
      - "This plan is sliced into [M] slices. Slice [X] ([name]) is next. What would you like to do?"
      - Options:
@@ -306,7 +306,7 @@ If this was a sliced execution (`--slice N`):
 
 1. **Update slice status**: Edit the `## Slices` summary table in the plan -- change this slice's Status from `pending` to `done`. Target the specific table row by matching the full row pattern including the slice number (e.g., `| N | [name] | ... | pending |`), not just the word "pending".
 
-2. **LoC check**: Count the lines of code changed in this slice (use `git diff --stat` against the branch base, exclude test files). If the changed LoC exceeds 200:
+2. **LoC check**: Count the lines of code changed in this slice (use `git diff --stat` against the branch base, exclude test files). Slices target 150 LoC; the warning threshold is 200 LoC to allow for estimation error. If the changed LoC exceeds 200:
    - Warn: "This slice exceeded the 200 LoC target ([actual] LoC). The slice is complete, but consider re-slicing the remaining work: run `/ba:slice` on the plan and choose 'Re-slice from scratch'."
 
 3. **Last slice check**: If this was the final slice (N == slice_count AND all slices in the table show `done`), update plan frontmatter `status: completed` and proceed to the standard completion menu below.

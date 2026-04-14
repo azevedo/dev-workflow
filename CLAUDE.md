@@ -62,9 +62,9 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Agent names: lowercase-with-hyphens
 - All artifacts require YAML frontmatter
 - Bump `version` in `.claude-plugin/plugin.json` for every release
-- Planning commands (brainstorm, plan, review-plan) must never write code — only research and document
+- Planning commands (brainstorm, plan, slice, review-plan) must never write code — only research and document
 - Execution commands (execute, tdd) implement approved plans — the plan is the authority on what to build
-- Convention-compliance check is mandatory before writing planning artifacts (brainstorms, plans) to disk
+- Convention-compliance check is mandatory before writing planning artifacts (brainstorms, plans) to disk — slice annotations to existing plans are exempt (they annotate delivery structure, not content)
 - Research docs (`docs/research/`) are exempt — they are pre-convention ephemeral artifacts
 - Agents may declare `tools` in frontmatter to restrict available tools (e.g., locator agents use Grep, Glob, LS only — no Read)
 - All built-in reviewers always appear as options in `/ba:review` — external reviewers are shown alongside them with overlap notes, never hidden or replaced
