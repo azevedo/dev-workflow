@@ -1,7 +1,7 @@
 ---
 name: ba:tdd
 description: Execute an approved plan using test-driven development — red-green-refactor with per-cycle validation
-argument-hint: "[path to plan file, or leave empty to auto-detect latest]"
+argument-hint: "[path to plan file] [--slice N]"
 ---
 
 # TDD Execution
@@ -11,6 +11,15 @@ Execute a plan using test-driven development discipline: for each behavior, writ
 ## Plan File
 
 <plan_path> #$ARGUMENTS </plan_path>
+
+### Parse Arguments
+
+Check the argument string for recognized flags before interpreting the plan path:
+
+- **`--slice N`**: Scan for the token `--slice` followed by the next whitespace-delimited token. Validate that token as a positive integer. If valid, extract the slice number and strip both tokens (`--slice` and `N`) from the argument string. If `--slice` is the last token with nothing after it, announce: "Missing slice number after `--slice`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop. If the token is zero, negative, a float, or non-numeric, announce: "Invalid slice number: `[raw token]`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop.
+- **Everything else** after stripping flags: Treat as the plan file path.
+
+**Note:** This flag-parsing pattern is shared across execution commands (ba:execute, ba:tdd) for slice support. Other commands continue to treat `#$ARGUMENTS` as a plain path or description.
 
 ### Locate the Plan
 
@@ -34,6 +43,16 @@ Read the plan file thoroughly. Extract:
 1. **Behaviors to test**: Look for a "Behaviors to Test" section. This is the primary source.
 2. **Fallback to acceptance criteria**: If no "Behaviors to Test" section, scan for acceptance criteria checkboxes and convert them to testable behaviors. After conversion, validate specificity: each behavior should be concrete enough to write a single test (e.g., "login endpoint returns 200 with valid credentials" not "user can authenticate"). Flag vague behaviors and suggest more specific alternatives before presenting to the user.
 3. **Fallback to interactive definition**: If neither section exists, ask the user to define behaviors interactively via AskUserQuestion.
+
+4. **Sliced plan detection**: Check for `sliced: true` in YAML frontmatter.
+   - **If sliced AND `--slice N` provided**: Validate 1 <= N <= `slice_count` from frontmatter. If N is out of range, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the "Behaviors to Test" section. If the marker is not found, announce: "Slice [N] marker not found in the Behaviors to Test section. The plan may need re-slicing — run `/ba:slice` to fix." and stop. Extract only behaviors between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of the Behaviors to Test section.
+   - **If sliced AND no `--slice N`**: Scan the `## Slices` summary table for the first slice with Status `pending`. Use **AskUserQuestion**:
+     - "This plan is sliced into [M] slices. Slice [X] ([name]) is next. What would you like to do?"
+     - Options:
+       1. **Execute slice [X] with TDD** -- Proceed with the next incomplete slice
+       2. **Pick a different slice** -- Enter a slice number
+   - **If NOT sliced AND `--slice N` provided**: First check whether `<!-- slice:` markers exist in the file despite `sliced` being falsy. If markers found, warn: "Plan has slice markers but `sliced: true` is not set in frontmatter. Run `/ba:slice` to fix, or add `sliced: true` manually." and stop. If no markers, announce: "This plan is not sliced. Run `/ba:slice` first, or remove `--slice N` to execute the full plan." and stop.
+   - **If NOT sliced**: Proceed with existing behavior (no change).
 
 Present the extracted behavior list to the user:
 
@@ -62,6 +81,7 @@ git branch --show-current
 - **If on `main` or `master`**: Use **AskUserQuestion** to offer creating a feature branch. Suggest a name derived from the plan filename.
 - **If on another branch**: Announce the branch name and proceed.
 - **If detached HEAD**: Warn the user and suggest creating a branch.
+- **If executing a slice (`--slice N`)**: Suggest a branch name incorporating the slice: `<plan-branch>-slice-N` (e.g., `feat/add-auth-slice-1`). Branch from the current branch regardless of slice number. The user is responsible for ensuring prior slice changes are present in their working tree.
 
 ### Resume Detection
 
@@ -232,7 +252,9 @@ If a concern is found: surface it as a brief note. Do NOT block unless critical 
 
 ### 2i. Update Checkpoint
 
-Update the plan file: change the completed behavior's `[ ]` to `[x]` using the Edit tool.
+Update the plan file: change the completed behavior's `[ ]` to `[x]` in the "Behaviors to Test" section using the Edit tool.
+
+**Note:** Implementation task checkboxes in "Changes Required" / "Implementation Phases" are NOT updated per-behavior. They are bulk-checked at slice or plan completion (see Step 4: Completion).
 
 ### 2j. Commit Check (MANDATORY)
 
@@ -255,6 +277,17 @@ git commit -m "<type>(<scope>): <behavior description>
 Red-green cycle [N]/[M]
 Plan: docs/plans/<filename>"
 ```
+
+**Sliced execution commit format:**
+```bash
+git commit -m "<type>(<scope>): <behavior description>
+
+Red-green cycle [N]/[M]
+Plan: docs/plans/<filename>
+Slice: N/M"
+```
+
+Where N is the current slice number and M is the total slice count from frontmatter.
 
 **IMPORTANT**: Never commit at RED. Every commit must be a GREEN state where all accumulated tests pass.
 
@@ -287,7 +320,9 @@ Test files:
 Behaviors implemented:
 [list of all behaviors]
 
-All tests are currently passing. Suggest refactoring improvements that keep tests green.")
+All tests are currently passing. Suggest refactoring improvements that keep tests green.
+
+If executing a slice, only include files changed during this slice's TDD loop — do not suggest refactoring files outside the slice scope.")
 
 ### 3c. Present Suggestions
 
@@ -337,6 +372,47 @@ Plan: docs/plans/<filename>"
      1. **Run full test suite + lint now** — Complete local verification
      2. **Targeted tests only** — Defer full suite to CI
      3. **Skip verification** — Trust the per-cycle tests
+
+### Bulk Task Completion
+
+After confirming all behaviors and before updating plan status, bulk-mark implementation task checkboxes:
+
+**If sliced execution (`--slice N`)**: Find all `[ ]` checkboxes in "Changes Required" or "Implementation Phases" between the current slice's `<!-- slice:N ... -->` marker and the next marker (or end of section). Change each to `[x]`.
+
+**If non-sliced execution**: Find all `[ ]` checkboxes in the implementation sections and change each to `[x]`.
+
+This ensures the plan file shows all work as complete regardless of whether ba:tdd or ba:execute was used.
+
+### Slice Completion (Sliced Execution Only)
+
+If this was a sliced execution (`--slice N`):
+
+1. **Update slice status**: Edit the `## Slices` summary table in the plan -- change this slice's Status from `pending` to `done`. Target the specific table row by matching the full row pattern including the slice number (e.g., `| N | [name] | ... | pending |`), not just the word "pending".
+
+2. **LoC check**: Count the lines of code changed in this slice (use `git diff --stat` against the branch base, exclude test files). Slices target 150 LoC; the warning threshold is 200 LoC to allow for estimation error. If the changed LoC exceeds 200:
+   - Warn: "This slice exceeded the 200 LoC target ([actual] LoC). The slice is complete, but consider re-slicing the remaining work: run `/ba:slice` on the plan and choose 'Re-slice from scratch'."
+
+3. **Last slice check**: If this was the final slice (N == slice_count AND all slices in the table show `done`), update plan frontmatter `status: completed` and proceed to the standard completion menu below.
+
+4. **If more slices remain**, use a slice-aware completion menu instead of the standard one:
+
+Use **AskUserQuestion**:
+
+**Question:** "Slice [N]/[M] complete ([name]). [remaining] slices left. What's next?"
+
+**Options:**
+1. **Review code** -- Run `/ba:review` on this slice's changes
+2. **Create MR/PR** -- Generate a merge/pull request for this slice
+3. **Next slice (fresh session)** -- Start slice [N+1] with clean context (recommended)
+4. **Next slice (continue here)** -- Execute slice [N+1] in this session
+5. **Done for now** -- Return later
+
+**Based on selection:**
+- **Review code** -> Invoke `/ba:review` for this slice's diff.
+- **Create MR/PR** -> Same as existing behavior. Use the slice name as MR title prefix: "[Slice N/M] [slice name]". Include slice acceptance criteria in description.
+- **Next slice (fresh session)** -> Tell the user: "Run `/clear` then `/ba:tdd --slice [N+1] docs/plans/[filename]`". This gives a clean context window for the next slice. Add: "To switch to ba:execute for the next slice, use `/ba:execute --slice [N+1]` instead."
+- **Next slice (continue here)** -> Proceed immediately to execute slice N+1 in the current session. **If this is the second or more consecutive slice in this session**, add a note: "You've executed [count] slices in this session. Fresh context is recommended for best results -- consider `/clear` before the next slice."
+- **Done for now** -> Display summary including which slices are done and which remain, then exit.
 
 ### Update Plan Status
 
