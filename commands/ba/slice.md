@@ -76,7 +76,7 @@ Based on detail level, extract the task list and estimate LoC for each:
 
 ### Single-Slice Check
 
-If total estimated LoC <= 150, announce: "This plan fits in a single MR (~[N] LoC). Slicing adds no value -- proceed directly with `/ba:execute`." and stop.
+If total estimated LoC <= 150, announce: "This plan fits in a single MR (~[N] LoC). Slicing adds no value -- proceed directly with `/ba:execute` or `/ba:tdd`." and stop.
 
 ---
 
@@ -151,6 +151,31 @@ Insert HTML comment markers before the first task of each slice:
 
 Markers go on their own line, with a blank line before and after for readability.
 
+### Insert Behavior Markers
+
+If the plan has a "Behaviors to Test" section, also insert `<!-- slice:N "name" -->` markers into that section. Place each marker before the first behavior checkbox that belongs to the slice.
+
+**Mapping behaviors to slices**: Behaviors map to slices by the implementation tasks they exercise. For each slice's task group, identify which behaviors cover those tasks (by file path or functional area) and group them under the corresponding slice marker.
+
+If the mapping is ambiguous (a behavior spans multiple slices, or no clear task correspondence exists), use **AskUserQuestion** to ask the user which slice each ambiguous behavior belongs to.
+
+**Cross-cutting behaviors** (e.g., "API responses include proper error codes for all endpoints") that span all slices should be assigned to the final slice as a validation pass.
+
+**Example:**
+```markdown
+## Behaviors to Test
+
+<!-- slice:1 "Types and data model" -->
+- [ ] Widget type validates required fields
+- [ ] Widget model persists to database
+
+<!-- slice:2 "Routes and handlers" -->
+- [ ] GET /widgets returns paginated list
+- [ ] POST /widgets creates new widget
+```
+
+Behavior markers follow the same last-to-first insertion order as implementation markers.
+
 ### Write All Changes
 
 Use the Edit tool to apply changes to the plan file in this order:
@@ -164,6 +189,7 @@ After all edits, read back the plan file and verify:
 - Frontmatter has `sliced: true` and correct `slice_count`
 - The `## Slices` summary table exists with the expected number of rows
 - The expected number of `<!-- slice:N ... -->` markers are present in the file
+- If the plan has a "Behaviors to Test" section, verify that behavior markers were inserted and the count matches the implementation markers
 
 If validation fails, surface the inconsistency to the user and offer to re-run ba:slice.
 
@@ -200,8 +226,7 @@ Use **AskUserQuestion** to present next steps:
 5. **Done for now** -- Return later
 
 **Based on selection:**
-- **Start slice 1** -> Begin executing: invoke the equivalent of `ba:execute --slice 1 docs/plans/[filename]` directly.
-- **Fresh-context slice 1** -> Tell the user: "Run `/clear` then `/ba:execute --slice 1 docs/plans/[filename]`"
+- **Start slice 1** / **Fresh-context slice 1** -> Ask a follow-up: "Which execution mode?" with options: **Execute** (`ba:execute --slice 1`) or **TDD** (`ba:tdd --slice 1`). For in-session start, invoke the chosen command directly. For fresh-context, tell the user the appropriate `/clear` then command string.
 - **Review plan** -> Invoke `/ba:review-plan docs/plans/[filename]`
 - **Adjust slices** -> Ask which slice to adjust, modify markers and table, return to options.
 - **Done for now** -> Display summary and exit.
