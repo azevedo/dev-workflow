@@ -45,12 +45,14 @@ Read the plan file thoroughly. Extract:
 3. **Fallback to interactive definition**: If neither section exists, ask the user to define behaviors interactively via AskUserQuestion.
 
 4. **Sliced plan detection**: Check for `sliced: true` in YAML frontmatter.
-   - **If sliced AND `--slice N` provided**: Validate 1 <= N <= `slice_count` from frontmatter. If N is out of range, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the "Behaviors to Test" section. If the marker is not found, announce: "Slice [N] marker not found in the Behaviors to Test section. The plan may need re-slicing — run `/ba:slice` to fix." and stop. Extract only behaviors between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of the Behaviors to Test section.
+   - **If sliced AND `--slice N` provided**: Validate 1 <= N <= `slice_count` from frontmatter. If N is out of range, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, check whether the plan has a "Behaviors to Test" section. If no such section exists, fall through to fallback behavior extraction (acceptance criteria, then interactive). If the section exists, find the `<!-- slice:N ... -->` marker within it. If the marker is not found, announce: "Slice [N] marker not found in the Behaviors to Test section. The plan may need re-slicing — run `/ba:slice` to fix." and stop. Extract only behaviors between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of the Behaviors to Test section.
    - **If sliced AND no `--slice N`**: Scan the `## Slices` summary table for the first slice with Status `pending`. Use **AskUserQuestion**:
      - "This plan is sliced into [M] slices. Slice [X] ([name]) is next. What would you like to do?"
      - Options:
        1. **Execute slice [X] with TDD** -- Proceed with the next incomplete slice
        2. **Pick a different slice** -- Enter a slice number
+     - If option 1 selected: proceed as if `--slice X` was provided. All subsequent references to `--slice N` apply with N = X.
+     - If option 2 selected: ask the user to enter a slice number. Validate: 1 <= entered number <= slice_count. If invalid, re-prompt. If valid, proceed as if `--slice [entered number]` was provided. All subsequent references to `--slice N` apply with N = the entered number.
    - **If NOT sliced AND `--slice N` provided**: First check whether `<!-- slice:` markers exist in the file despite `sliced` being falsy. If markers found, warn: "Plan has slice markers but `sliced: true` is not set in frontmatter. Run `/ba:slice` to fix, or add `sliced: true` manually." and stop. If no markers, announce: "This plan is not sliced. Run `/ba:slice` first, or remove `--slice N` to execute the full plan." and stop.
    - **If NOT sliced**: Proceed with existing behavior (no change).
 
@@ -78,10 +80,10 @@ Check the current git branch:
 git branch --show-current
 ```
 
-- **If on `main` or `master`**: Use **AskUserQuestion** to offer creating a feature branch. Suggest a name derived from the plan filename.
+- **If on `main` or `master`**: Use **AskUserQuestion** to offer creating a feature branch. Suggest a name derived from the plan filename; if also executing a slice, suggest `<plan-branch>-slice-N` (e.g., `feat/add-auth-slice-1`) as the branch name.
 - **If on another branch**: Announce the branch name and proceed.
 - **If detached HEAD**: Warn the user and suggest creating a branch.
-- **If executing a slice (`--slice N`)**: Suggest a branch name incorporating the slice: `<plan-branch>-slice-N` (e.g., `feat/add-auth-slice-1`). Branch from the current branch regardless of slice number. The user is responsible for ensuring prior slice changes are present in their working tree.
+- **If executing a slice (`--slice N`)**: Branch from the current branch regardless of slice number. The user is responsible for ensuring prior slice changes are present in their working tree.
 
 ### Resume Detection
 
@@ -284,10 +286,10 @@ git commit -m "<type>(<scope>): <behavior description>
 
 Red-green cycle [N]/[M]
 Plan: docs/plans/<filename>
-Slice: N/M"
+Slice: [slice_num]/[slice_count]"
 ```
 
-Where N is the current slice number and M is the total slice count from frontmatter.
+Where [slice_num] is the current slice number and [slice_count] is the total slice count from frontmatter.
 
 **IMPORTANT**: Never commit at RED. Every commit must be a GREEN state where all accumulated tests pass.
 
@@ -389,10 +391,10 @@ If this was a sliced execution (`--slice N`):
 
 1. **Update slice status**: Edit the `## Slices` summary table in the plan -- change this slice's Status from `pending` to `done`. Target the specific table row by matching the full row pattern including the slice number (e.g., `| N | [name] | ... | pending |`), not just the word "pending".
 
-2. **LoC check**: Count the lines of code changed in this slice (use `git diff --stat` against the branch base, exclude test files). Slices target 150 LoC; the warning threshold is 200 LoC to allow for estimation error. If the changed LoC exceeds 200:
+2. **LoC check**: Count the lines of code changed in this slice (use `git diff --stat` against the commit SHA at the start of this slice's TDD loop — the HEAD before any changes from this slice — exclude test files). Slices target 150 LoC; the warning threshold is 200 LoC to allow for estimation error. If the changed LoC exceeds 200:
    - Warn: "This slice exceeded the 200 LoC target ([actual] LoC). The slice is complete, but consider re-slicing the remaining work: run `/ba:slice` on the plan and choose 'Re-slice from scratch'."
 
-3. **Last slice check**: If this was the final slice (N == slice_count AND all slices in the table show `done`), update plan frontmatter `status: completed` and proceed to the standard completion menu below.
+3. **Last slice check**: If this was the final slice (N == slice_count AND all slices in the table show `done`), update plan frontmatter `status: completed`. Then display the slice-aware completion menu (item 4 below) with the question "All [M] slices complete! What's next?" — do NOT use the standard `### Next Steps` block.
 
 4. **If more slices remain**, use a slice-aware completion menu instead of the standard one:
 
@@ -413,6 +415,8 @@ Use **AskUserQuestion**:
 - **Next slice (fresh session)** -> Tell the user: "Run `/clear` then `/ba:tdd --slice [N+1] docs/plans/[filename]`". This gives a clean context window for the next slice. Add: "To switch to ba:execute for the next slice, use `/ba:execute --slice [N+1]` instead."
 - **Next slice (continue here)** -> Proceed immediately to execute slice N+1 in the current session. **If this is the second or more consecutive slice in this session**, add a note: "You've executed [count] slices in this session. Fresh context is recommended for best results -- consider `/clear` before the next slice."
 - **Done for now** -> Display summary including which slices are done and which remain, then exit.
+
+**After the slice-aware menu completes, do NOT proceed to `### Update Plan Status` or the standard `### Next Steps` block.** Those sections apply only to non-sliced execution. The slice-aware flow handles its own status updates and next-step routing above.
 
 ### Update Plan Status
 

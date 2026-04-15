@@ -55,12 +55,13 @@ Read the plan file thoroughly. Extract:
 4. **Already complete**: If ALL checkboxes are `[x]`, announce "This plan is already fully complete." Use **AskUserQuestion** with options: Re-verify (run tests to confirm), Review changes (`git diff` against base), Done.
 
 5. **Sliced plan detection**: Check for `sliced: true` in YAML frontmatter.
-   - **If sliced AND `--slice N` provided**: Validate 1 <= N <= `slice_count` from frontmatter. If N is out of range, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the file. If the marker is not found, announce: "Slice [N] marker not found in the plan file. The plan may need re-slicing — run `/ba:slice` to fix." and stop. Extract only tasks between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of implementation sections. These are the tasks for this execution run.
+   - **If sliced AND `--slice N` provided**: Validate 1 <= N <= `slice_count` from frontmatter. If N is out of range, announce: "Slice [N] does not exist. This plan has [slice_count] slices. Use `--slice 1` through `--slice [slice_count]`." and stop. Otherwise, find the `<!-- slice:N ... -->` marker in the implementation section (Changes Required or Implementation Phases). If the marker is not found, announce: "Slice [N] marker not found in the plan file. The plan may need re-slicing — run `/ba:slice` to fix." and stop. Extract only tasks between this marker and the next slice marker (`<!-- slice:N+1 ... -->`) or the end of implementation sections. These are the tasks for this execution run.
    - **If sliced AND no `--slice N`**: Scan the `## Slices` summary table for the first slice with Status `pending`. Use **AskUserQuestion**:
      - "This plan is sliced into [M] slices. Slice [X] ([name]) is next. What would you like to do?"
      - Options:
        1. **Execute slice [X]** -- Proceed with the next incomplete slice
        2. **Pick a different slice** -- Enter a slice number
+   - **If NOT sliced AND `--slice N` provided**: First check whether `<!-- slice:` markers exist in the file despite `sliced` being falsy. If markers found, warn: "Plan has slice markers but `sliced: true` is not set in frontmatter. Run `/ba:slice` to fix, or add `sliced: true` manually." and stop. If no markers, announce: "This plan is not sliced. Run `/ba:slice` first, or remove `--slice N` to execute the full plan." and stop.
    - **If NOT sliced**: Proceed with existing behavior (no change).
 
 ---

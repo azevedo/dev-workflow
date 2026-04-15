@@ -157,9 +157,9 @@ If the plan has a "Behaviors to Test" section, also insert `<!-- slice:N "name" 
 
 **Mapping behaviors to slices**: Behaviors map to slices by the implementation tasks they exercise. For each slice's task group, identify which behaviors cover those tasks (by file path or functional area) and group them under the corresponding slice marker.
 
-If the mapping is ambiguous (a behavior spans multiple slices, or no clear task correspondence exists), use **AskUserQuestion** to ask the user which slice each ambiguous behavior belongs to.
+**First**, identify cross-cutting behaviors — those that span all slices or have no clear task correspondence (e.g., "API responses include proper error codes for all endpoints"). Assign these to the final slice as a validation pass.
 
-**Cross-cutting behaviors** (e.g., "API responses include proper error codes for all endpoints") that span all slices should be assigned to the final slice as a validation pass.
+**Then**, for any remaining behaviors with ambiguous mapping (a behavior spans multiple specific slices without being truly cross-cutting), use **AskUserQuestion** to ask the user which slice each ambiguous behavior belongs to.
 
 **Example:**
 ```markdown
@@ -189,7 +189,7 @@ After all edits, read back the plan file and verify:
 - Frontmatter has `sliced: true` and correct `slice_count`
 - The `## Slices` summary table exists with the expected number of rows
 - The expected number of `<!-- slice:N ... -->` markers are present in the file
-- If the plan has a "Behaviors to Test" section, verify that behavior markers were inserted and the count matches the implementation markers
+- If the plan has a "Behaviors to Test" section, verify that behavior markers were inserted and that the set of distinct `<!-- slice:N -->` tag numbers in the Behaviors section matches the set in the implementation sections (same N values present in both)
 
 If validation fails, surface the inconsistency to the user and offer to re-run ba:slice.
 
@@ -219,14 +219,19 @@ Use **AskUserQuestion** to present next steps:
 **Question:** "Plan sliced into [N] MR-sized deliverables. What would you like to do next?"
 
 **Options:**
-1. **Start slice 1** -- Begin executing slice 1 in this session
-2. **Fresh-context slice 1** -- Clear context and start slice 1 with only the plan loaded
-3. **Review plan** -- Run `/ba:review-plan` to review the sliced plan
-4. **Adjust slices** -- Manually modify slice boundaries before executing
-5. **Done for now** -- Return later
+1. **Start with Execute** -- Begin executing slice 1 with `ba:execute --slice 1` in this session
+2. **Start with TDD** -- Begin executing slice 1 with `ba:tdd --slice 1` in this session
+3. **Fresh-context Execute** -- Clear context and start slice 1 with `ba:execute --slice 1`
+4. **Fresh-context TDD** -- Clear context and start slice 1 with `ba:tdd --slice 1`
+5. **Review plan** -- Run `/ba:review-plan` to review the sliced plan
+6. **Adjust slices** -- Manually modify slice boundaries before executing
+7. **Done for now** -- Return later
 
 **Based on selection:**
-- **Start slice 1** / **Fresh-context slice 1** -> Ask a follow-up: "Which execution mode?" with options: **Execute** (`ba:execute --slice 1`) or **TDD** (`ba:tdd --slice 1`). For in-session start, invoke the chosen command directly. For fresh-context, tell the user the appropriate `/clear` then command string.
+- **Start with Execute** -> Invoke `ba:execute --slice 1 docs/plans/[filename]` directly.
+- **Start with TDD** -> Invoke `ba:tdd --slice 1 docs/plans/[filename]` directly.
+- **Fresh-context Execute** -> Tell the user: "Run `/clear` then `/ba:execute --slice 1 docs/plans/[filename]`"
+- **Fresh-context TDD** -> Tell the user: "Run `/clear` then `/ba:tdd --slice 1 docs/plans/[filename]`"
 - **Review plan** -> Invoke `/ba:review-plan docs/plans/[filename]`
 - **Adjust slices** -> Ask which slice to adjust, modify markers and table, return to options.
 - **Done for now** -> Display summary and exit.
@@ -240,4 +245,4 @@ Use **AskUserQuestion** to present next steps:
 - **One file, one source of truth.** Slices live in the plan file. No separate manifest.
 - **Preserve completed work.** When re-slicing from scratch on a partially-executed plan, completed task checkboxes (`[x]`) are never modified.
 - **Plan stays the authority.** Slices are a delivery lens -- they don't change what gets built, only the order and grouping of delivery.
-- **Insert markers last-to-first.** When inserting multiple HTML comment markers, work from the bottom of the file upward to avoid line-offset drift.
+- **Insert markers last-to-first.** When inserting both implementation markers and behavior markers, work from the bottom of each respective section upward to avoid line-offset drift.
