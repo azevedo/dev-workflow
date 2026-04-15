@@ -43,7 +43,7 @@ After planning, choose your execution mode:
     Plan is large (multiple MRs worth of work)?              → /ba:slice first
     Plan has testable behaviors / want test-first discipline? → /ba:tdd
     Straightforward implementation?                          → /ba:execute
-    Plan is sliced?                                          → /ba:execute --slice N
+    Plan is sliced?                                          → /ba:execute --slice N or /ba:tdd --slice N
 ```
 
 `/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
@@ -114,7 +114,7 @@ Decomposes an approved plan into MR-sized slices for incremental delivery. Each 
 - **Re-sliceable** -- run ba:slice again and choose "Re-slice from scratch" to re-decompose when estimates prove wrong
 - **Pipeline chaining** -- completion menu offers to start slice 1 immediately or with fresh context
 
-After slicing, execute one slice at a time with `/ba:execute --slice N`. Each slice gets its own branch and MR.
+After slicing, execute one slice at a time with `/ba:execute --slice N` or `/ba:tdd --slice N`. Each slice gets its own branch and MR.
 
 ### `/ba:review-plan [path]`
 
@@ -149,6 +149,7 @@ Executes an approved plan using test-driven development discipline: one failing 
 - **LLM-specific anti-patterns** — detects tests mutated during GREEN phase and tests not responsive to prior implementation cycle
 - **Refactor phase** — after all behaviors green, `refactor-advisor` agent provides Ousterhout-guided suggestions (deep modules, dependency injection, return results over side effects)
 - **Same infrastructure as `/ba:execute`** — branch check, resume detection, targeted testing, checkpoint tracking, commit discipline, completion menu
+- **Slice-aware execution** — `--slice N` executes a single slice with TDD; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
 
 ### `/ba:review [ref range]`
 

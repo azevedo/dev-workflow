@@ -19,7 +19,7 @@ Check the argument string for recognized flags before interpreting the plan path
 - **`--slice N`**: Scan for the token `--slice` followed by the next whitespace-delimited token. Validate that token as a positive integer. If valid, extract the slice number and strip both tokens (`--slice` and `N`) from the argument string. If `--slice` is the last token with nothing after it, announce: "Missing slice number after `--slice`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop. If the token is zero, negative, a float, or non-numeric, announce: "Invalid slice number: `[raw token]`. Use `--slice N` where N is a positive integer (e.g., `--slice 1`)." and stop.
 - **Everything else** after stripping flags: Treat as the plan file path.
 
-**Note:** This flag-parsing pattern is specific to ba:execute for slice support. Other commands continue to treat `#$ARGUMENTS` as a plain path or description.
+**Note:** This flag-parsing pattern is shared across execution commands (ba:execute, ba:tdd) for slice support. Other commands continue to treat `#$ARGUMENTS` as a plain path or description.
 
 ### Locate the Plan
 
