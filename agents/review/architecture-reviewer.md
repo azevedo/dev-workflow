@@ -1,7 +1,7 @@
 ---
 name: architecture-reviewer
 description: "Reviews code changes for architectural consistency, coupling, separation of concerns, and naming conventions. Use as a built-in reviewer in /ba:review."
-model: inherit
+model: sonnet
 ---
 
 <examples>

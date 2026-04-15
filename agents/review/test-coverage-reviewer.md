@@ -1,7 +1,7 @@
 ---
 name: test-coverage-reviewer
 description: "Reviews code changes for test coverage gaps, missing test scenarios, and test quality. Use as a built-in reviewer in /ba:review."
-model: inherit
+model: sonnet
 ---
 
 <examples>

@@ -1,7 +1,7 @@
 ---
 name: simplification-reviewer
 description: "Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations. Use as a built-in reviewer in /ba:review."
-model: inherit
+model: sonnet
 ---
 
 <examples>

@@ -1,7 +1,7 @@
 ---
 name: error-handling-reviewer
 description: "Reviews code changes for edge cases, error paths, graceful failures, and loading/error states. Use as a built-in reviewer in /ba:review."
-model: inherit
+model: sonnet
 ---
 
 <examples>

@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: "Reviews code changes for security issues: XSS, sensitive data handling, auth patterns, and input validation. Use as a built-in reviewer in /ba:review."
-model: inherit
+model: sonnet
 ---
 
 <examples>
