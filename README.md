@@ -4,7 +4,7 @@ A Claude Code plugin that adds structured research, brainstorm, plan, and execut
 
 ## Why
 
-The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), review before writing code (`/ba:review-plan`), then implement against the approved plan (`/ba:execute`).
+The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first, test-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), decompose into MR-sized slices (`/ba:slice`), review before writing code (`/ba:review-plan`), then implement — either straight (`/ba:execute`) or with TDD discipline (`/ba:tdd`). Post-implementation review (`/ba:review`) and knowledge compounding (`/ba:compound`) close the loop so the same mistakes aren't repeated.
 
 The design synthesizes patterns from three production agent workflow systems ([compound-engineering](https://github.com/EveryInc/compound-engineering-plugin), [humanlayer](https://github.com/humanlayer/12-factor-agents), [superpowers](https://github.com/obra/superpowers)), taking the best ideas from each and closing gaps they all share.
 
