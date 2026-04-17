@@ -231,6 +231,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 - `/ba:handoff` — session continuity for multi-session work
 - `/ba:execute` V3 — batch mode and subagent-driven execution
 - Merge `/ba:tdd` into `/ba:execute` as an execution mode — after `/ba:tdd` is validated through real usage
+- Plan size vs human-review tax — investigate splitting `/ba:plan` output into a short decision doc (human-reviewed, ~200 lines: scope, architecture, risks, phases, slice table) + per-slice mechanical briefs (types, code stubs, test lists) generated fresh at `/ba:tdd` time. Motivation: plans routinely grow past human-reviewable size (1000+ LoC) because one artifact serves both human reviewers and implementation agents; fresh per-slice briefs also catch mechanical drift (stale imports, renamed types, hallucinated helpers) that a plan-time snapshot accumulates before execution. Open questions: does the decision doc stay coherent across slices if kept that thin; can brief generation stay deterministic enough that slice N doesn't contradict slice N-1.
 
 ## License
 
