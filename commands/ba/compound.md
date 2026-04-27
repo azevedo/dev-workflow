@@ -53,11 +53,11 @@ Launch these 5 subagents IN PARALLEL using explicit Task calls:
 
 - Task general-purpose("You are a **Solution Extractor**. Analyze all investigation steps in the conversation. Identify the root cause, what didn't work and why, and the working fix. Return a solution content block with code snippets formatted as markdown. Return TEXT ONLY — do not write any files.")
 
-- Task general-purpose("You are a **Related-Docs Finder**. Scan `docs/solutions/` for existing entries that overlap with this problem. Use Glob: `docs/solutions/**/*.md`. If the directory doesn't exist or is empty, return 'No existing docs found'. Return a list of related file paths with one-line descriptions. Return TEXT ONLY — do not write any files.")
+- Task general-purpose("You are a **Related-Docs Finder**. Scan `docs/solutions/` for existing entries that overlap with this problem. First run `git rev-parse --show-toplevel` to get the absolute project root, then use Glob with the absolute path: `<root>/docs/solutions/**/*.md`. If the directory doesn't exist or is empty, return 'No existing docs found'. Return a list of related file paths with one-line descriptions. Return TEXT ONLY — do not write any files.")
 
 - Task general-purpose("You are a **Prevention Strategist**. Develop strategies to prevent this class of problem in the future. Consider: code patterns, testing, linting, documentation. Return a prevention/best-practices content block. Return TEXT ONLY — do not write any files.")
 
-- Task general-purpose("You are a **Category Classifier**. Determine the optimal `docs/solutions/` category and filename. Category: kebab-case slug (e.g., auth, database, testing, performance, tooling, build-errors, runtime-errors, integration-issues). Filename: YYYY-MM-DD-[3-8 word kebab-case slug].md. Check if file already exists at target path; if so, append -2, -3, etc. Return the final category and filename. Return TEXT ONLY — do not write any files.")
+- Task general-purpose("You are a **Category Classifier**. Determine the optimal `docs/solutions/` category and filename. Category: kebab-case slug (e.g., auth, database, testing, performance, tooling, build-errors, runtime-errors, integration-issues). Filename: YYYY-MM-DD-[3-8 word kebab-case slug].md. Run `git rev-parse --show-toplevel` to get the absolute project root, then check if the file already exists at `<root>/docs/solutions/[category]/[filename].md`; if so, append -2, -3, etc. Return the final category and filename. Return TEXT ONLY — do not write any files.")
 
 </parallel_tasks>
 
