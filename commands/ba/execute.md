@@ -128,6 +128,8 @@ Read the plan's code for this task and implement it. Follow the plan exactly —
 
 If the plan provides actual code, use it. If the plan describes the change without full code, implement it following existing codebase patterns.
 
+When rewriting an existing file, read the original first and carry over any WHY comments (non-obvious rationale, workarounds, invariant explanations) that are not reproduced in the plan's code block but are not explicitly removed by the plan. Plan code samples are structural references, not complete comment inventories.
+
 ### 2c. Test
 
 Run **targeted tests** — tests related to the files changed in this task. Prefer scoped test commands (e.g., `pytest path/to/test_file.py`, `npm test -- --testPathPattern=module`) over the full suite. If scoped testing isn't possible, run the full test command.
