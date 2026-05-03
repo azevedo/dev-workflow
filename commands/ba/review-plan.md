@@ -35,7 +35,7 @@ Search for review agents and skills available in the current environment. Look f
 
 ### 1a. Built-in reviewers
 
-Always include these five built-in reviewers — they live in `agents/review/` and are always available:
+Always include these six built-in reviewers — they live in `agents/review/` and are always available:
 
 | Agent | Focus |
 |---|---|
@@ -44,8 +44,9 @@ Always include these five built-in reviewers — they live in `agents/review/` a
 | `simplification-reviewer` | Over-engineering, unnecessary abstraction, YAGNI |
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Test proposals, coverage gaps, testing approach |
+| `deep-module-reviewer` | Ousterhout deep-module design: interface depth, dependency injection, side-effect discipline |
 
-**All five MUST appear as options in Step 2. Do not filter or omit any.**
+**All six MUST appear as options in Step 2. Do not filter or omit any.**
 
 ### 1b. External reviewers
 

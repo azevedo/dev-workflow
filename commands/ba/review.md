@@ -197,7 +197,7 @@ If the diff exceeds 2000 lines, warn: "Large diff detected ([N] lines). Review q
 
 ### 2a. Gather built-in reviewers
 
-List the five built-in review agents from `agents/review/`:
+List the six built-in review agents from `agents/review/`:
 
 | Agent | Focus |
 |---|---|
@@ -206,8 +206,9 @@ List the five built-in review agents from `agents/review/`:
 | `simplification-reviewer` | Over-engineering, unnecessary abstraction, YAGNI |
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Missing test scenarios, test quality |
+| `deep-module-reviewer` | Ousterhout deep-module design: small interface / deep implementation, dependency injection, return-over-side-effects, duplication, shallow-layer merging |
 
-**All five built-in reviewers MUST appear as options in Step 2c. Do not filter or omit any.**
+**All six built-in reviewers MUST appear as options in Step 2c. Do not filter or omit any.**
 
 ### 2b. Discover external reviewers
 
@@ -248,7 +249,7 @@ Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each revi
 
 **Distribution rules:**
 
-1. Collect all reviewers into an ordered list: 5 built-ins first, then discovered externals.
+1. Collect all reviewers into an ordered list: 6 built-ins first, then discovered externals.
 2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize the number of questions. Never leave 1 reviewer alone in a group — merge it into the adjacent group (keeping that group at ≤4).
 3. Use short `header` values (max 12 chars) to label each question, e.g.: `"Analysis"`, `"Quality"`, `"External"`.
 4. If total reviewers exceed 16 (4 questions × 4 options), present the first 16 and list any remaining in a follow-up text message.
@@ -257,10 +258,10 @@ Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each revi
 
 | Scenario | Questions |
 |---|---|
-| 5 built-in, 0 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage (header "Quality") |
-| 5 built-in, 1 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage, external-1 (header "Quality") |
-| 5 built-in, 2-3 external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + externals (header "More") |
-| 5 built-in, 4+ external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + up to 3 externals (header "More") · Q3-Q4: remaining externals (header "External") |
+| 6 built-in, 0 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage (header "Quality") |
+| 6 built-in, 1 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, external-1 (header "Quality") |
+| 6 built-in, 2-3 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage + externals (header "More") |
+| 6 built-in, 4+ external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage + up to 2 externals (header "More") · Q3-Q4: remaining externals (header "External") |
 
 **Question text:** First question: `"Which reviewers should I run? (select all that apply)"`. Subsequent questions: `"Additional reviewers:"`.
 

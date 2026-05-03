@@ -147,13 +147,13 @@ Executes an approved plan using test-driven development discipline: one failing 
 - **Tracer-bullet loop** — RED (write failing test) → confirm RED → GREEN (minimal implementation) → confirm GREEN → regression check → cycle gate → repeat
 - **Per-cycle gate** — `tdd-cycle-gate` agent validates each cycle silently; surfaces only violations (test describes behavior, uses public interface, code is minimal, no test mutation)
 - **LLM-specific anti-patterns** — detects tests mutated during GREEN phase and tests not responsive to prior implementation cycle
-- **Refactor phase** — after all behaviors green, `refactor-advisor` agent provides Ousterhout-guided suggestions (deep modules, dependency injection, return results over side effects)
+- **Refactor phase** — after all behaviors green, `deep-module-reviewer` agent prints inline Ousterhout-guided findings (deep modules, dependency injection, return results over side effects); user refactors manually if motivated
 - **Same infrastructure as `/ba:execute`** — branch check, resume detection, targeted testing, checkpoint tracking, commit discipline, completion menu
 - **Slice-aware execution** — `--slice N` executes a single slice with TDD; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
 
 ### `/ba:review [ref range]`
 
-Runs post-implementation code review using five built-in review agents plus any additional reviewers discovered in the environment.
+Runs post-implementation code review using six built-in review agents plus any additional reviewers discovered in the environment.
 
 ### `/ba:compound [context]`
 
@@ -165,7 +165,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
 
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
-- **Five built-in reviewers** — architecture, security, simplification, error handling, and test coverage; always available out of the box
+- **Six built-in reviewers** — architecture, security, simplification, error handling, test coverage, and deep-module design; always available out of the box
 - **Extensible** — discovers external review agents and skills; shows all reviewers (built-in and external) with overlap notes so you choose
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
 - **Structured findings** — Must Address / Consider / Looks Good with file:line references and conflict detection across reviewers
@@ -204,8 +204,8 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `simplification-reviewer` | Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations |
 | `error-handling-reviewer` | Reviews code changes for edge cases, error paths, graceful failures, and loading/error states |
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
+| `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
 | `tdd-cycle-gate` | Validates each TDD red-to-green cycle for discipline compliance and LLM anti-patterns |
-| `refactor-advisor` | Provides Ousterhout deep-module refactoring guidance after TDD behaviors are green |
 
 ## Knowledge Compounding
 

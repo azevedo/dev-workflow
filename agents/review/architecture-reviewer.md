@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check architectural quality of code changes.
 user: "Review these code changes for architectural consistency: [diff of a new API endpoint]"
 assistant: "I'll analyze the changes for pattern consistency, coupling issues, and naming conventions against the existing codebase."
-<commentary>The review command dispatches this agent as one of five parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of six parallel built-in reviewers.</commentary>
 </example>
 </examples>
 

@@ -304,14 +304,14 @@ After ALL behaviors are green:
 "All [M] behaviors implemented and passing. Entering refactor phase."
 
 Use **AskUserQuestion**:
-1. **Run refactor-advisor** — Analyze implementation for deep-module improvements
+1. **Run deep-module-reviewer** — Analyze implementation for deep-module improvements
 2. **Skip refactoring** — Proceed directly to completion
 
 If user skips, go to Step 4.
 
-### 3b. Dispatch Refactor-Advisor
+### 3b. Dispatch Deep-Module-Reviewer
 
-- Task refactor-advisor("Analyze these files for refactoring opportunities using Ousterhout deep-module principles.
+- Task deep-module-reviewer("Review these files for deep-module design opportunities using Ousterhout principles.
 
 Files changed during TDD:
 [list of all files modified during the TDD loop]
@@ -322,43 +322,11 @@ Test files:
 Behaviors implemented:
 [list of all behaviors]
 
-All tests are currently passing. Suggest refactoring improvements that keep tests green.
+Report deep-module review findings using your canonical Must Address / Consider / Looks Good output format. Tests are currently passing — flag only opportunities that preserve the green test suite.
 
 If executing a slice, only include files changed during this slice's TDD loop — do not suggest refactoring files outside the slice scope.")
 
-### 3c. Present Suggestions
-
-Present the refactor-advisor's suggestions to the user. For each suggestion:
-
-Use **AskUserQuestion**:
-- "[Suggestion from advisor: principle, location, current vs. suggested, impact]"
-- Options:
-  1. **Apply this suggestion** — Implement the refactoring
-  2. **Skip this suggestion** — Move to next suggestion
-  3. **Done refactoring** — Stop reviewing suggestions, proceed to completion
-
-### 3d. Apply & Verify
-
-For each accepted suggestion:
-1. Apply the refactoring change
-2. Run ALL behavior tests immediately:
-   ```bash
-   [targeted test command covering all behavior test files]
-   ```
-3. **If tests pass**: Announce success, continue to next suggestion
-4. **If tests fail**: Revert the refactoring change using `git checkout -- <affected files>` scoped to only the files this suggestion modified. Announce "Refactoring broke tests — reverted. Moving to next suggestion."
-
-### 3e. Commit Refactoring
-
-After all selected suggestions are applied (or user says "done refactoring"):
-
-```bash
-git add <all refactored files>
-git commit -m "refactor(<scope>): apply deep-module improvements
-
-Post-TDD refactoring with Ousterhout principles
-Plan: docs/plans/<filename>"
-```
+After the deep-module-reviewer returns its report, print the findings inline. Do not present them via AskUserQuestion. Do not apply changes. Proceed directly to Step 4 — the user can refactor manually after reading the report if motivated.
 
 ---
 

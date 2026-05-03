@@ -85,4 +85,4 @@ No violations detected.
 - **Criterion 5 is the priority.** Test mutation is the most dangerous LLM anti-pattern — always check this first.
 - **Read the actual files** when diff context is insufficient. Use Read on test and implementation files for full context.
 - **Do NOT block the cycle.** You report violations; the command handles resolution with the user.
-- **Do NOT suggest refactoring.** That is the refactor-advisor's job, not yours.
+- **Do NOT suggest refactoring.** That is the deep-module-reviewer's job, not yours.

@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check test adequacy.
 user: "Review these code changes for test coverage: [diff of a new service + tests]"
 assistant: "I'll analyze the changes for missing test scenarios, edge case coverage, and test quality."
-<commentary>The review command dispatches this agent as one of five parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of six parallel built-in reviewers.</commentary>
 </example>
 </examples>
 

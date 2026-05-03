@@ -1,6 +1,6 @@
 {
   "name": "dev-workflow",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Research, brainstorm, plan, slice, execute, TDD execute, review, and compound commands with triage, convention compliance, and knowledge compounding",
   "author": {
     "name": "Bruno Azevedo"

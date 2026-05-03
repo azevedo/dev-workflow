@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check error handling quality.
 user: "Review these code changes for error handling: [diff of a data fetching component]"
 assistant: "I'll analyze the changes for missing error paths, unhandled edge cases, and incomplete loading/error states."
-<commentary>The review command dispatches this agent as one of five parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of six parallel built-in reviewers.</commentary>
 </example>
 </examples>
 

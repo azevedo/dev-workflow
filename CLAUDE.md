@@ -44,8 +44,8 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - `simplification-reviewer` — Over-engineering, unnecessary abstraction, YAGNI (built-in reviewer)
 - `error-handling-reviewer` — Edge cases, error paths, graceful failures (built-in reviewer)
 - `test-coverage-reviewer` — Missing test scenarios, test quality, coverage gaps (built-in reviewer)
+- `deep-module-reviewer` — Ousterhout deep-module design: interface depth, dependency injection, side-effect discipline (built-in reviewer)
 - `tdd-cycle-gate` — Per-cycle TDD discipline validation (Read, Grep, Glob, LS)
-- `refactor-advisor` — Ousterhout deep-module refactoring guidance (Read, Grep, Glob, LS)
 
 ## Artifact Paths
 
