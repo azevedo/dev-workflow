@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check deep-module design quality.
 user: "Review these code changes for Ousterhout deep-module principles: [diff of a new service module]"
 assistant: "I'll analyze the changes for interface depth, dependency injection, side-effect discipline, duplication, and shallow-layer merging opportunities."
-<commentary>The review command dispatches this agent as one of six parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of seven parallel built-in reviewers.</commentary>
 </example>
 </examples>
 

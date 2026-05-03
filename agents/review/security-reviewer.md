@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check for security issues in code changes.
 user: "Review these code changes for security issues: [diff of a form handler]"
 assistant: "I'll analyze the changes for XSS vulnerabilities, data exposure, auth issues, and input validation gaps."
-<commentary>The review command dispatches this agent as one of six parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of seven parallel built-in reviewers.</commentary>
 </example>
 </examples>
 

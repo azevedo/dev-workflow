@@ -35,7 +35,7 @@ Search for review agents and skills available in the current environment. Look f
 
 ### 1a. Built-in reviewers
 
-Always include these six built-in reviewers — they live in `agents/review/` and are always available:
+Always include these seven built-in reviewers — they live in `agents/review/` and are always available:
 
 | Agent | Focus |
 |---|---|
@@ -45,8 +45,9 @@ Always include these six built-in reviewers — they live in `agents/review/` an
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Test proposals, coverage gaps, testing approach |
 | `deep-module-reviewer` | Ousterhout deep-module design: interface depth, dependency injection, side-effect discipline |
+| `complexity-reviewer` | Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns |
 
-**All six MUST appear as options in Step 2. Do not filter or omit any.**
+**All seven MUST appear as options in Step 2. Do not filter or omit any.**
 
 ### 1b. External reviewers
 
@@ -96,7 +97,7 @@ Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each revi
 
 **Distribution rules:**
 
-1. Collect all reviewers into an ordered list: 5 built-ins first, then discovered externals (with overlap notes if applicable).
+1. Collect all reviewers into an ordered list: 7 built-ins first, then discovered externals (with overlap notes if applicable).
 2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize questions. Never leave 1 reviewer alone — merge it into the adjacent group (keeping that group at ≤4).
 3. Use short `header` values (max 12 chars), e.g.: `"Analysis"`, `"Quality"`, `"External"`.
 4. If total reviewers exceed 16 (4 × 4), present the first 16 and list any remaining in a follow-up text message.
@@ -105,10 +106,10 @@ Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each revi
 
 | Scenario | Questions |
 |---|---|
-| 5 built-in, 0 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage (header "Quality") |
-| 5 built-in, 1 external | Q1: Architecture, Security, Simplification (header "Analysis") · Q2: Error handling, Test coverage, external-1 (header "Quality") |
-| 5 built-in, 2-3 external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + externals (header "More") |
-| 5 built-in, 4+ external | Q1: Architecture, Security, Simplification, Error handling (header "Built-in") · Q2: Test coverage + up to 3 externals (header "More") · Q3-Q4: remaining externals (header "External") |
+| 7 built-in, 0 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity (header "Quality") |
+| 7 built-in, 1 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity, external-1 (header "Quality") |
+| 7 built-in, 2-4 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity (header "Quality") · Q3: 2-4 externals (header "External") |
+| 7 built-in, 5+ external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity, external-1 (header "Quality") · Q3-Q4: remaining externals partitioned to never leave 1 alone (header "External") |
 
 **Question text:** First question: `"Which reviewers should I run against the plan? (select all that apply)"`. Subsequent questions: `"Additional reviewers:"`.
 

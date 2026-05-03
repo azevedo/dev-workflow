@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check for unnecessary complexity.
 user: "Review these code changes for simplification opportunities: [diff of a new utility module]"
 assistant: "I'll analyze the changes for over-engineering, premature abstraction, and YAGNI violations."
-<commentary>The review command dispatches this agent as one of six parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of seven parallel built-in reviewers.</commentary>
 </example>
 </examples>
 

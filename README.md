@@ -153,7 +153,7 @@ Executes an approved plan using test-driven development discipline: one failing 
 
 ### `/ba:review [ref range]`
 
-Runs post-implementation code review using six built-in review agents plus any additional reviewers discovered in the environment.
+Runs post-implementation code review using seven built-in review agents plus any additional reviewers discovered in the environment.
 
 ### `/ba:compound [context]`
 
@@ -165,7 +165,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
 
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
-- **Six built-in reviewers** — architecture, security, simplification, error handling, test coverage, and deep-module design; always available out of the box
+- **Seven built-in reviewers** — architecture, security, simplification, error handling, test coverage, deep-module design, and complexity; always available out of the box
 - **Extensible** — discovers external review agents and skills; shows all reviewers (built-in and external) with overlap notes so you choose
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
 - **Structured findings** — Must Address / Consider / Looks Good with file:line references and conflict detection across reviewers
@@ -205,6 +205,7 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `error-handling-reviewer` | Reviews code changes for edge cases, error paths, graceful failures, and loading/error states |
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
 | `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
+| `complexity-reviewer` | Reviews code changes for Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer) |
 | `tdd-cycle-gate` | Validates each TDD red-to-green cycle for discipline compliance and LLM anti-patterns |
 
 ## Knowledge Compounding
