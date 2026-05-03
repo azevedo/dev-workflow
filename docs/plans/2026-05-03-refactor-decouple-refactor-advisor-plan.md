@@ -1,7 +1,7 @@
 ---
 title: "Decouple refactor-advisor into deep-module-reviewer"
 type: refactor
-status: in-progress
+status: completed
 date: 2026-05-03
 origin: docs/brainstorms/2026-05-03-phase1-decouple-refactor-advisor-brainstorm.md
 detail_level: standard
@@ -59,7 +59,7 @@ This is a refactor with no automated test surface — the plugin has no test sui
 - [x] `.claude-plugin/plugin.json` version is `0.9.0`.
 - [x] `tdd-cycle-gate.md:88` references `deep-module-reviewer` instead of `refactor-advisor`.
 - [x] `CLAUDE.md` and `README.md` reference `deep-module-reviewer` (no remaining `refactor-advisor` mentions in the live plugin surface).
-- [ ] Single atomic commit on the feature branch; MR title matches `refactor: decouple refactor-advisor into deep-module-reviewer`.
+- [x] Single atomic commit on the feature branch; MR title matches `refactor: decouple refactor-advisor into deep-module-reviewer`.
 
 ## Proposed Solution
 
