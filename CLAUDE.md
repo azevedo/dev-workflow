@@ -47,6 +47,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - `deep-module-reviewer` — Ousterhout deep-module design: interface depth, dependency injection, side-effect discipline (built-in reviewer)
 - `complexity-reviewer` — Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer)
 - `tdd-cycle-gate` — Per-cycle TDD discipline validation (Read, Grep, Glob, LS)
+- `plan-iteration-gate` — Per-round plan-iteration discipline validation, dispatched by `/ba:review-plan` Step 5.5 (Read, Grep, Glob, LS)
 
 ## Artifact Paths
 

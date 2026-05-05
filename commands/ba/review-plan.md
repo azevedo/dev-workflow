@@ -201,6 +201,60 @@ If applying fixes, edit the plan file directly, then confirm: "Plan updated at `
 
 ---
 
+## Step 5.5: Plan-Iteration Discipline Check
+
+After Step 5 completes (regardless of whether fixes were applied), run the plan-iteration discipline gate. This step is unconditional — every `/ba:review-plan` invocation is one round, even when the user picked "Done" and no fixes were applied.
+
+### 5.5a. Increment iteration count
+
+Read the plan's YAML frontmatter. If `iteration_count:` is present and a non-negative integer, increment it by 1. If it is absent, malformed, or negative, treat it as 0 and write `iteration_count: 1`. Use a targeted Edit-tool call on the frontmatter field — do not rewrite unrelated fields.
+
+After the Edit, the plan's `iteration_count` reflects the round being evaluated by the gate.
+
+### 5.5b. Compute plan-body LoC
+
+Plan body LoC excludes the YAML frontmatter span (the lines from the opening `---` through the closing `---` inclusive). Blank lines, code fences, and any `## Slices` table are counted.
+
+You already have the start-of-session snapshot in memory (captured when `/ba:review-plan` was invoked, before any fix was written). Read the current plan file post-fix and compute current LoC against the same rule.
+
+### 5.5c. Dispatch the gate
+
+Dispatch `plan-iteration-gate` once, passing the four labeled inputs:
+
+- Task plan-iteration-gate("Validate this plan-iteration round.
+
+Plan path: [absolute path]
+
+Iteration count: [N from 5.5a]
+
+Snapshot LoC (start of session): [from 5.5b]
+Current LoC (after fixes): [from 5.5b]
+
+Plan content snapshot (start of session):
+[snapshot body — frontmatter excluded]
+
+Current plan content (after fixes):
+[current body — frontmatter excluded]
+
+Review findings (this round):
+- Must Address: [list from Step 4, or 'none']
+- Consider: [list from Step 4, or 'none']
+- Looks Good: [list from Step 4, or 'none']
+
+Apply the six-trigger checklist and the iteration-count reminder rule. Return only violations.")
+
+### 5.5d. Surface the gate output
+
+**If the gate returned `No discipline violations detected.`** (the exact literal string and iteration count < 3): print the line verbatim under a `## Plan-iteration discipline check` heading. Exit Step 5.5.
+
+**If the gate returned a markdown report** (one or more violations, or iteration ≥ 3 with the reminder line): print the report verbatim. Do not present the findings via `AskUserQuestion`. Do not offer fix application. The gate is advisory; the user reads the report and decides what to do next outside this command.
+
+**If the gate dispatch errored or timed out**: print a one-line note `Plan-iteration gate failed (non-blocking): [error]` and continue. The iteration-count increment from 5.5a is **not** rolled back — the round happened regardless of gate availability.
+
+After Step 5.5 completes, `/ba:review-plan` exits.
+
+---
+
 ## Important Guidelines
 
 - **This reviews the plan, not code.** Don't dispatch tools that need actual source files to run.

@@ -207,6 +207,7 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
 | `complexity-reviewer` | Reviews code changes for Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer) |
 | `tdd-cycle-gate` | Validates each TDD red-to-green cycle for discipline compliance and LLM anti-patterns |
+| `plan-iteration-gate` | Validates each `/ba:review-plan` round against the planning-YAGNI / confidence-chasing ratchet — silent when iteration is clean, vocal on six trigger categories, advisory only |
 
 ## Knowledge Compounding
 

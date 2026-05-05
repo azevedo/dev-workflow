@@ -190,6 +190,7 @@ status: active
 date: YYYY-MM-DD
 origin: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md  # if originated from brainstorm, otherwise omit
 detail_level: minimal | standard | comprehensive
+iteration_count: 0
 tags: [feature, component-names]
 ---
 ```
