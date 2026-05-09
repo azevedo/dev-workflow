@@ -211,7 +211,9 @@ tags: [feature, component-names]
 
 [Explicit scope boundaries — prevents scope creep]
 
-## Behaviors to Test *(optional — consumed by `/ba:tdd`)*
+## Behaviors to Test *(optional)*
+
+A Kent C. Dodds-style checklist of user-observable behaviors this plan must satisfy. Authored once at planning time, this list serves three audiences: scope (what's in vs. out), review (does the implementation cover every claim), and test-coverage guarantee (each line is a candidate test case). Each item should be concrete enough to write a single test for — what the code does for the user, not how.
 
 - [ ] [Testable behavior derived from acceptance criteria]
 - [ ] [Another testable behavior]
@@ -251,7 +253,9 @@ tags: [feature, component-names]
 
 [Explicit scope boundaries]
 
-## Behaviors to Test *(optional — consumed by `/ba:tdd`)*
+## Behaviors to Test *(optional)*
+
+A Kent C. Dodds-style checklist of user-observable behaviors this plan must satisfy. Authored once at planning time, this list serves three audiences: scope (what's in vs. out), review (does the implementation cover every claim), and test-coverage guarantee (each line is a candidate test case). Each item should be concrete enough to write a single test for — what the code does for the user, not how.
 
 - [ ] [Testable behavior 1 — what the code should do, not how]
 - [ ] [Testable behavior 2]
@@ -318,7 +322,9 @@ tags: [feature, component-names]
 
 [Explicit scope boundaries]
 
-## Behaviors to Test *(optional — consumed by `/ba:tdd`)*
+## Behaviors to Test *(optional)*
+
+A Kent C. Dodds-style checklist of user-observable behaviors this plan must satisfy. Authored once at planning time, this list serves three audiences: scope (what's in vs. out), review (does the implementation cover every claim), and test-coverage guarantee (each line is a candidate test case). Each item should be concrete enough to write a single test for — what the code does for the user, not how.
 
 - [ ] [Testable behavior 1 — what the code should do, not how]
 - [ ] [Testable behavior 2]

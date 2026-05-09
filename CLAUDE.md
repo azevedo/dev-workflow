@@ -18,7 +18,6 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 ### Execution Commands (implement approved plans)
 
 - `/ba:execute [plan]` — Execute an approved implementation plan
-- `/ba:tdd [plan]` — Execute a plan using test-driven development — red-green-refactor with per-cycle validation
 
 ### Quality Commands (review code — never write production code, only apply review fixes)
 
@@ -46,7 +45,6 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - `test-coverage-reviewer` — Missing test scenarios, test quality, coverage gaps (built-in reviewer)
 - `deep-module-reviewer` — Ousterhout deep-module design: interface depth, dependency injection, side-effect discipline (built-in reviewer)
 - `complexity-reviewer` — Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer)
-- `tdd-cycle-gate` — Per-cycle TDD discipline validation (Read, Grep, Glob, LS)
 - `plan-iteration-gate` — Per-round plan-iteration discipline validation, dispatched by `/ba:review-plan` Step 5.5 (Read, Grep, Glob, LS)
 
 ## Artifact Paths
@@ -65,7 +63,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - All artifacts require YAML frontmatter
 - Bump `version` in `.claude-plugin/plugin.json` for every release
 - Planning commands (brainstorm, plan, slice, review-plan) must never write code — only research and document
-- Execution commands (execute, tdd) implement approved plans — the plan is the authority on what to build
+- Execution commands (execute) implement approved plans — the plan is the authority on what to build
 - Convention-compliance check is mandatory before writing planning artifacts (brainstorms, plans) to disk — slice annotations to existing plans are exempt (they annotate delivery structure, not content)
 - Research docs (`docs/research/`) are exempt — they are pre-convention ephemeral artifacts
 - Agents may declare `tools` in frontmatter to restrict available tools (e.g., locator agents use Grep, Glob, LS only — no Read)

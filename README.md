@@ -4,7 +4,7 @@ A Claude Code plugin that adds structured research, brainstorm, plan, and execut
 
 ## Why
 
-The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first, test-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), decompose into MR-sized slices (`/ba:slice`), review before writing code (`/ba:review-plan`), then implement — either straight (`/ba:execute`) or with TDD discipline (`/ba:tdd`). Post-implementation review (`/ba:review`) and knowledge compounding (`/ba:compound`) close the loop so the same mistakes aren't repeated.
+The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first, test-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), decompose into MR-sized slices (`/ba:slice`), review before writing code (`/ba:review-plan`), then implement (`/ba:execute`). Post-implementation review (`/ba:review`) and knowledge compounding (`/ba:compound`) close the loop so the same mistakes aren't repeated.
 
 The design synthesizes patterns from three production agent workflow systems ([compound-engineering](https://github.com/EveryInc/compound-engineering-plugin), [humanlayer](https://github.com/humanlayer/12-factor-agents), [superpowers](https://github.com/obra/superpowers)), taking the best ideas from each and closing gaps they all share.
 
@@ -41,9 +41,8 @@ Do you understand the codebase area well enough to start a design conversation?
 
 After planning, choose your execution mode:
     Plan is large (multiple MRs worth of work)?              → /ba:slice first
-    Plan has testable behaviors / want test-first discipline? → /ba:tdd
-    Straightforward implementation?                          → /ba:execute
-    Plan is sliced?                                          → /ba:execute --slice N or /ba:tdd --slice N
+    Otherwise?                                               → /ba:execute
+    Plan is sliced?                                          → /ba:execute --slice N
 ```
 
 `/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
@@ -114,7 +113,7 @@ Decomposes an approved plan into MR-sized slices for incremental delivery. Each 
 - **Re-sliceable** -- run ba:slice again and choose "Re-slice from scratch" to re-decompose when estimates prove wrong
 - **Pipeline chaining** -- completion menu offers to start slice 1 immediately or with fresh context
 
-After slicing, execute one slice at a time with `/ba:execute --slice N` or `/ba:tdd --slice N`. Each slice gets its own branch and MR.
+After slicing, execute one slice at a time with `/ba:execute --slice N`. Each slice gets its own branch and MR.
 
 ### `/ba:review-plan [path]`
 
@@ -138,18 +137,6 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
 - **Slice-aware execution** — `--slice N` executes a single slice; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
-
-### `/ba:tdd [plan]`
-
-Executes an approved plan using test-driven development discipline: one failing test, minimal implementation, per-cycle validation, repeat. After all behaviors are green, a dedicated refactor phase with Ousterhout deep-module principles.
-
-- **Behaviors from the plan** — extracts "Behaviors to Test" section, falls back to acceptance criteria, or asks interactively
-- **Tracer-bullet loop** — RED (write failing test) → confirm RED → GREEN (minimal implementation) → confirm GREEN → regression check → cycle gate → repeat
-- **Per-cycle gate** — `tdd-cycle-gate` agent validates each cycle silently; surfaces only violations (test describes behavior, uses public interface, code is minimal, no test mutation)
-- **LLM-specific anti-patterns** — detects tests mutated during GREEN phase and tests not responsive to prior implementation cycle
-- **Refactor phase** — after all behaviors green, `deep-module-reviewer` agent prints inline Ousterhout-guided findings (deep modules, dependency injection, return results over side effects); user refactors manually if motivated
-- **Same infrastructure as `/ba:execute`** — branch check, resume detection, targeted testing, checkpoint tracking, commit discipline, completion menu
-- **Slice-aware execution** — `--slice N` executes a single slice with TDD; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
 
 ### `/ba:review [ref range]`
 
@@ -206,7 +193,6 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
 | `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
 | `complexity-reviewer` | Reviews code changes for Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer) |
-| `tdd-cycle-gate` | Validates each TDD red-to-green cycle for discipline compliance and LLM anti-patterns |
 | `plan-iteration-gate` | Validates each `/ba:review-plan` round against the planning-YAGNI / confidence-chasing ratchet — silent when iteration is clean, vocal on six trigger categories, advisory only |
 
 ## Knowledge Compounding
@@ -228,12 +214,10 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 
 - `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
 - `/ba:compound` — capture solved problems to `docs/solutions/` ✅
-- `/ba:tdd` — TDD execution discipline with per-cycle validation and deep-module refactoring ✅
 - `/ba:slice` — plan decomposition into MR-sized slices for incremental delivery ✅
 - `/ba:handoff` — session continuity for multi-session work
 - `/ba:execute` V3 — batch mode and subagent-driven execution
-- Merge `/ba:tdd` into `/ba:execute` as an execution mode — after `/ba:tdd` is validated through real usage
-- Plan size vs human-review tax — investigate splitting `/ba:plan` output into a short decision doc (human-reviewed, ~200 lines: scope, architecture, risks, phases, slice table) + per-slice mechanical briefs (types, code stubs, test lists) generated fresh at `/ba:tdd` time. Motivation: plans routinely grow past human-reviewable size (1000+ LoC) because one artifact serves both human reviewers and implementation agents; fresh per-slice briefs also catch mechanical drift (stale imports, renamed types, hallucinated helpers) that a plan-time snapshot accumulates before execution. Open questions: does the decision doc stay coherent across slices if kept that thin; can brief generation stay deterministic enough that slice N doesn't contradict slice N-1.
+- Plan size vs human-review tax — investigate splitting `/ba:plan` output into a short decision doc (human-reviewed, ~200 lines: scope, architecture, risks, phases, slice table) + per-slice mechanical briefs (types, code stubs, test lists) generated fresh at `/ba:execute` time. Motivation: plans routinely grow past human-reviewable size (1000+ LoC) because one artifact serves both human reviewers and implementation agents; fresh per-slice briefs also catch mechanical drift (stale imports, renamed types, hallucinated helpers) that a plan-time snapshot accumulates before execution. Open questions: does the decision doc stay coherent across slices if kept that thin; can brief generation stay deterministic enough that slice N doesn't contradict slice N-1.
 
 ## License
 

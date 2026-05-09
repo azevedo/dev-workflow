@@ -76,7 +76,7 @@ Based on detail level, extract the task list and estimate LoC for each:
 
 ### Single-Slice Check
 
-If total estimated LoC <= 150, announce: "This plan fits in a single MR (~[N] LoC). Slicing adds no value -- proceed directly with `/ba:execute` or `/ba:tdd`." and stop.
+If total estimated LoC <= 150, announce: "This plan fits in a single MR (~[N] LoC). Slicing adds no value -- proceed directly with `/ba:execute`." and stop.
 
 ---
 
@@ -220,18 +220,14 @@ Use **AskUserQuestion** to present next steps:
 
 **Options:**
 1. **Start with Execute** -- Begin executing slice 1 with `ba:execute --slice 1` in this session
-2. **Start with TDD** -- Begin executing slice 1 with `ba:tdd --slice 1` in this session
-3. **Fresh-context Execute** -- Clear context and start slice 1 with `ba:execute --slice 1`
-4. **Fresh-context TDD** -- Clear context and start slice 1 with `ba:tdd --slice 1`
-5. **Review plan** -- Run `/ba:review-plan` to review the sliced plan
-6. **Adjust slices** -- Manually modify slice boundaries before executing
-7. **Done for now** -- Return later
+2. **Fresh-context Execute** -- Clear context and start slice 1 with `ba:execute --slice 1`
+3. **Review plan** -- Run `/ba:review-plan` to review the sliced plan
+4. **Adjust slices** -- Manually modify slice boundaries before executing
+5. **Done for now** -- Return later
 
 **Based on selection:**
 - **Start with Execute** -> Invoke `ba:execute --slice 1 docs/plans/[filename]` directly.
-- **Start with TDD** -> Invoke `ba:tdd --slice 1 docs/plans/[filename]` directly.
 - **Fresh-context Execute** -> Tell the user: "Run `/clear` then `/ba:execute --slice 1 docs/plans/[filename]`"
-- **Fresh-context TDD** -> Tell the user: "Run `/clear` then `/ba:tdd --slice 1 docs/plans/[filename]`"
 - **Review plan** -> Invoke `/ba:review-plan docs/plans/[filename]`
 - **Adjust slices** -> Ask which slice to adjust, modify markers and table, return to options.
 - **Done for now** -> Display summary and exit.
