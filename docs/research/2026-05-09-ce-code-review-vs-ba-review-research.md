@@ -324,6 +324,10 @@ now.
 
 ## Related Research
 
+- `docs/research/2026-05-09-ce-review-benchmark-methodology-research.md`
+   — follow-up research on PR #434's signal-to-noise benchmark and
+  what a similar setup would look like for `/ba:review`. Read this
+  when planning empirical validation of any port from the list below.
 - `docs/plans/2026-03-15-feat-add-ba-review-command-plan.md` — original
   `/ba:review` design including the `replaces:` reviewer-replacement
   mechanism
