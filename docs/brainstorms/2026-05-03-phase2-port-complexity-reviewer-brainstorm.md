@@ -73,7 +73,7 @@ The agent is a focused rewrite, not a verbatim port: it draws content from `~/.c
 - Phases 3–5 of the roadmap (each gets its own brainstorm + plan).
 - Modifying, deleting, or promoting `~/.claude/skills/assess-complexity/SKILL.md` (deferred decision per parent roadmap).
 - Adding `complexity-reviewer` to `/ba:tdd` Step 3 (deferred — review-only for Phase 2).
-- Importing/invoking from `~/Programming/playground/agent_workflow_repos/skills/` at runtime (parent-roadmap constraint).
+- Importing/invoking from the skills repo at runtime (parent-roadmap constraint).
 - Reproducing the source skill's discovery phase, heavy 5-section report, Beck framework, or non-salvaged Dodds content (each explicitly dropped above with rationale).
 - Any change to the other six review agents beyond the cosmetic "six → seven" example-commentary update.
 - A "Module Depth Assessment" section in the new agent — that's `deep-module-reviewer`'s territory (Phase 1).
@@ -109,7 +109,7 @@ None. All scope decisions resolved during this brainstorm.
 - **Agent naming** (`complexity-reviewer` — lowercase-with-hyphens, `-reviewer` suffix): ALIGNED.
 - **Agent placement** (`agents/review/`): ALIGNED.
 - **Frontmatter normalization** (`model: sonnet`, no `tools:`) matches review-agent canon: ALIGNED.
-- **No-runtime-dependency on skills repo**: ALIGNED — `~/.claude/skills/assess-complexity/` is user-installed (not skills-repo); the skills-repo at `~/Programming/playground/agent_workflow_repos/skills/` is explicitly out of scope.
+- **No-runtime-dependency on skills repo**: ALIGNED — `~/.claude/skills/assess-complexity/` is user-installed (not skills-repo); the skills repo is explicitly out of scope.
 - **README.md / CLAUDE.md / plugin.json updates** (CLAUDE.md lines 64, 71): ALIGNED — Phase 2 enumerates all three (README.md:156 & :168, CLAUDE.md agent list, plugin.json 0.9.0 → 0.10.0).
 - **No code in brainstorm**: ALIGNED.
 - **Open Questions empty before handoff**: ALIGNED (none — three resolved questions captured).

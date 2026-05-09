@@ -375,7 +375,7 @@ with the post-brainstorm version
 
 **Goal:** Remove `ba:tdd` and `tdd-cycle-gate` from the plugin surface. Retain "Behaviors to Test" as a Kent C. Dodds-style testing-checklist artifact in plan templates.
 
-**Outcome (settled by the Phase 4 brainstorm 2026-05-09):** The original (a)–(d) routing/merge menu is superseded by **option (e): retire `ba:tdd` entirely**. Empirical inspection of recent plans (notably `~/Programming/dragon/docs/plans/2026-04-20-feat-tato-2349-default-leave-types-edit-drawer-plan.md` Slice 4 — the well-cast TDD case) showed all of Bruno's plans carry destination code in detail. Routing presumes both modes have validated value; the data shows only one mode (execute) does. The roadmap's open question — *"Does the data justify the V2 merge now?"* — is answered with *"merge isn't the right framing; deletion is."*
+**Outcome (settled by the Phase 4 brainstorm 2026-05-09):** The original (a)–(d) routing/merge menu is superseded by **option (e): retire `ba:tdd` entirely**. Empirical inspection of recent plans (notably the TATO-2349 default-leave-types plan Slice 4 — the well-cast TDD case) showed all of Bruno's plans carry destination code in detail. Routing presumes both modes have validated value; the data shows only one mode (execute) does. The roadmap's open question — *"Does the data justify the V2 merge now?"* — is answered with *"merge isn't the right framing; deletion is."*
 
 **Brainstorm:** [`docs/brainstorms/2026-05-09-phase4-retire-ba-tdd-brainstorm.md`](2026-05-09-phase4-retire-ba-tdd-brainstorm.md).
 **Plan:** [`docs/plans/2026-05-09-refactor-retire-ba-tdd-plan.md`](../plans/2026-05-09-refactor-retire-ba-tdd-plan.md).
@@ -427,9 +427,9 @@ with the post-brainstorm version
 - **Origin brainstorm:** [`docs/brainstorms/2026-05-09-phase4-retire-ba-tdd-brainstorm.md`](../brainstorms/2026-05-09-phase4-retire-ba-tdd-brainstorm.md). Key decisions carried forward: (1) retire `ba:tdd` entirely rather than route or merge; (2) keep Behaviors-to-Test as a standalone artifact, reframed as Kent C. Dodds-style testing checklist; (3) `ba:execute` unchanged in this phase — no behavior-verification logic added now.
 - **Parent roadmap:** [`docs/brainstorms/2026-05-02-ousterhout-principles-roadmap-brainstorm.md`](../brainstorms/2026-05-02-ousterhout-principles-roadmap-brainstorm.md), Phase 4 brief at lines 89–107 (to be updated by this plan); Discipline Rules at lines 130–160 (governing).
 - **Empirical evidence cited in the brainstorm:**
-  - `~/Programming/dragon/docs/plans/2026-04-20-feat-tato-2349-default-leave-types-edit-drawer-plan.md` — well-cast TDD case (Slice 4) carrying destination code in plan, undermining the routing premise.
-  - `~/Programming/dragon/docs/learnings/2026-04-23-planning-phase-yagni-and-confidence-chasing.md` — discipline rules' source.
-  - `~/Programming/dragon/docs/solutions/dev-workflow/2026-04-24-ba-tdd-vs-ba-execute-decision-framework.md`, `learnings/2026-04-24-ba-tdd-retro-slice-4-displaynameseditor.md`, `solutions/tdd-workflow/2026-04-27-react-tdd-form-mutation-pitfalls.md`, `solutions/tdd-workflow/2026-04-27-yagni-violations-form-tdd.md` — four lived TDD retros.
+  - TATO-2349 default-leave-types plan — well-cast TDD case (Slice 4) carrying destination code in plan, undermining the routing premise.
+  - Planning-YAGNI / confidence-chasing retro — discipline rules' source.
+  - Four lived TDD retros: ba-tdd-vs-ba-execute decision framework, DisplayNamesEditor retro, react-tdd-form-mutation-pitfalls, YAGNI violations form-TDD.
 - **Internal references:**
   - `commands/ba/tdd.md` (deletion target).
   - `agents/workflow/tdd-cycle-gate.md` (deletion target).

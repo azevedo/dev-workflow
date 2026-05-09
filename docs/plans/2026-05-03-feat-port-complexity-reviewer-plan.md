@@ -31,7 +31,7 @@ Phase 2 of the Ousterhout principles roadmap (see brainstorm: `docs/brainstorms/
 - Phases 3–5 of the roadmap.
 - Modifying, deleting, or promoting `~/.claude/skills/assess-complexity/SKILL.md`.
 - Adding `complexity-reviewer` to `/ba:tdd` Step 3 — review-only for Phase 2.
-- Importing or invoking from `~/Programming/playground/agent_workflow_repos/skills/`.
+- Importing or invoking from the skills repo.
 - Reproducing the source skill's discovery phase (`SKILL.md:28-40`), heavy 5-section report (`SKILL.md:188-239`), Beck framework (`SKILL.md:71-100`), or non-salvaged Dodds content (`SKILL.md:108-136` outside the two salvages).
 - Adding a "Module Depth Assessment" section — `deep-module-reviewer`'s territory (Phase 1).
 - Any change to the other six review agents beyond the cosmetic `<commentary>` line-12 flip ("six → seven").

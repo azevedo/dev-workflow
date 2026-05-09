@@ -24,7 +24,7 @@ The brainstorm (`docs/brainstorms/2026-05-09-phase5-design-it-twice-brainstorm.m
 - `agents/workflow/` contains `convention-checker.md`, `spec-flow-analyzer.md`, `plan-iteration-gate.md`. New file `interface-design-generator.md` joins as the fourth.
 - Suffix precedent in `agents/workflow/`: `-checker`, `-gate`, `-analyzer`. **No `-designer`/`-generator` precedent exists.** Per brainstorm `:107` resolution path (b), this plan establishes `-generator` as a new suffix and documents it in root `CLAUDE.md` and the parent roadmap.
 - `commands/ba/research.md:55-87` is the canonical parallel-sub-agent dispatch precedent: a header sentence, a bulleted list of `Task <agent>("...")` invocations, and a "Wait for all sub-agents" trailing instruction. Phase 2 design-it-twice mode follows the same shape with three dispatches against the same agent file but with different constraints.
-- `INTERFACE-DESIGN.md` at `~/Programming/playground/agent_workflow_repos/skills/skills/engineering/improve-codebase-architecture/INTERFACE-DESIGN.md` is the design reference (read-only, per parent roadmap `:39-44`). The 5-part output contract and the constraint vocabulary are reimplemented in-tree in `agents/workflow/interface-design-generator.md`; nothing is imported.
+- `INTERFACE-DESIGN.md` in the skills repo is the design reference (read-only, per parent roadmap `:39-44`). The 5-part output contract and the constraint vocabulary are reimplemented in-tree in `agents/workflow/interface-design-generator.md`; nothing is imported.
 - Parent roadmap Discipline Rules at `docs/brainstorms/2026-05-02-ousterhout-principles-roadmap-brainstorm.md:127-157`. The `### Concrete rules` block at `:149-157` gains one new bullet (the synthesis-lock rule) atomically with this MR.
 - Current `.claude-plugin/plugin.json:3` is `"version": "0.12.0"`. Recent cadence (per `git log` on 0.10.0 → 0.11.0 → 0.12.0) is one minor bump per shipped phase. This plan ships as `0.13.0`.
 
@@ -82,7 +82,7 @@ Brainstorm `:107` left three resolution paths. Plan picks **(b) establish a new 
 
 ### Trigger evaluation, ambiguity, and skip-silently
 
-The five criteria from brainstorm `:46-52` go inline in `commands/ba/brainstorm.md` Phase 2 verbatim. The trigger fires when ANY criterion clearly applies. **Ambiguity tiebreaker: prefer firing.** The cost of one unnecessary parallel dispatch is one round of LLM time; the cost of skipping a needed one is the DisplayNamesEditor calcification cost (see `~/Programming/dragon/docs/learnings/2026-04-24-ba-tdd-retro-slice-4-displaynameseditor.md:33-39, 55-60` — ~15 minutes of conflict-resolution overhead from a lint-driven `useImperativeHandle` that a deepest-module agent would have rejected). The asymmetry favors firing.
+The five criteria from brainstorm `:46-52` go inline in `commands/ba/brainstorm.md` Phase 2 verbatim. The trigger fires when ANY criterion clearly applies. **Ambiguity tiebreaker: prefer firing.** The cost of one unnecessary parallel dispatch is one round of LLM time; the cost of skipping a needed one is the DisplayNamesEditor calcification cost (see the DisplayNamesEditor retro — ~15 minutes of conflict-resolution overhead from a lint-driven `useImperativeHandle` that a deepest-module agent would have rejected). The asymmetry favors firing.
 
 When the trigger does not fire, Phase 2 runs as today and **announces nothing about the trigger** — matches brainstorm `:60` "skip silently" and matches the existing iteration-gate UX pattern.
 
@@ -156,7 +156,7 @@ assistant: "I'll generate an alternative interface design under the common-case 
 
 You are an interface designer generating one alternative design for a proposed new module under a named Ousterhout-flavored constraint. You produce exactly the 5-part output contract below — nothing more, nothing less.
 
-Your design reference (read-only context) is the "Design It Twice" pattern in the upstream skills repo at `~/Programming/playground/agent_workflow_repos/skills/skills/engineering/improve-codebase-architecture/INTERFACE-DESIGN.md`. The 5-part contract and constraint vocabulary are reimplemented here in-tree per the dev-workflow plugin's no-runtime-dependency rule (parent roadmap `:39-44`); you do not need to read that file.
+Your design reference (read-only context) is the "Design It Twice" pattern in `INTERFACE-DESIGN.md` in the skills repo. The 5-part contract and constraint vocabulary are reimplemented here in-tree per the dev-workflow plugin's no-runtime-dependency rule (parent roadmap `:39-44`); you do not need to read that file.
 
 ## Inputs
 
@@ -444,7 +444,7 @@ Bump version `0.12.0` → `0.13.0`. Only the `version` field changes; `descripti
 - **Risk: hybrid free-text capture is ambiguous to plan-time readers.** Mitigation: the user types prose; the brainstorm captures verbatim. Plan-time refinement happens within the lock's bounds — ambiguity is read by the human plan author, not by an enforcer. Acceptable for v1.
 - **Risk: synthesis-lock is honor-system in plan/execute.** Mitigation: explicitly accepted (see "What We're NOT Doing"). Standing Discipline Rule + capture sections are Level-2 enforcement. Revisit if a real plan/execute session bolts a rejected piece back; that retro would justify a Level-3 enforcement gate.
 - **Risk: agent file output drifts from the 5-part contract.** Mitigation: the dispatching command's failure-handling rule treats missing-section output as an error and falls back to default mode. The agent's "Important Rules" section repeats the contract; the Output Format section names the headers exactly. The contract enforcement sits in the dispatching command, not in a re-roll loop.
-- **No external dependencies.** Pure documentation/agent additions. No new packages. No imports from `~/Programming/playground/agent_workflow_repos/skills/`. The `INTERFACE-DESIGN.md` reference in the agent body is a citation, not an import.
+- **No external dependencies.** Pure documentation/agent additions. No new packages. No imports from the skills repo. The `INTERFACE-DESIGN.md` reference in the agent body is a citation, not an import.
 
 ## Convention Compliance
 
@@ -480,9 +480,9 @@ Bump version `0.12.0` → `0.13.0`. Only the `version` field changes; `descripti
 - **Closest plan-shape template:** `docs/plans/2026-05-05-feat-add-plan-iteration-gate-plan.md` — six-file diff, single atomic MR, NEW/EDIT labeled file sections, automated/manual success-criteria split.
 
 ### External references (read-only design)
-- `~/Programming/playground/agent_workflow_repos/skills/skills/engineering/improve-codebase-architecture/INTERFACE-DESIGN.md` — the 5-part output contract and the constraint vocabulary. Read as design reference per the parent roadmap's no-runtime-dependency rule. Not imported, not invoked.
+- `INTERFACE-DESIGN.md` in the skills repo — the 5-part output contract and the constraint vocabulary. Read as design reference per the parent roadmap's no-runtime-dependency rule. Not imported, not invoked.
 
 ### Validation references
-- **DisplayNamesEditor retro:** `~/Programming/dragon/docs/learnings/2026-04-24-ba-tdd-retro-slice-4-displaynameseditor.md:33-39, 55-60` — concrete validation of the cost of skipping pre-commit interface-design dispatch.
-- **Planning-YAGNI / confidence-chasing retro:** `~/Programming/dragon/docs/learnings/2026-04-23-planning-phase-yagni-and-confidence-chasing.md:121-122` — origin of the synthesis-lock rule (the design-alternative analog of "verifier finding answered with >20 lines of new plan → wrong direction").
-- **YAGNI form-TDD violations:** `~/Programming/dragon/docs/solutions/tdd-workflow/2026-04-27-yagni-violations-form-tdd.md:22-24, 38-43, 139-145` — interface-shape patterns the constraint set is calibrated against (callback-vs-imperative, default-vs-edge-case parameters, info-hiding boundaries).
+- **DisplayNamesEditor retro** — concrete validation of the cost of skipping pre-commit interface-design dispatch.
+- **Planning-YAGNI / confidence-chasing retro** — origin of the synthesis-lock rule (the design-alternative analog of "verifier finding answered with >20 lines of new plan → wrong direction").
+- **YAGNI form-TDD violations retro** — interface-shape patterns the constraint set is calibrated against (callback-vs-imperative, default-vs-edge-case parameters, info-hiding boundaries).

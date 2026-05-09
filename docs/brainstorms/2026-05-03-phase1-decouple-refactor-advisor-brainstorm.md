@@ -59,7 +59,7 @@ The motivation in one line: Ousterhout deep-module review is currently locked to
 
 - Phases 2–5 of the roadmap (each gets its own brainstorm + plan).
 - Backward-compat alias at the old agent path.
-- Importing/invoking from `~/Programming/playground/agent_workflow_repos/skills/` at runtime (DEEPENING.md is read-once-as-reference during the rewrite, per the parent roadmap's standing constraint).
+- Importing/invoking from the skills repo at runtime (DEEPENING.md is read-once-as-reference during the rewrite, per the parent roadmap's standing constraint).
 - Restructuring the agent body around the full DEEPENING framework.
 - Any change to the other five review agents beyond cosmetic count updates.
 - Saving the deep-module-reviewer report to disk during `/ba:tdd` (inline-only).

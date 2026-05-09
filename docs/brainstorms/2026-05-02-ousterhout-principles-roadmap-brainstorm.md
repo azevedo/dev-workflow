@@ -12,13 +12,13 @@ tags: [ousterhout, roadmap, refactor-advisor, complexity-reviewer, planning-disc
 
 A multi-phase, additive expansion of Ousterhout-flavored discipline across `dev-workflow`, beyond its current narrow surface (`refactor-advisor` dispatched only by `ba:tdd` Step 3b). Each phase ships independently and is followed by its own focused brainstorm + plan session — **this document is the roadmap, not an implementation plan**.
 
-The motivation comes from five lived retros in `~/Programming/dragon/docs/`:
+The motivation comes from five lived retros:
 
-- `solutions/dev-workflow/2026-04-24-ba-tdd-vs-ba-execute-decision-framework.md`
-- `learnings/2026-04-24-ba-tdd-retro-slice-4-displaynameseditor.md`
-- `solutions/tdd-workflow/2026-04-27-react-tdd-form-mutation-pitfalls.md`
-- `solutions/tdd-workflow/2026-04-27-yagni-violations-form-tdd.md`
-- `learnings/2026-04-23-planning-phase-yagni-and-confidence-chasing.md`
+- ba-tdd-vs-ba-execute decision framework
+- DisplayNamesEditor retro (ba-tdd retro slice 4)
+- React TDD form mutation pitfalls
+- YAGNI violations form-TDD
+- Planning-YAGNI / confidence-chasing retro
 
 The retros converge on three patterns: (1) Ousterhout's deep-module refactor phase pays when triggered, but is currently locked to `ba:tdd`; (2) `ba:tdd` is often miscast for slices that need execute-mode, suggesting routing logic is missing; (3) the planning phase itself ratchets toward over-engineering when confidence is treated as a target.
 
@@ -38,7 +38,7 @@ The retros converge on three patterns: (1) Ousterhout's deep-module refactor pha
 
 ## Constraint: No Runtime Dependency on the Skills Repo
 
-`dev-workflow` does not import, invoke, or reference any skill from `~/Programming/playground/agent_workflow_repos/skills/`. That repo is a design **reference** (e.g., `improve-codebase-architecture/INTERFACE-DESIGN.md` for Phase 5's parallel-sub-agent pattern; `improve-codebase-architecture/DEEPENING.md` for Phase 1's deepening framings), but anything ported is rewritten in-tree as a `dev-workflow` agent or command.
+`dev-workflow` does not import, invoke, or reference any skill from the skills repo. That repo is a design **reference** (e.g., `INTERFACE-DESIGN.md` for Phase 5's parallel-sub-agent pattern; `DEEPENING.md` for Phase 1's deepening framings), but anything ported is rewritten in-tree as a `dev-workflow` agent or command.
 
 This applies to every phase. The user-level skill `~/.claude/skills/assess-complexity/` (Phase 2's source) is user-installed, not skills-repo, so it is fine to read and port.
 
@@ -51,8 +51,8 @@ This applies to every phase. The user-level skill `~/.claude/skills/assess-compl
 **Scope hooks:**
 - Move/rename `agents/workflow/refactor-advisor.md` → `agents/review/deep-module-reviewer.md`.
 - Wire into `ba:review` as a peer of the existing five review agents.
-- Keep the existing dispatch in `ba:tdd:3b` for the interactive apply/skip/done loop (different UX from review-time reporting; both worth preserving).
-- During the rewrite, read `skills/engineering/improve-codebase-architecture/DEEPENING.md` as background; copy framings selectively if they sharpen the lenses.
+- `ba:tdd` Step 3b dispatches the new `deep-module-reviewer` with the same report-only output as in `ba:review`. The prior interactive apply/skip/done loop is dropped — not battle-tested at 3 uses, and re-addable later if real usage demands it.
+- During the rewrite, read `DEEPENING.md` in the skills repo as background; copy framings selectively if they sharpen the lenses.
 
 **Why first:** smallest scope, well-defined, builds the pattern. Un-locks Ousterhout from TDD-only — directly addresses the gap where `ba:execute` (the path Bruno uses more) loses Ousterhout entirely.
 
@@ -82,28 +82,26 @@ This applies to every phase. The user-level skill `~/.claude/skills/assess-compl
 - Possibly a hard cap on iterations (3–4 rounds, then default to "ship or delete").
 - Brainstorm-iteration sibling **explicitly deferred** — Level-2 discipline via the standing Discipline section is sufficient until Level-3 automation is justified by evidence.
 
-**Why third (despite being the worst documented pain):** highest-impact and highest-risk. Phases 1–2 build the silent-watch-agent pattern this needs. Going at it cold without that pattern is harder.
+**Why third (despite being the worst documented pain):** highest-impact, medium-risk. Phases 1–2 are easy wins that build confidence in the multi-phase approach itself before tackling something harder. The silent-gate pattern is already established by `tdd-cycle-gate`, so Phase 3 reuses that shape rather than inventing it.
 
 **Risk:** medium. UX needs care to avoid being annoying.
 
-### Phase 4 — TDD-vs-execute routing (and possible merge into single `ba:execute`)
+### Phase 4 — Retire `ba:tdd`; keep "Behaviors to Test" as a standalone artifact
 
-**Goal:** Address the "ba:tdd is miscast for many slices" pain by either routing per-slice or merging tdd into execute as a mode.
+**Goal:** Remove `ba:tdd` and `tdd-cycle-gate` from the plugin surface. Retain "Behaviors to Test" as a Kent C. Dodds-style testing-checklist artifact in plan templates.
 
-**Scope hooks (all open, to be settled in the Phase 4 brainstorm):**
-- Slicing is owned by `ba:slice`, not `ba:plan` (per the 2026-04-13 ba-slice brainstorm's resolved questions). Routing logic lands in `ba:slice` or in the merged `ba:execute`, **never in `ba:plan`**.
-- Per-slice tagging (`tdd | execute | either`) using the heuristics from the decision-framework retro: counterfactual test, two-engineer test, plan-shape test, slice-content router.
-- Roadmap line 233 (`README.md`) anticipates merging `ba:tdd` into `ba:execute` as a mode, deferred until validation. The four retros are that validation.
-- The Phase 4 brainstorm decides: (a) per-slice tagging only, (b) merge into `ba:execute` with mode flag, (c) both, (d) neither.
+**Outcome (settled by the Phase 4 brainstorm 2026-05-09):** The original (a)–(d) routing/merge menu is superseded by **option (e): retire `ba:tdd` entirely**. Empirical inspection of recent plans (notably the TATO-2349 default-leave-types plan Slice 4 — the well-cast TDD case) showed all of Bruno's plans carry destination code in detail. Routing presumes both modes have validated value; the data shows only one mode (execute) does. The roadmap's open question — *"Does the data justify the V2 merge now?"* — is answered with *"merge isn't the right framing; deletion is."*
 
-**Open questions for Phase 4 brainstorm:**
-- Does the data justify the V2 merge now?
-- Where does routing live — slice metadata, execute mode flag, or both?
-- Should plan-size split (roadmap line 234) be absorbed into Phase 4 or its own phase? (Per-slice mode tagging does **not** shrink plans — that's a distinct architectural change.)
+**Brainstorm:** [`docs/brainstorms/2026-05-09-phase4-retire-ba-tdd-brainstorm.md`](2026-05-09-phase4-retire-ba-tdd-brainstorm.md).
+**Plan:** [`docs/plans/2026-05-09-refactor-retire-ba-tdd-plan.md`](../plans/2026-05-09-refactor-retire-ba-tdd-plan.md).
 
-**Why fourth:** depends on Phase 3's discipline gate to avoid its own brainstorm ratcheting. Heuristics may evolve with more retro data.
+**4a/4b sub-phase split dissolves.** No second mode to merge — retirement accomplishes the merge.
 
-**Risk:** medium. The most open questions of any phase.
+**`ba:execute` is unchanged in this phase.** No behavior-verification check is added now; whether and where verification logic eventually lives (most likely `ba:review`) is **TBD and out of scope** for Phase 4.
+
+**Why fourth:** depends on Phase 3's discipline gate to avoid its own brainstorm ratcheting. Phase 3's gate caught the "verifier finding answered with >20 lines of new plan" pattern in real time during the brainstorm dialogue, supporting the retirement decision.
+
+**Risk:** very low. This phase *removes* machinery rather than adding it — directly opposite of the verifier-finding-triggers-machinery anti-pattern.
 
 ### Phase 5 — Design-It-Twice as conditional sub-step in `ba:brainstorm`
 
@@ -113,7 +111,8 @@ This applies to every phase. The user-level skill `~/.claude/skills/assess-compl
 - Sub-step inside `ba:brainstorm`, **not `ba:plan`** — alternatives are cheap before commitment, awkward after.
 - Trigger condition: brainstorm introduces a new module or interface boundary. Skip silently for bug fixes, modifications, or refactors of existing interfaces.
 - Pattern: 2–3 parallel sub-agents producing alternative designs, then user picks.
-- Reimplement the parallel-sub-agent pattern from `skills/engineering/improve-codebase-architecture/INTERFACE-DESIGN.md` in-tree (no runtime dependency).
+- Reimplement the parallel-sub-agent pattern from `INTERFACE-DESIGN.md` in the skills repo in-tree (no runtime dependency).
+- **Resolved at plan time (2026-05-09):** the Phase 5 plan establishes `-generator` as a new `agents/workflow/` suffix and ships `interface-design-generator` as one parameterized agent (constraint passed as input) rather than three siblings. Suffix is documented in root `CLAUDE.md` "Conventions". See `docs/plans/2026-05-09-feat-add-design-it-twice-mode-plan.md`.
 
 **Why last:** lowest pain, highest design-quality lift. Most appropriate to add when the plumbing (Phases 1–3) is in place and the routing question (Phase 4) is settled.
 
@@ -157,6 +156,7 @@ Derived from the 2026-04-23 planning-YAGNI / confidence-chasing retro. **Every p
 - Every plan iteration must either delete a section or produce a commit — no pure-additive rounds.
 - If user questions necessity twice, the feature is cut — don't defend, delete.
 - Plan documents cap at ~600 lines; beyond that, split into shipped milestones.
+- **Synthesis lock at brainstorm capture.** Hybrid alternatives are locked at brainstorm capture; no bolting rejected pieces back during plan/execute. The brainstorm's `## Locked Design` and `## Rejected Designs` sections (when present) define the bound; refinement inside the lock is fine, re-adding rejected pieces is the synthesis-creep ratchet that this rule names. Origin: Phase 5 brainstorm `docs/brainstorms/2026-05-09-phase5-design-it-twice-brainstorm.md`.
 
 ## Scope Boundaries
 
@@ -172,7 +172,7 @@ Derived from the 2026-04-23 planning-YAGNI / confidence-chasing retro. **Every p
 - Building the brainstorm-iteration discipline gate (deferred — Level-2 enforcement via this doc).
 - Porting `interface-comment-reviewer` (deferred until battle-tested).
 - Full Ousterhout vocabulary enforcement (deferred — no observed pain).
-- Importing or invoking skills from `~/Programming/playground/agent_workflow_repos/skills/` (constraint).
+- Importing or invoking skills from the skills repo (constraint).
 - Plan-size split (deferred to Phase 4 brainstorm decision).
 
 ## Acceptance Criteria

@@ -69,7 +69,7 @@ The motivation in one line: the deepest pain in the parent roadmap (the planning
 - Hard-stop or refusal-to-continue mode at any iteration count.
 - Adding `confidence:` (or any new field) to the plan frontmatter template.
 - A brainstorm-iteration sibling gate (deferred per parent roadmap).
-- Importing or invoking anything from `~/Programming/playground/agent_workflow_repos/skills/` at runtime.
+- Importing or invoking anything from the skills repo at runtime.
 - Mutation of the plan file by the gate (read-only by design).
 - Calibrating the soft line cap to a value other than ~600 (matches Discipline Rules baseline; tunable later if false-positive rate warrants it).
 

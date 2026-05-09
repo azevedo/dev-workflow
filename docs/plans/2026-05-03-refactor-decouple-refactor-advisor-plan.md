@@ -38,7 +38,7 @@ The brainstorm explicitly enumerates 7 file edits; this plan implements those pl
 
 - Phases 2–5 of the roadmap (each gets its own brainstorm + plan).
 - Backward-compat alias at the old agent path (`agents/workflow/refactor-advisor.md`).
-- Importing/invoking from `~/Programming/playground/agent_workflow_repos/skills/` at runtime — `DEEPENING.md` is read-once-as-reference during the rewrite (parent roadmap line 41 standing constraint).
+- Importing/invoking from the skills repo at runtime — `DEEPENING.md` is read-once-as-reference during the rewrite (parent roadmap line 41 standing constraint).
 - Restructuring the agent body around the full DEEPENING framework.
 - Any change to the other five review agents beyond cosmetic count updates.
 - Saving the deep-module-reviewer report to disk during `/ba:tdd` — inline-only.
@@ -170,7 +170,7 @@ Multi-line bullets are permitted — include `Current:` / `Suggested:` / `Impact
 - **No new features.** Refactoring changes implementation, not behavior. If a suggestion adds capability, it is not refactoring — drop it.
 ```
 
-> **Notes for the implementer.** The body retains the five Ousterhout lenses verbatim from the existing `refactor-advisor` (brainstorm line 38: *"Keep the existing five Ousterhout principles as the agent's `## What You Review` body."*). Selectively port framings from `~/Programming/playground/agent_workflow_repos/skills/engineering/improve-codebase-architecture/DEEPENING.md` only where they sharpen specific lenses — read once as design reference, no runtime dependency.
+> **Notes for the implementer.** The body retains the five Ousterhout lenses verbatim from the existing `refactor-advisor` (brainstorm line 38: *"Keep the existing five Ousterhout principles as the agent's `## What You Review` body."*). Selectively port framings from `DEEPENING.md` in the skills repo only where they sharpen specific lenses — read once as design reference, no runtime dependency.
 >
 > **Hybrid output format.** Canonical `Must Address / Consider / Looks Good` headers retained for parity with the other five reviewers. Multi-line `Current:` / `Suggested:` / `Impact:` bullets permitted because deep-module suggestions are constructive (not issue-spotting like the other reviewers) and need diff context to be actionable. Single-line bullets remain the default; multi-line is only triggered when the diff context is non-obvious. Decision resolved with user during planning (see Convention Compliance, item *"Output format: hybrid"*).
 
@@ -402,7 +402,7 @@ Edits:
 ### External References
 
 - John Ousterhout, *A Philosophy of Software Design*, 2nd ed. (referenced as design source in agent body; not invoked at runtime).
-- `~/Programming/playground/agent_workflow_repos/skills/engineering/improve-codebase-architecture/DEEPENING.md` — read-once-as-reference during agent body refresh; **no runtime dependency** per parent roadmap line 41 standing constraint.
+- `DEEPENING.md` in the skills repo — read-once-as-reference during agent body refresh; **no runtime dependency** per parent roadmap line 41 standing constraint.
 
 ## Convention Compliance
 

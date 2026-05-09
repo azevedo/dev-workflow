@@ -38,7 +38,7 @@ This is an **upgrade**, not an addition. Phase 2 already proposes 2-3 approaches
 
 - **Reuses the existing flow.** AskUserQuestion to pick, recommendation framing, and Phase 3 capture all stay identical. Only the *generator* of alternatives changes.
 - **Trigger-gated cost.** The expensive step (parallel dispatch) only happens when it has design-quality lift. Refactors and bug fixes pay zero overhead.
-- **Concrete validation from prior retro.** The DisplayNamesEditor retro (`~/Programming/dragon/docs/learnings/2026-04-24-ba-tdd-retro-slice-4-displaynameseditor.md` lines 34-39, 55-60) shows the cost of skipping this step on real work: an imperative-handle interface born of a lint workaround calcified into ~15 minutes of conflict-resolution overhead, where a pre-commit "imperative vs callback vs controlled" sub-agent triplet would have surfaced the simpler shape before it locked in.
+- **Concrete validation from prior retro.** The DisplayNamesEditor retro shows the cost of skipping this step on real work: an imperative-handle interface born of a lint workaround calcified into ~15 minutes of conflict-resolution overhead, where a pre-commit "imperative vs callback vs controlled" sub-agent triplet would have surfaced the simpler shape before it locked in.
 
 ## Key Decisions
 
@@ -79,7 +79,7 @@ This is an **upgrade**, not an addition. Phase 2 already proposes 2-3 approaches
 - Trigger detection for FAST-TRACK paths. FAST-TRACK by definition excludes new patterns / architectural impact (Phase 0 Q3, Q4 in `ba:brainstorm`); the trigger cannot reach a FAST-TRACK brainstorm.
 - Free synthesis throughout brainstorm/plan/execute (rejected explicitly — synthesis-creep risk).
 - Porting `interface-comment-reviewer` (deferred candidate per parent roadmap).
-- Importing or invoking skills from `~/Programming/playground/agent_workflow_repos/skills/` (standing constraint).
+- Importing or invoking skills from the skills repo (standing constraint).
 
 ## Acceptance Criteria
 
@@ -109,7 +109,7 @@ None blocking handoff to `/ba:plan`. Implementation-level questions — one agen
 - **Open Questions empty-before-handoff hard gate**: ALIGNED — section contains only deferred-to-plan items, none of which block `/ba:plan`.
 - **Parent-roadmap citation requirement** (parent roadmap line 129): ALIGNED — roadmap parent and Discipline Rules section linked at the top of this doc.
 - **Per-phase plan deliverables include README/CLAUDE.md/plugin.json bumps** (parent roadmap line 166): ALIGNED — all three listed in In Scope.
-- **No runtime dependency on `~/Programming/playground/agent_workflow_repos/skills/`** (parent roadmap lines 39-44): ALIGNED — `INTERFACE-DESIGN.md` referenced as design reference only; pattern reimplemented in-tree.
+- **No runtime dependency on the skills repo** (parent roadmap lines 39-44): ALIGNED — `INTERFACE-DESIGN.md` referenced as design reference only; pattern reimplemented in-tree.
 - **Built-in reviewer always-shown rule**: NOT APPLICABLE — Phase 5 does not modify `/ba:review`.
 
 ## Next Steps
