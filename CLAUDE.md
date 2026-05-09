@@ -46,6 +46,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - `deep-module-reviewer` — Ousterhout deep-module design: interface depth, dependency injection, side-effect discipline (built-in reviewer)
 - `complexity-reviewer` — Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer)
 - `plan-iteration-gate` — Per-round plan-iteration discipline validation, dispatched by `/ba:review-plan` Step 5.5 (Read, Grep, Glob, LS)
+- `interface-design-generator` — Generates one alternative interface design under a named Ousterhout-flavored constraint, dispatched in parallel by `/ba:brainstorm` Phase 2 design-it-twice mode (Read, Grep, Glob, LS)
 
 ## Artifact Paths
 
@@ -59,7 +60,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 ## Conventions
 
 - Command prefix: `ba:`
-- Agent names: lowercase-with-hyphens
+- Agent names: lowercase-with-hyphens; suffix names the role (`-reviewer` for `agents/review/`; `-checker`, `-gate`, `-analyzer`, `-generator` for `agents/workflow/`)
 - All artifacts require YAML frontmatter
 - Bump `version` in `.claude-plugin/plugin.json` for every release
 - Planning commands (brainstorm, plan, slice, review-plan) must never write code — only research and document

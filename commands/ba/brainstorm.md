@@ -158,6 +158,52 @@ Use the **AskUserQuestion tool** to ask questions **one at a time**.
 
 ### Phase 2: Explore Approaches
 
+Phase 2 has two modes. The trigger below decides which fires; **do not announce the evaluation either way**.
+
+#### Trigger: design-it-twice mode
+
+Fire design-it-twice mode (parallel constraint-anchored dispatch) when ANY of the following is true:
+
+- a new file / directory / module is being proposed,
+- a new exported function / class / component is being proposed,
+- a new public interface or API surface is being proposed,
+- a new agent / command / skill is being proposed,
+- a new public type that callers depend on is being proposed.
+
+Do **not** fire for: modifications to existing modules, bug fixes, parameter additions, internals, or refactors that preserve external shape.
+
+Mixed-scope brainstorms (new module + refactor in one brainstorm): fire if any portion proposes a new boundary; the dispatched sub-agents are scoped to the new portion only.
+
+Tie-breaker on ambiguity: prefer firing. The cost of an unnecessary parallel dispatch is one round of LLM time; the cost of skipping a needed one is calcified design.
+
+When the trigger does **not** fire, run the default mode below silently. No announcement. Single-shot per brainstorm session: if `## Locked Design` already exists in the brainstorm doc at this path, do not re-dispatch — proceed to default mode and note the prior dispatch in Phase 3 capture.
+
+#### Design-it-twice mode (trigger fired)
+
+Dispatch three `interface-design-generator` agents in parallel, one per constraint:
+
+- Task interface-design-generator("Constraint: deepest-module. Brainstorm context: <3-8 sentence summary of what's being designed, including proposed module purpose, where it lives, dependencies, and constraints established in Phase 1.2 dialogue>.")
+- Task interface-design-generator("Constraint: common-case. Brainstorm context: <same summary as above>.")
+- Task interface-design-generator("Constraint: info-hiding. Brainstorm context: <same summary as above>.")
+
+Wait for all three to return.
+
+**Failure handling.** If any dispatch errors, returns empty, or returns output missing one or more of the five contract sections (`### Interface`, `### Usage example`, `### What's hidden behind the seam`, `### Dependency strategy`, `### Trade-offs`), **fall back to default mode above** for the entire pick step. Note the fallback in Phase 3 capture as: `Design-it-twice dispatch attempted; fell back to default Phase 2 enumeration because [reason].`
+
+**Present.** Show each design sequentially with its full 5-part output (Design A — Deepest module, Design B — Common case, Design C — Info hiding). After the third presentation, contrast in prose on **depth** (leverage at the interface), **locality** (where change concentrates), **seam placement**, and **who pays the trade-offs**. **Lead with a recommendation** — a strong read, not a menu.
+
+**Pick.** Use **AskUserQuestion** with exactly four options:
+1. **Design A — Deepest module** — [one-line summary of A's interface]
+2. **Design B — Common case** — [one-line summary of B's interface]
+3. **Design C — Info hiding** — [one-line summary of C's interface]
+4. **Hybrid** — combine elements across designs
+
+If the user picks **Hybrid**, follow up with a second **AskUserQuestion** asking the user to describe the hybrid in one or two sentences (e.g., *"A's interface but B's error model"*). Capture the user's wording verbatim — it becomes the `**Source:**` line of `## Locked Design` in Phase 3 capture.
+
+If the user explicitly rejects all four options, surface the misfire and offer: (a) accept one of A/B/C as a refinement starting point in plan, or (b) end this brainstorm and start a fresh one. **Do not re-dispatch within this brainstorm session** — single-shot is binding.
+
+#### Default mode (trigger did not fire — fallback)
+
 Propose **2-3 concrete approaches** based on research and conversation.
 
 For each approach, provide:
@@ -217,6 +263,46 @@ tags: [feature, component-names]
 **Scaling:**
 - **STANDARD**: Brief — a few sentences per section. Skip sections that don't apply.
 - **FULL**: Comprehensive — 200-300 words per section where warranted. All sections populated.
+
+#### When design-it-twice mode fired in Phase 2
+
+If Phase 2's trigger fired and the user picked a design (A / B / C / Hybrid), append the two sections below **after `## Key Decisions`** in the brainstorm doc. Do not write either section when the trigger did not fire — keep the default template clean.
+
+```markdown
+## Locked Design
+
+**Source:** [Design A — Deepest module | Design B — Common case | Design C — Info hiding | Hybrid: <verbatim quote of the user's hybrid description>]
+
+### Interface
+[Entry points + signatures + invariants/ordering/error modes from the chosen design. For a hybrid, source the relevant sections from each design referenced in the user's hybrid description.]
+
+### Usage example
+[Most-common caller from the chosen design.]
+
+### What's hidden behind the seam
+[From the chosen design.]
+
+### Dependency strategy
+[From the chosen design.]
+
+### Trade-offs
+[From the chosen design — preserve verbatim. Trade-offs from rejected designs go in `## Rejected Designs` below.]
+
+This design is **locked** at brainstorm capture per the standing synthesis-lock Discipline Rule (`docs/brainstorms/2026-05-02-ousterhout-principles-roadmap-brainstorm.md` `### Concrete rules`). Plan and execute may refine this design within the bounds of the lock; they may not re-add elements from the rejected designs below.
+
+## Rejected Designs
+
+### [Design A | Design B | Design C] — [Deepest module | Common case | Info hiding] (rejected)
+- **Interface summary:** [1-2 sentences sourced from the unchosen design's `### Interface` section.]
+- **Why rejected:** [1-2 sentences sourced from the contrast prose and the user's pick reasoning. For a hybrid, identify which elements *were* incorporated and which were not.]
+
+### [next rejected design]
+[same shape — repeat for each unchosen design]
+```
+
+If the dispatch fell back to default mode (per the failure-handling rule in Phase 2), do **not** write `## Locked Design` or `## Rejected Designs` — capture the chosen approach inside `## Key Decisions` as today, and add a one-line note: `Design-it-twice dispatch attempted; fell back to default Phase 2 enumeration because [reason].`
+
+If the dispatch was skipped because `## Locked Design` already exists at this path, add a one-line note in `## Key Decisions`: `Design-it-twice dispatch skipped — ## Locked Design section already present from prior session.`
 
 **HARD GATE:** Before proceeding to Phase 3.5, check the Open Questions section. If there are open questions, YOU MUST ask the user about each one using AskUserQuestion before continuing. Move resolved questions to a "Resolved Questions" subsection.
 
