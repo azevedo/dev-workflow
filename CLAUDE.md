@@ -69,4 +69,5 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Research docs (`docs/research/`) are exempt — they are pre-convention ephemeral artifacts
 - Agents may declare `tools` in frontmatter to restrict available tools (e.g., locator agents use Grep, Glob, LS only — no Read)
 - All built-in reviewers always appear as options in `/ba:review` — external reviewers are shown alongside them with overlap notes, never hidden or replaced
+- `/ba:review` dispatches reviewer subagents with a protected-artifacts guard naming `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, and `docs/research/` — reviewers must not suggest deleting, relocating, or otherwise removing files under these roots (content review is unaffected)
 - Update README.md whenever commands, agents, or artifact paths are added or changed

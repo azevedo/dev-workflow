@@ -284,6 +284,8 @@ For **agent-based reviewers**, prompt the subagent directly:
 
 - Task <reviewer-agent>("Review these code changes for [dimension focus].
 
+**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, or `docs/research/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+
 Context:
 - Scope: [scope description]
 - MR context: [MR title + description, if MR scope]
@@ -299,6 +301,8 @@ Review the diff AND read the full content of changed files for context. Return f
 For **skill-based reviewers**, instruct the subagent to invoke the skill:
 
 - Task general-purpose("Use the `[skill-name]` skill to review these code changes.
+
+**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, or `docs/research/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
 - Scope: [scope description]
@@ -321,6 +325,8 @@ Before dispatching, **resolve the name** against known skills and agents:
 4. **No match → custom review dimension:** dispatch as a `general-purpose` subagent — do NOT use the typed name as `subagent_type` since it won't be a registered agent type:
 
 - Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens.
+
+**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, or `docs/research/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
 - Scope: [scope description]
