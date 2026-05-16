@@ -16,9 +16,7 @@ In Birgitta Böckeler's [framing of spec-driven development](https://martinfowle
 
 ## Facts vs. specs
 
-A competing critique ([Wasowski](https://medium.com/@wasowski.jarek/stop-writing-specs-start-writing-facts-the-entire-sdd-movement-is-already-obsolete-9045f7061e26)) argues the prose spec is the wrong durable artifact: an executable test survives model upgrades unchanged, while a prose spec gets reinterpreted on every regeneration. The headline ("SDD is obsolete") overreaches — even that argument keeps a spec for *what* to build — but the core point holds: prose doesn't survive, executable assertions do.
-
-`dev-workflow` treats its prose artifacts accordingly. Research and brainstorm docs are explicitly ephemeral; a plan is scaffolding for one implementation, not a living contract (see the SDD-ladder note above). The durable layer is meant to be the test suite plus compounded learnings in `docs/solutions/`, not the plan. The honest gap today: acceptance criteria in plans are prose, not executable Given/When/Then that `/ba:execute` lands as failing tests before code — so the plan-to-fact handoff still leans on reinterpretation. Closing that (executable acceptance criteria as the unit that survives regeneration) is the plugin's intended answer to this critique, not a defense of prose as the source of truth.
+A competing critique ([Wasowski](https://medium.com/@wasowski.jarek/stop-writing-specs-start-writing-facts-the-entire-sdd-movement-is-already-obsolete-9045f7061e26)) argues that an executable test survives model upgrades unchanged while a prose spec gets reinterpreted on every regeneration. `dev-workflow`'s prose artifacts are deliberately ephemeral (see the SDD-ladder note above), but acceptance criteria in plans are still prose rather than executable assertions — so the plan-to-code handoff currently relies on reinterpretation. Worth knowing if regeneration stability matters to you.
 
 ## Install
 
