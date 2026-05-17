@@ -443,39 +443,152 @@ If a reviewer fails or returns empty: note it for the summary but do not block o
 
 ## Step 4: Consolidate & Present Findings
 
-After all reviewers complete, present a consolidated summary:
+After all reviewers complete, the orchestrator runs a five-step internal pipeline. Reviewers emit prose; the orchestrator extracts records; the user sees re-rendered prose. **The user-visible output is prose. The records are internal to consolidation.**
 
-```markdown
+### 4a. Parse each reviewer's raw return text
+
+For each reviewer's return text, extract records using this grammar (permissive):
+
+| Token | Rule |
+|---|---|
+| Severity section | `^## ` followed by a recognised label (case-insensitive): `Critical`, `High`, `Medium`, `Low`, `Looks Good`. Trailing text after the label is allowed (`## Critical Issues` matches `Critical`). |
+| Legacy section | `^## ` followed by `Must Address` or `Consider` — map `Must Address → High`, `Consider → Medium`. A reviewer whose output contains **only** legacy headings (no new-ladder headings) increments `legacy_format`. A reviewer whose output mixes legacy headings with at least one new-ladder heading increments `mixed_format` instead. The two counters reflect distinct conditions: `legacy_format` flags reviewers needing wholesale updates; `mixed_format` flags reviewers that are partially compliant. |
+| Bullet anchor | `^- \*\*<path>:<line>\*\*` — `path` non-empty; `line` is a positive integer. First `**…**` matching `path:line` shape on the line is the anchor; subsequent bold markers are body content. |
+| Confidence marker | After the anchor, optional `\*\(confidence:\s*<N>\s*\)\*` (case-insensitive on `confidence`). |
+| Em-dash separator | `—`, `–`, or `--`, optionally surrounded by whitespace. |
+| Body | Everything after the separator until the next bullet (`^- \*\*`) or next heading (`^## `). Non-bullet, non-heading lines are body continuation of the parent bullet. |
+| `None` token | A heading whose only content is the literal `None` (case-insensitive, possibly `_None_` / `*None*`) emits zero records under that heading. No warning. |
+| `Looks Good` bullet | Format stays `- [Validated aspect]`. No file:line, no confidence. Record severity = `Looks Good`; skip anchor/confidence extraction. **Separate bucket — not a rung on the Critical/H/M/L ladder.** Confidence floor does not apply; dedup does not cross `Looks Good` and other severities; merge/promotion math is irrelevant. |
+
+Produce a list of records `(severity, file, line, confidence, body, reviewer_name)` per reviewer.
+
+### 4b. Validate each record
+
+For each non-`Looks Good` record, run these checks. Increment the named counter on failure.
+
+| Check | Action on failure | Counter |
+|---|---|---|
+| Severity ∈ {Critical, High, Medium, Low} | Default to `Low` | `coerced` (shared) |
+| File path non-empty AND line is positive integer | Drop record | `dropped_no_fileline` |
+| Confidence ∈ {0, 25, 50, 75, 100} | If numeric: snap to nearest anchor (ties go up). If non-numeric or missing: default to the section severity's floor (`Critical → 50`, `H/M/L → 75`). | `snapped` or `confidence_default` |
+| Body non-empty | Coerce body to `(no description)` | `coerced` (shared) |
+| File exists somewhere in the repo (`git ls-files \| grep -Fx "<path>"`) | Drop record | `dropped_file_not_in_repo` |
+| File present in `CHANGED_FILES` from Step 1 | If absent, keep record; append `(off-diff)` to body | `off_diff` (informational, not a warning) |
+
+The `coerced` counter is shared between severity-default and empty-body coercions — both signal "the reviewer's output needed light salvaging" and both fire rarely, so a single counter is enough signal without inflating the warning list. The `off_diff` counter is informational: an off-diff citation is not an error. Any reviewer that intentionally traces beyond `CHANGED_FILES` (complexity-reviewer's one-hop traversal, an architecture-reviewer following an import chain, etc.) receives the annotation so the reader can see at a glance that the cited file is off-diff and referenced for context.
+
+`Looks Good` records skip every check above. They proceed only with severity = `Looks Good` (a separate bucket, not a rung on the Critical/H/M/L ladder — confidence floor does not apply) and a non-empty body.
+
+### 4c. Group records by `file:line` fingerprint
+
+Group all non-`Looks Good` records by exact `<file>:<line>` match. `Looks Good` records are grouped separately — they only merge among themselves.
+
+### 4d. Merge each group
+
+For groups of size ≥ 2:
+
+- **Severity** = `max(group)` using rank `Critical (4) > High (3) > Medium (2) > Low (1)`.
+- **Confidence** = `max(c_i for i where c_i > 0) + 25 × (count(c_i > 0) − 1)`, capped at 100. The anchor step size is **25** (the gap between adjacent anchors in `{0, 25, 50, 75, 100}`). Reviewers with `c_i = 0` are excluded from both the `max(·)` and the count — a zero vote records the consideration in attribution but does not corroborate the finding, because `0` means "consider but suppress." Worked examples: two reviewers at 50/50 → `50 + 25 × 1 = 75`; three reviewers at 50/50/50 → `50 + 25 × 2 = 100`; three reviewers at 75/50/50 → `75 + 25 × 2 = 125 → 100` (capped); two reviewers at 75/0 → `75 + 25 × 0 = 75` (the zero contributes nothing).
+- **Body** = render the merged-finding template (see 4f). Keep every reviewer's bullet with attribution.
+
+For groups of size 1, pass through with no attribution suffix — the single reviewer's identity is already discoverable from the Coverage block, and the omission keeps single-reviewer findings to one tight line. Reviewer attribution is reserved for merged findings where it carries real information.
+
+### 4e. Apply soft gate
+
+Compare each merged record's *merged confidence* against the *merged severity*'s floor:
+
+| Merged severity | Confidence floor |
+|---|---|
+| Critical | ≥ 50 |
+| High / Medium / Low | ≥ 75 |
+
+Below-floor records move to the `## Suppressed (low confidence)` bucket. Above-floor records render in the main severity sections.
+
+When a `Critical` finding falls below its floor, increment `critical_suppressed`. This counter is surfaced in the consolidation header so high-stakes findings are not buried.
+
+### 4f. Render
+
+Render the consolidated output:
+
+````markdown
 ## Code Review Summary
 
-Scope: [scope description]
-Reviewers: [N] ran, [N] succeeded, [N] failed
+Scope: <scope description from Step 1d>
+Reviewers: <N> ran, <N> succeeded, <N> failed
+Findings: <raw_count> raw → <displayed_count> after dedup
+<conditional warning lines — see header template below>
 
----
+### Critical
+- **<file>:<line>** *(confidence: <N>)* — <body or merged template>
 
-### [Reviewer Name] (built-in | external)
-**Findings:** [N issues]
+### High
+- ...
 
-#### Must Address
-- **[file:line]** — [Issue]. [Why]. Suggested fix: [fix]
+### Medium
+- ...
 
-#### Consider
-- **[file:line]** — [Issue]. [Why].
+### Low
+- ...
 
-#### Looks Good
-- [Validated aspect]
+### Looks Good
+- <validated aspect>
 
----
+<details>
+<summary><strong>Suppressed (low confidence) — <K> findings</strong></summary>
 
-### [Next Reviewer...]
+#### Critical *(suppressed)*
+- **<file>:<line>** *(confidence: <N>)* — <body>
+
+#### High *(suppressed)*
+- ...
+</details>
+
+(Heading levels: outer summary uses `<strong>` because GitHub does not render Markdown headings inside `<summary>`; the inner severity sub-headings use H4 / `####` so they nest one level deeper than the main `### Critical` / `### High` / etc. sections above.)
+
+## Coverage
+
+- Files reviewed: <list>
+- Files skipped (binary): <list, if any>
+- Reviewers that failed: <list, if any>
+````
+
+**Header warning lines** — each `⚠ ...` line is emitted only when its counter is ≥ 1:
+
+```
+⚠ <K> Critical findings suppressed by confidence gate — see Suppressed section
+⚠ Defaults applied: <C> missing confidence (→ section floor: Critical=50, H/M/L=75)
+⚠ Snapped: <P> findings to nearest confidence anchor
+⚠ Coerced: <X> findings (severity defaulted to Low, or body coerced to "(no description)")
+⚠ Dropped: <D> findings (no file:line) + <F> findings (file not in repo)
+⚠ Off-diff: <O> findings reference files outside the diff (informational, not a warning)
+⚠ Legacy-format detected: <L> reviewers
+⚠ Mixed-format detected: <M> reviewers
 ```
 
-**Conflict detection:** If two reviewers flag the same file:line with different advice, add a "⚠ Conflicting" note to both findings.
+When `raw_count == displayed_count`, render `Findings: <count> (no overlap)` instead of `<count> raw → <count> after dedup`.
 
-**Coverage report:** At the end, list:
-- Files reviewed: [list]
-- Files skipped (binary): [list, if any]
-- Reviewers that failed: [list, if any]
+**Merged-finding template:**
+
+Show `(own_severity, conf own_conf)` only when the reviewer's own severity OR confidence differs from the merged values. When a reviewer agrees on both, the attribution line drops the parenthetical entirely:
+
+```markdown
+- **<file>:<line>** *(confidence: <merged_conf>, merged from <K> reviewers)* — <highest-severity reviewer's one-sentence summary>
+  - *<reviewer-1> (<own_severity>, conf <own_conf>):* <full body>   ← shown only when diverging from merged
+  - *<reviewer-2>:* <full body>                                       ← own_severity AND own_conf match merged
+  - ...
+```
+
+This reserves the dense `(severity, conf)` metadata for cases where divergence matters — typically the most useful signal in a merged finding.
+
+For single-reviewer findings (no merge layout), pass through without attribution:
+
+```markdown
+- **<file>:<line>** *(confidence: <N>)* — <body>
+```
+
+The reviewer identity is recoverable from the Coverage block; per-line attribution is reserved for merged findings.
+
+The pipeline operates as `parse → validate → group → merge → gate → render`: dedup happens **before** the soft gate so corroboration can promote a finding past its floor (the `+25 per extra reviewer` math is what makes the ordering matter).
 
 ---
 
@@ -528,7 +641,7 @@ status: succeeded | failed
 
 # <reviewer-name>
 
-[Write the reviewer's **raw return text** here, verbatim as returned from the subagent in Step 3 — *not* Step 4's wrapped/consolidated form. If Step 4 injected any ⚠ Conflicting annotations against this reviewer's findings during consolidation, append them at the end with `(see also: <other-reviewer>.md)` cross-references so the file is readable on its own.
+[Write the reviewer's **raw return text** here, verbatim as returned from the subagent in Step 3 — *not* Step 4's wrapped/consolidated form. Cross-reviewer merges, suppression, and validator coercions are recorded only in `summary.md`; per-reviewer files stay raw so a reader can always reconstruct what each reviewer actually said.
 
 If `status: failed`, write a one-line failure reason in place of the raw text.
 If `status: succeeded` but the reviewer returned an empty body, write `_Reviewer returned no findings._`]

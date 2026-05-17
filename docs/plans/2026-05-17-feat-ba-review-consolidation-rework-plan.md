@@ -651,11 +651,11 @@ The `⚠ Conflicting` annotation logic at line 395 is **removed entirely**. No r
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep -c "## Step 4: Consolidate" commands/ba/review.md` returns `1` (no duplicate Step 4).
-- [ ] `grep -c "⚠ Conflicting" commands/ba/review.md` returns `0` (annotation fully removed).
-- [ ] `grep -c "parse → validate" commands/ba/review.md` returns `1` (pipeline named).
-- [ ] `grep -c "## Suppressed" commands/ba/review.md` returns `≥1` (suppressed section present).
-- [ ] `grep -c "merged from" commands/ba/review.md` returns `1` (merged-finding template present).
+- [x] `grep -c "## Step 4: Consolidate" commands/ba/review.md` returns `1` (no duplicate Step 4).
+- [x] `grep -c "⚠ Conflicting" commands/ba/review.md` returns `0` (annotation fully removed).
+- [x] `grep -c "parse → validate" commands/ba/review.md` returns `1` (pipeline named).
+- [x] `grep -c "## Suppressed" commands/ba/review.md` returns `≥1` (suppressed section present).
+- [x] `grep -c "merged from" commands/ba/review.md` returns `1` (merged-finding template present).
 
 ##### Manual:
 - [ ] Run `/ba:review --local` against a real diff with at least 4 reviewers selected. Inspect the consolidated output: confirm the new headers, merged-finding layout when multiple reviewers flag the same line, suppressed section behaviour when a finding lands below floor, and at least one warning counter firing (force this by including a non-canonical confidence in a test reviewer's prompt).
