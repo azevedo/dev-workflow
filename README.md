@@ -157,6 +157,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
 - **Structured findings** — Must Address / Consider / Looks Good with file:line references and conflict detection across reviewers
 - **Fix application** — apply all fixes, must-address only, or one-by-one with Accept/Skip per finding; runs targeted tests after applying
+- **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
 
 ## Convention Compliance
 
@@ -210,6 +211,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 | Brainstorm docs | `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md` |
 | Plan docs | `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` |
 | Learnings | `docs/solutions/<category>/<filename>.md` |
+| Review run artifacts (opt-in via `--persist`; not auto-ignored — user-managed) | `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` |
 
 ## Roadmap
 

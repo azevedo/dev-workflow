@@ -1,7 +1,7 @@
 ---
 title: Add --persist flag to /ba:review for run-artifact persistence
 type: feat
-status: active
+status: completed
 date: 2026-05-13
 origin: https://github.com/azevedo/dev-workflow/issues/4
 detail_level: standard
@@ -365,14 +365,14 @@ docs/reviews/
 
 #### Automated:
 
-- [ ] `grep -c 'docs/reviews/' commands/ba/review.md` returns at least **4** — three updated guard sites plus at least one mention in the new Step 4.5 (likely far more).
-- [ ] `grep -c '\-\-persist' commands/ba/review.md` returns at least **5** — Parse Arguments subsection, Step 1d announcement, Step 4.5 header, Step 4.5 conditional, and Step 5 mention.
-- [ ] `grep 'docs/reviews/' .gitignore` returns exactly one match (`docs/reviews/`).
-- [ ] `cat .claude-plugin/plugin.json | grep '"version"'` shows `"version": "0.15.0"`.
-- [ ] `grep 'docs/reviews/' CLAUDE.md` returns matches in the extended `:72` guard line and the new Artifact Paths row (at least 2 hits).
-- [ ] `grep 'docs/reviews/' README.md` returns matches in both the `/ba:review` section and the Artifact Paths table (at least 2 hits).
-- [ ] All three guard paragraphs in `commands/ba/review.md` contain the substring ``docs/reviews/`.`` or `` `docs/reviews/`.`` — a `grep -c` for the closing-backtick form returns 3.
-- [ ] No edits to any file under `agents/review/` (per the A1 precedent that scopes guard-list changes to the dispatcher).
+- [x] `grep -c 'docs/reviews/' commands/ba/review.md` returns at least **4** — three updated guard sites plus at least one mention in the new Step 4.5 (likely far more).
+- [x] `grep -c '\-\-persist' commands/ba/review.md` returns at least **5** — Parse Arguments subsection, Step 1d announcement, Step 4.5 header, Step 4.5 conditional, and Step 5 mention.
+- [x] `grep 'docs/reviews/' .gitignore` returns exactly one match (`docs/reviews/`).
+- [x] `cat .claude-plugin/plugin.json | grep '"version"'` shows `"version": "0.15.0"`.
+- [x] `grep 'docs/reviews/' CLAUDE.md` returns matches in the extended `:72` guard line and the new Artifact Paths row (at least 2 hits).
+- [x] `grep 'docs/reviews/' README.md` returns matches in both the `/ba:review` section and the Artifact Paths table (at least 2 hits).
+- [x] All three guard paragraphs in `commands/ba/review.md` contain the substring ``docs/reviews/`.`` or `` `docs/reviews/`.`` — a `grep -c` for the closing-backtick form returns 3.
+- [x] No edits to any file under `agents/review/` (per the A1 precedent that scopes guard-list changes to the dispatcher).
 
 #### Manual:
 

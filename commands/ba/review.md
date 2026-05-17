@@ -12,6 +12,22 @@ Review actual code changes for quality, security, and design using built-in revi
 
 <review_scope> #$ARGUMENTS </review_scope>
 
+### Parse Arguments
+
+Check the argument string for recognized flags before classifying scope:
+
+- **`--persist`**: Scan `<review_scope>` for the token `--persist`. If found, set `PERSIST=true` and strip the token from the argument string. Multiple occurrences collapse to a single set flag (idempotent). When `PERSIST=true`, immediately capture the timestamp that will name the persist directory:
+
+  ```bash
+  TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)   # local time; single capture, reused at Step 1d and Step 4.5
+  ```
+
+  Capture it **here, once** — not later in Step 4.5a — so the value announced in Step 1d matches what Step 4.5 writes. Reviewers can take minutes; deferring the capture would let wall-clock advance and produce announcement-vs-write skew.
+
+- **Everything else** after stripping `--persist`: treat as the scope argument and proceed to Step 1a classification. The remaining string may still contain `--staged` or `--local` (scope tokens) or be empty (local-auto).
+
+**Note:** Unknown flags (e.g., `--persists`, `-persist`) are not recognized — they fall through to scope classification and will produce a downstream error (`git diff` reporting an unknown revision). This matches existing behavior; explicit unknown-flag validation is out of scope for this change.
+
 ---
 
 ## Step 1: Determine Review Scope & Capture Diff
@@ -20,7 +36,7 @@ Review actual code changes for quality, security, and design using built-in revi
 
 ### 1a. Classify the argument
 
-Parse `<review_scope>` to determine the scope type. **Match the FIRST row that fits — then skip directly to the indicated step.**
+Parse the post-flag-strip `<review_scope>` (see **Parse Arguments** above) to determine the scope type. **Match the FIRST row that fits — then skip directly to the indicated step.**
 
 | Pattern | Scope | Go to | Examples |
 |---|---|---|---|
@@ -159,7 +175,7 @@ echo "---DIFF---"
 git diff $DIFF_RANGE
 ```
 
-If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba:review !123` or `/ba:review abc123..def456`" and exit.
+If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba:review !123` or `/ba:review abc123..def456`" and exit. **When `PERSIST=true`, the `NO_CHANGES` exit takes precedence — no persist directory is created.**
 
 ---
 
@@ -169,6 +185,8 @@ If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected
 - For **branch** scope: "Reviewing branch `[CURRENT_BRANCH]` against `[DIFF_BASE]` ([N] files, [N] lines changed)."
 - For **staged** scope: "Reviewing staged changes ([N] files, [N] lines changed)."
 - For **recent** scope: "Reviewing last [N] commits ([N] files, [N] lines changed)."
+
+**When `PERSIST=true`**, also announce on a second line the fully-resolved persist target — substitute `${TIMESTAMP}` (captured in Parse Arguments) and the `SCOPE_REF` derived from `SCOPE_TYPE` (see Step 4.5a's table). Example: `Persist target: docs/reviews/2026-05-13-143022-feat_add-auth/`. Show this *before* Step 2's reviewer selection so the user can `^C` if the target path looks wrong.
 
 ### 1e. Gather plan context
 
@@ -284,7 +302,7 @@ For **agent-based reviewers**, prompt the subagent directly:
 
 - Task <reviewer-agent>("Review these code changes for [dimension focus].
 
-**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, or `docs/research/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
 - Scope: [scope description]
@@ -302,7 +320,7 @@ For **skill-based reviewers**, instruct the subagent to invoke the skill:
 
 - Task general-purpose("Use the `[skill-name]` skill to review these code changes.
 
-**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, or `docs/research/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
 - Scope: [scope description]
@@ -326,7 +344,7 @@ Before dispatching, **resolve the name** against known skills and agents:
 
 - Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens.
 
-**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, or `docs/research/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
 - Scope: [scope description]
@@ -383,6 +401,116 @@ Reviewers: [N] ran, [N] succeeded, [N] failed
 
 ---
 
+## Step 4.5: Persist Run Artifacts (if `--persist`)
+
+> **Skipped entirely when `PERSIST=false`.** This step has no effect on the default flow.
+
+When `PERSIST=true`, write the run's per-reviewer outputs and a consolidated summary to a dated directory under `docs/reviews/`. The command does **not** touch `.gitignore` in the consuming repo — ignoring `docs/reviews/` is the user's responsibility (see the "Runtime `.gitignore` management" entry in **What We're NOT Doing**).
+
+### 4.5a. Derive the run directory name
+
+`TIMESTAMP` was captured in Parse Arguments. Compute `SCOPE_REF` from `SCOPE_TYPE` (resolved by Step 1c, or set implicitly by Step 1b for `mr`):
+
+| `SCOPE_TYPE` | `SCOPE_REF` formula | Example |
+|---|---|---|
+| `mr` | `mr-<N>` where N is the same MR/PR number Step 1b extracted | `mr-123` |
+| `branch` | `sanitize(current_branch)`; on detached HEAD, falls through to `unknown` via the sanitize empty-string rule (HEAD SHA is still preserved in `summary.md`'s `head_sha` field) | `feat_add-auth`, `unknown` |
+| `staged` | literal `staged` | `staged` |
+| `recent` | literal `recent` (the underlying SHA range is recorded in `summary.md`'s scope section, not the directory name) | `recent` |
+| `local-range` | `sanitize(range)` — `..` becomes `__`, slashes become `_` | `origin_main__HEAD`, `abc123__def456` |
+
+**`sanitize(s)`**: replace every character outside `[A-Za-z0-9._-]` with `_`; collapse runs of `_` into one; trim leading and trailing `_`; if empty, fall back to `unknown`. Leading dots (`.bugfix` → `.bugfix`) and leading digits (`123-fix` → `123-fix`) pass through unchanged — the regex is intentionally permissive for both.
+
+The full directory path is:
+
+```
+docs/reviews/${TIMESTAMP}-${SCOPE_REF}/
+```
+
+**Collision handling.** Before creating the directory, check whether it already exists. If yes, append `-2`, then `-3`, etc., to the full directory name until an unused name is found (`docs/reviews/${TIMESTAMP}-${SCOPE_REF}-2/`). One-second timestamp resolution makes this collision rare; the suffix is belt-and-braces.
+
+### 4.5b. Create the run directory
+
+```bash
+mkdir -p docs/reviews/${TIMESTAMP}-${SCOPE_REF}/
+```
+
+### 4.5c. Write per-reviewer files
+
+For each reviewer that was dispatched in Step 3, write a file named `<sanitized-reviewer-name>.md` inside the run directory.
+
+Each per-reviewer file uses this template:
+
+```markdown
+---
+reviewer: <reviewer-name>
+source: built-in | external-agent | external-skill | user-typed
+status: succeeded | failed
+---
+
+# <reviewer-name>
+
+[Write the reviewer's **raw return text** here, verbatim as returned from the subagent in Step 3 — *not* Step 4's wrapped/consolidated form. If Step 4 injected any ⚠ Conflicting annotations against this reviewer's findings during consolidation, append them at the end with `(see also: <other-reviewer>.md)` cross-references so the file is readable on its own.
+
+If `status: failed`, write a one-line failure reason in place of the raw text.
+If `status: succeeded` but the reviewer returned an empty body, write `_Reviewer returned no findings._`]
+```
+
+### 4.5d. Write `summary.md`
+
+The summary captures what a future reader needs to reconstruct the review without scrolling chat history:
+
+```markdown
+---
+scope: mr | branch | staged | recent | local-range
+timestamp: <TIMESTAMP>
+head_sha: <git rev-parse HEAD at run time, or N/A for mr scope>
+reviewers: [<reviewer-1>, <reviewer-2>, ...]
+---
+
+# Code Review — <scope description from Step 1d>
+
+## Run Metadata
+
+- Command: `/ba:review <original arguments including --persist>`
+- Timestamp: <TIMESTAMP> (local time)
+- HEAD SHA: <short SHA or N/A for mr scope>
+
+## Scope
+
+- Type: <SCOPE_TYPE>
+- Diff stat: <STAT block from Step 1>
+- Underlying SHA range (only when `recent` scope): <shortbase>..<shorthead>
+- MR title / description: <if mr scope, from MR_TITLE + MR_DESCRIPTION; otherwise omit>
+- Plan context (if Step 1e found one): plan filename + Overview + Acceptance Criteria, verbatim
+
+## Reviewer Roster
+
+| Reviewer | Source | Status | File |
+|---|---|---|---|
+| <reviewer-1> | built-in | succeeded | [<sanitized-name>.md](./<sanitized-name>.md) |
+| <reviewer-2> | external-skill | failed | [<sanitized-name>.md](./<sanitized-name>.md) |
+| ... | ... | ... | ... |
+
+## Consolidated Findings
+
+[The full Step 4 output verbatim — every reviewer's Must Address / Consider / Looks Good blocks, with conflict annotations.]
+```
+
+### 4.5e. Announce the persist target
+
+After all writes complete:
+
+> "Persisted review to `docs/reviews/${TIMESTAMP}-${SCOPE_REF}/` (`<N>` reviewer files + `summary.md`)."
+
+If any write failed (`mkdir`, per-reviewer `Write`, or summary `Write`), warn:
+
+> "⚠ Persist failed: `<reason>`. Findings above were displayed in chat only and are not on disk."
+
+Continue to Step 5 regardless. The chat output is the source of truth on failure — the persist directory is supplementary.
+
+---
+
 ## Step 5: Resolution
 
 The options depend on the scope type.
@@ -426,6 +554,8 @@ Use **AskUserQuestion**:
 2. **Re-run review** — Run `/ba:review` again (e.g., after manual fixes)
 3. **Done** — Exit
 
+**When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
+
 ### For MR/PR scope (remote)
 
 Use **AskUserQuestion**:
@@ -436,6 +566,8 @@ Use **AskUserQuestion**:
 1. **Post inline comments** — Post findings as inline comments on the MR/PR (details below)
 2. **Review one by one** — Walk through each finding for discussion
 3. **Done** — Acknowledge findings without further action
+
+**When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
 
 **"Review one by one" flow:** Same as local scope — include the full finding context inside each AskUserQuestion's question text. Never output finding details as separate text before the question widget.
 
