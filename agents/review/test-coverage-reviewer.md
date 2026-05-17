@@ -54,7 +54,7 @@ If no issues found for a severity level, write "None" under that heading.
 
 ### Severity ladder
 
-- **Critical** — Correctness, security, production-breaking, data-loss risk. Must fix before merge. Rare.
+- **Critical** — Correctness, security, production-breaking, data-loss risk. Must fix before merge.
 - **High** — Significant defect or risk. Strongly recommended before merge.
 - **Medium** — Clear improvement, not blocking.
 - **Low** — Nit, style, micro-improvement.

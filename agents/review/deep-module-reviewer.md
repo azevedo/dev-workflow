@@ -66,7 +66,7 @@ Multi-line bullets are permitted — include `Current:` / `Suggested:` / `Impact
 
 ### Severity ladder
 
-- **Critical** — Correctness, security, production-breaking, data-loss risk. Must fix before merge. Rare.
+- **Critical** — Correctness, security, production-breaking, data-loss risk. Must fix before merge.
 - **High** — Significant defect or risk. Strongly recommended before merge.
 - **Medium** — Clear improvement, not blocking.
 - **Low** — Nit, style, micro-improvement.

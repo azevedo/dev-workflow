@@ -134,7 +134,7 @@ This catches issues at plan time — where fixing things is cheap — instead of
 - **Auto-detects the latest plan** if no path is given
 - **Discovery-based** — works with whatever review tools are installed (personal agents in `~/.claude/agents/`, project agents, plugin skills)
 - **Plan-aware framing** — tells each reviewer it's evaluating a proposal, not finished code
-- **Consolidated findings** — presents results as Must Address / Consider / Looks Good
+- **Consolidated findings** — presents results as Must Address / Consider / Looks Good (the older two-bucket vocabulary; `/ba:review` uses the four-level ladder described below)
 
 ### `/ba:execute [plan]`
 
@@ -175,7 +175,7 @@ All `/ba:review` reviewers — built-in and external — emit findings under a f
 
 | Heading | Meaning |
 |---|---|
-| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
 | `## High` | Significant defect or risk. Strongly recommended. |
 | `## Medium` | Clear improvement, not blocking. |
 | `## Low` | Nit, style, micro-improvement. |

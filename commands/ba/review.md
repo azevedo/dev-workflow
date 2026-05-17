@@ -312,7 +312,7 @@ where `N ∈ {0, 25, 50, 75, 100}`.
 
 | Heading | Meaning |
 |---|---|
-| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
 | `## High` | Significant defect or risk. Strongly recommended. |
 | `## Medium` | Clear improvement, not blocking. |
 | `## Low` | Nit, style, micro-improvement. |
@@ -356,7 +356,7 @@ where `N ∈ {0, 25, 50, 75, 100}`.
 
 | Heading | Meaning |
 |---|---|
-| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
 | `## High` | Significant defect or risk. Strongly recommended. |
 | `## Medium` | Clear improvement, not blocking. |
 | `## Low` | Nit, style, micro-improvement. |
@@ -406,7 +406,7 @@ where `N ∈ {0, 25, 50, 75, 100}`.
 
 | Heading | Meaning |
 |---|---|
-| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
 | `## High` | Significant defect or risk. Strongly recommended. |
 | `## Medium` | Clear improvement, not blocking. |
 | `## Low` | Nit, style, micro-improvement. |
@@ -460,6 +460,8 @@ For each reviewer's return text, extract records using this grammar (permissive)
 | `None` token | A heading whose only content is the literal `None` (case-insensitive, possibly `_None_` / `*None*`) emits zero records under that heading. No warning. |
 | `Looks Good` bullet | Format stays `- [Validated aspect]`. No file:line, no confidence. Record severity = `Looks Good`; skip anchor/confidence extraction. **Separate bucket — not a rung on the Critical/H/M/L ladder.** Confidence floor does not apply; dedup does not cross `Looks Good` and other severities; merge/promotion math is irrelevant. |
 
+Worked example — the line `- **src/auth.ts:42** *(confidence: 75)* — SQL injection risk in `where` clause; the user-supplied id is concatenated into the query string.` parses as `severity=<section>, file=src/auth.ts, line=42, confidence=75, body=SQL injection risk in \`where\` clause; the user-supplied id is concatenated into the query string.`. The complexity-reviewer's lens tag (`[cognitive load]` / `[change amplification]` / `[obscurity]`) and the deep-module-reviewer's `Current:` / `Suggested:` / `Impact:` continuation lines both fall under `body` and are preserved verbatim through the pipeline.
+
 Produce a list of records `(severity, file, line, confidence, body, reviewer_name)` per reviewer.
 
 ### 4b. Validate each record
@@ -477,7 +479,7 @@ For each non-`Looks Good` record, run these checks. Increment the named counter 
 
 The `coerced` counter is shared between severity-default and empty-body coercions — both signal "the reviewer's output needed light salvaging" and both fire rarely, so a single counter is enough signal without inflating the warning list. The `off_diff` counter is informational: an off-diff citation is not an error. Any reviewer that intentionally traces beyond `CHANGED_FILES` (complexity-reviewer's one-hop traversal, an architecture-reviewer following an import chain, etc.) receives the annotation so the reader can see at a glance that the cited file is off-diff and referenced for context.
 
-`Looks Good` records skip every check above. They proceed only with severity = `Looks Good` (a separate bucket, not a rung on the Critical/H/M/L ladder — confidence floor does not apply) and a non-empty body.
+`Looks Good` records skip every check above (severity coercion, file:line validation, confidence snapping, file-in-repo, off-diff) — `Looks Good` is a separate bucket, not a rung on the Critical/H/M/L ladder, so the confidence floor does not apply. Two checks still run: an empty body is coerced to `(no description)` and increments `coerced` (same rule as the H/M/L path); a `## Looks Good` heading whose only content is the literal `None` token emits zero records, per §4a's `None` rule (which applies uniformly to every severity heading).
 
 ### 4c. Group records by `file:line` fingerprint
 
@@ -552,7 +554,7 @@ Findings: <raw_count> raw → <displayed_count> after dedup
 - Reviewers that failed: <list, if any>
 ````
 
-**Header warning lines** — each `⚠ ...` line is emitted only when its counter is ≥ 1:
+**Header warning lines** — each `⚠ ...` line is emitted only when its counter is ≥ 1. When multiple fire in the same run, render them in the order shown in the block below (so two runs of the same review can be diffed line-for-line to spot regressions):
 
 ```
 ⚠ <K> Critical findings suppressed by confidence gate — see Suppressed section
@@ -586,7 +588,7 @@ For single-reviewer findings (no merge layout), pass through without attribution
 - **<file>:<line>** *(confidence: <N>)* — <body>
 ```
 
-The reviewer identity is recoverable from the Coverage block; per-line attribution is reserved for merged findings.
+Do NOT write `- **<file>:<line>** *(confidence: <N>, via <reviewer-name>)* — <body>` for single-reviewer findings; the reviewer identity is recoverable from the Coverage block. Per-line attribution is reserved for merged findings.
 
 The pipeline operates as `parse → validate → group → merge → gate → render`: dedup happens **before** the soft gate so corroboration can promote a finding past its floor (the `+25 per extra reviewer` math is what makes the ordering matter).
 
