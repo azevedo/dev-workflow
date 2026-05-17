@@ -477,9 +477,9 @@ The Protected-Artifacts paragraph is untouched (it sits between the new prepend 
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep -c "Severity ladder and confidence" commands/ba/review.md` returns `3` (one per dispatch template).
-- [ ] `grep -c "Must Address / Consider / Looks Good with file:line" commands/ba/review.md` returns `0` (old closing sentences replaced).
-- [ ] `grep -c "Protected artifacts" commands/ba/review.md` still returns `3` (A1 guard intact).
+- [x] `grep -c "Severity ladder and confidence" commands/ba/review.md` returns `3` (one per dispatch template).
+- [x] `grep -c "Must Address / Consider / Looks Good with file:line" commands/ba/review.md` returns `0` (old closing sentences replaced).
+- [x] `grep -c "Protected artifacts" commands/ba/review.md` still returns `3` (A1 guard intact).
 
 ##### Manual:
 - [ ] Dry-run `/ba:review --local` against a small staged change. Inspect each reviewer's raw return text — confirm the new format flows through.

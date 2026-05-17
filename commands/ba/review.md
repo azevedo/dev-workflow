@@ -302,6 +302,32 @@ For **agent-based reviewers**, prompt the subagent directly:
 
 - Task <reviewer-agent>("Review these code changes for [dimension focus].
 
+**Severity ladder and confidence.** Return findings under the four-level ladder + `Looks Good`. Each non-`Looks Good` bullet must include a confidence anchor between the file:line marker and the body.
+
+Bullet format (exact):
+
+`- **<path>:<line>** *(confidence: N)* — <body>`
+
+where `N ∈ {0, 25, 50, 75, 100}`.
+
+| Heading | Meaning |
+|---|---|
+| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## High` | Significant defect or risk. Strongly recommended. |
+| `## Medium` | Clear improvement, not blocking. |
+| `## Low` | Nit, style, micro-improvement. |
+| `## Looks Good` | Positive observation. No file:line, no confidence. Format: `- [Validated aspect]`. |
+
+| Confidence | Meaning |
+|---|---|
+| `100` | Certain. |
+| `75` | High; minor context risk. Default for clearly-applicable findings. |
+| `50` | Moderate; could plausibly be a false positive. |
+| `25` | Speculative; flag only when missing it would be costly. |
+| `0` | Suppress. Records the consideration; will not be displayed. |
+
+If no issues at a severity, write `None` under that heading. Do not invent placeholder bullets.
+
 **Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
@@ -314,11 +340,37 @@ Diff:
 
 Changed files: [list of changed file paths]
 
-Review the diff AND read the full content of changed files for context. Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
+Review the diff AND read the full content of changed files for context. Return findings in the standard format described above (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
 
 For **skill-based reviewers**, instruct the subagent to invoke the skill:
 
 - Task general-purpose("Use the `[skill-name]` skill to review these code changes.
+
+**Severity ladder and confidence.** Return findings under the four-level ladder + `Looks Good`. Each non-`Looks Good` bullet must include a confidence anchor between the file:line marker and the body.
+
+Bullet format (exact):
+
+`- **<path>:<line>** *(confidence: N)* — <body>`
+
+where `N ∈ {0, 25, 50, 75, 100}`.
+
+| Heading | Meaning |
+|---|---|
+| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## High` | Significant defect or risk. Strongly recommended. |
+| `## Medium` | Clear improvement, not blocking. |
+| `## Low` | Nit, style, micro-improvement. |
+| `## Looks Good` | Positive observation. No file:line, no confidence. Format: `- [Validated aspect]`. |
+
+| Confidence | Meaning |
+|---|---|
+| `100` | Certain. |
+| `75` | High; minor context risk. Default for clearly-applicable findings. |
+| `50` | Moderate; could plausibly be a false positive. |
+| `25` | Speculative; flag only when missing it would be costly. |
+| `0` | Suppress. Records the consideration; will not be displayed. |
+
+If no issues at a severity, write `None` under that heading. Do not invent placeholder bullets.
 
 **Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
@@ -331,7 +383,7 @@ Diff:
 
 Changed files: [list of changed file paths]
 
-Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
+Return findings in the standard format described above (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
 
 For **user-typed reviewers** (names typed manually that are not in the built-in or discovered lists):
 
@@ -344,6 +396,32 @@ Before dispatching, **resolve the name** against known skills and agents:
 
 - Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens.
 
+**Severity ladder and confidence.** Return findings under the four-level ladder + `Looks Good`. Each non-`Looks Good` bullet must include a confidence anchor between the file:line marker and the body.
+
+Bullet format (exact):
+
+`- **<path>:<line>** *(confidence: N)* — <body>`
+
+where `N ∈ {0, 25, 50, 75, 100}`.
+
+| Heading | Meaning |
+|---|---|
+| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## High` | Significant defect or risk. Strongly recommended. |
+| `## Medium` | Clear improvement, not blocking. |
+| `## Low` | Nit, style, micro-improvement. |
+| `## Looks Good` | Positive observation. No file:line, no confidence. Format: `- [Validated aspect]`. |
+
+| Confidence | Meaning |
+|---|---|
+| `100` | Certain. |
+| `75` | High; minor context risk. Default for clearly-applicable findings. |
+| `50` | Moderate; could plausibly be a false positive. |
+| `25` | Speculative; flag only when missing it would be costly. |
+| `0` | Suppress. Records the consideration; will not be displayed. |
+
+If no issues at a severity, write `None` under that heading. Do not invent placeholder bullets.
+
 **Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
 
 Context:
@@ -355,7 +433,7 @@ Diff:
 
 Changed files: [list of changed file paths]
 
-Review the diff AND read the full content of changed files for context. Return findings in the standard format: Must Address / Consider / Looks Good with file:line references.")
+Review the diff AND read the full content of changed files for context. Return findings in the standard format described above (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
 
 Run all selected reviewers **in parallel**.
 
