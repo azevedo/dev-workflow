@@ -165,9 +165,35 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Seven built-in reviewers** — architecture, security, simplification, error handling, test coverage, deep-module design, and complexity; always available out of the box
 - **Extensible** — discovers external review agents and skills; shows all reviewers (built-in and external) with overlap notes so you choose
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
-- **Structured findings** — Must Address / Consider / Looks Good with file:line references and conflict detection across reviewers
-- **Fix application** — apply all fixes, must-address only, or one-by-one with Accept/Skip per finding; runs targeted tests after applying
+- **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that surfaces high-noise findings in a collapsed `Suppressed` section
+- **Fix application** — apply all fixes, Critical + High only, or one-by-one with Accept/Skip per finding; runs targeted tests after applying
 - **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
+
+### Severity ladder and confidence anchors (`/ba:review`)
+
+All `/ba:review` reviewers — built-in and external — emit findings under a four-level ladder + a positive bucket:
+
+| Heading | Meaning |
+|---|---|
+| `## Critical` | Correctness, security, production-breaking. Must fix before merge. |
+| `## High` | Significant defect or risk. Strongly recommended. |
+| `## Medium` | Clear improvement, not blocking. |
+| `## Low` | Nit, style, micro-improvement. |
+| `## Looks Good` | Positive observation. |
+
+Each non-`Looks Good` finding carries a confidence anchor from `{0, 25, 50, 75, 100}`:
+
+| Anchor | Meaning |
+|---|---|
+| `100` | Certain. |
+| `75` | High; minor context risk. Default for clearly-applicable findings. |
+| `50` | Moderate; could plausibly be a false positive. |
+| `25` | Speculative; flag only when missing it would be costly. |
+| `0` | Suppress; records the consideration without surfacing. |
+
+A **soft confidence gate** at consolidation suppresses (not drops) findings below `Critical@50` and `High`/`Medium`/`Low@75`. Cross-reviewer agreement at the same `file:line` merges findings and promotes confidence by `+25` per additional reviewer (capped at 100), so corroboration can lift a finding past the gate. Legacy `Must Address` / `Consider` outputs from external reviewers are mapped to `High` / `Medium`.
+
+> **Source of truth for the rubric:** `commands/ba/review.md` §4 is authoritative for the ladder, the anchor set, the floors, the merge math, and the legacy mapping. This README section is a user-facing summary — when in doubt, consult the command file.
 
 ## Convention Compliance
 

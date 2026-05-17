@@ -1,7 +1,7 @@
 ---
 title: Adopt severity ladder + confidence + dedup + light structuring in /ba:review consolidation
 type: feat
-status: in-progress
+status: completed
 date: 2026-05-17
 origin: https://github.com/azevedo/dev-workflow/issues/5
 detail_level: comprehensive
@@ -773,11 +773,11 @@ A **soft confidence gate** at consolidation suppresses (not drops) findings belo
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep -c "Critical / High / Medium / Low" README.md` returns `≥1`.
-- [ ] `grep -c "Must Address / Consider / Looks Good" README.md` returns `0` for the `/ba:review` block (line 137's `/ba:review-plan` mention is untouched and not in this bundle's scope).
-- [ ] `grep -c "Severity ladder and confidence" README.md` returns `1`.
-- [ ] `grep -c "Source of truth for the rubric" README.md` returns `1` (README points to `commands/ba/review.md` as authoritative).
-- [ ] `jq -r .version .claude-plugin/plugin.json` returns `0.16.0`.
+- [x] `grep -c "Critical / High / Medium / Low" README.md` returns `≥1`.
+- [x] `grep -c "Must Address / Consider / Looks Good" README.md` returns `0` for the `/ba:review` block (line 137's `/ba:review-plan` mention is untouched and not in this bundle's scope).
+- [x] `grep -c "Severity ladder and confidence" README.md` returns `1`.
+- [x] `grep -c "Source of truth for the rubric" README.md` returns `1` (README points to `commands/ba/review.md` as authoritative).
+- [x] `jq -r .version .claude-plugin/plugin.json` returns `0.16.0`.
 
 ##### Manual:
 - [ ] Render `README.md` in a Markdown previewer; visually confirm the new severity-ladder + confidence-rubric tables render correctly and the `/ba:review` section reads cleanly.
@@ -964,3 +964,17 @@ The plugin has no test runner. The phase gates + manual matrix above are the ful
 - [x] **Always-on (no flag gating)** — Bundle ships always-on per the issue body. Matches the existing plugin pattern (no flag-gated commands).
 - [x] **Bundled change rather than four separate MRs** — Justified by the issue body: B4 + B5 + B6 + C2 share file edits across the same three template variants and seven reviewer files; landing them separately would re-edit the same files four times. This is a deliberate override of any preference for atomic MRs.
 - [x] **Confidence-marker placement diverges from issue body** — Plan places `*(confidence: N)*` AFTER `**file:line**` and BEFORE the body, NOT at "end of finding body" as the issue's B5 section states. Justified: parser robustness against multi-line bodies (deep-module-reviewer) and lens-tagged bodies (complexity-reviewer). Documented as a deliberate plan-level override; the issue's B5 wording is treated as advisory on this point. Reviewer agent files and dispatch prepend both carry the corrected placement consistently.
+
+## Deviations
+
+### Phase 3 — Step 4.5c per-reviewer template `⚠ Conflicting` reference
+- **Expected**: Plan only specified rewriting Step 4 (lines 366-401); the `⚠ Conflicting` annotation logic was to be "removed entirely. No replacement."
+- **Found**: A stale reference to `⚠ Conflicting` survived in the Step 4.5c per-reviewer file template (around line 644 post-Phase 2). The Phase 3 grep check `grep -c "⚠ Conflicting" commands/ba/review.md` returned `1` instead of `0`.
+- **Why**: The plan focused on Step 4's render code path; the per-reviewer file template's stale conflict cross-reference text was not enumerated.
+- **Resolution**: Cleaned up alongside the Phase 3 commit — replaced the cross-reference sentence with a note that cross-reviewer merges, suppression, and validator coercions now live only in `summary.md` so per-reviewer files stay raw. Grep gate then passed.
+
+### Phase 5 — README line 169 stale `must-address only` reference
+- **Expected**: Plan only specified replacing line 168's `Structured findings` bullet and adding a new sub-section before `## Convention Compliance`.
+- **Found**: Line 169's `apply all fixes, must-address only, or one-by-one with Accept/Skip` referenced the menu option `Apply must-address only`, which Phase 4 renamed to `Apply Critical + High only`.
+- **Why**: Plan-level omission — the README bullet was a downstream consumer of Phase 4's menu rename and was not enumerated in Phase 5's Changes Required.
+- **Resolution**: Updated line 169 to `apply all fixes, Critical + High only, or one-by-one with Accept/Skip` as part of the Phase 5 commit. Surgical cleanup of state orphaned by our own changes (per CLAUDE.md's "Remove imports/variables/functions that YOUR changes orphaned").
