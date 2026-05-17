@@ -685,7 +685,16 @@ reviewers: [<reviewer-1>, <reviewer-2>, ...]
 
 ## Consolidated Findings
 
-[The full Step 4 output verbatim — every reviewer's Must Address / Consider / Looks Good blocks, with conflict annotations.]
+[The full Step 4 output verbatim — the consolidation summary with severity sections, merged findings, the suppressed section, and the header warning counters.]
+
+## Validator Warnings
+
+The internal validator coerced or dropped the following records during consolidation. Per-reviewer files (`<reviewer>.md` in this directory) contain the raw reviewer output for reference.
+
+<one bullet per reviewer with at least one warning, e.g.:>
+- *<reviewer-name>*: dropped <N> findings (no file:line); snapped <M> confidence values; <K> findings annotated `(off-diff)`.
+
+When no warnings fired, omit this section entirely.
 ```
 
 ### 4.5e. Announce the persist target
@@ -713,8 +722,8 @@ Use **AskUserQuestion**:
 **Question:** "How would you like to handle the findings?"
 
 **Options:**
-1. **Apply all fixes** — Apply all Must Address + Consider items with suggested fixes (skip conflicting pairs)
-2. **Apply must-address only** — Fix only Must Address items
+1. **Apply all fixes** — Apply all Critical + High + Medium items with suggested fixes (Low excluded — nit/style is not auto-applied)
+2. **Apply Critical + High only** — Fix only Critical and High severity items
 3. **Review one by one** — Go through each finding and decide Accept/Skip
 4. **Done** — Acknowledge findings without modifying code
 
@@ -770,13 +779,13 @@ Use `gh api` / `glab api` to create review comments on specific diff lines. Grou
 
 Translate internal categories to CC labels using this mapping:
 
-| Internal category | CC format | When |
+| Internal severity | CC format | When |
 |---|---|---|
-| Must Address (correctness, security, data loss) | `issue (blocking): <subject>` | Would cause real problems if shipped — rare |
-| Must Address (all other) | `issue: <subject>` | Worth fixing, but not a merge gate |
-| Consider | `suggestion (non-blocking): <subject>` | Improvement the author can take or leave |
-| Consider (trivial) | `nitpick (non-blocking): <subject>` | Style, naming, formatting preferences |
-| Looks Good | `praise: <subject>` | Positive reinforcement |
+| Critical | `issue (blocking): <subject>` | Correctness, security, data-loss risk. Would cause real problems if shipped. |
+| High | `issue: <subject>` | Significant defect or risk. Strongly recommended before merge. |
+| Medium | `suggestion (non-blocking): <subject>` | Improvement the author can take or leave. |
+| Low | `nitpick (non-blocking): <subject>` | Style, naming, formatting, micro-improvements. |
+| Looks Good | `praise: <subject>` | Positive reinforcement. |
 
 **Default to non-blocking.** Most findings are `issue:` or `suggestion (non-blocking):`. Only use `(blocking)` for genuine correctness bugs, security vulnerabilities, or data-loss risks.
 

@@ -714,11 +714,11 @@ The "Default to non-blocking" note at `commands/ba/review.md:590` and the option
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep -c "Must Address / Consider / Looks Good blocks" commands/ba/review.md` returns `0` (old summary.md wording replaced).
-- [ ] `grep -c "## Validator Warnings" commands/ba/review.md` returns `1`.
-- [ ] `grep -c "Apply all Must Address" commands/ba/review.md` returns `0`.
-- [ ] `grep -c "Apply Critical + High" commands/ba/review.md` returns `1`.
-- [ ] `grep -c "issue (blocking)" commands/ba/review.md` returns `1` (CC table updated).
+- [x] `grep -c "Must Address / Consider / Looks Good blocks" commands/ba/review.md` returns `0` (old summary.md wording replaced).
+- [x] `grep -c "## Validator Warnings" commands/ba/review.md` returns `1`.
+- [x] `grep -c "Apply all Must Address" commands/ba/review.md` returns `0`.
+- [x] `grep -c "Apply Critical + High" commands/ba/review.md` returns `1`.
+- [x] `grep -c "issue (blocking)" commands/ba/review.md` returns `1` (CC table updated).
 
 ##### Manual:
 - [ ] Run `/ba:review --local --persist` against a real diff. Inspect the generated `docs/reviews/<TIMESTAMP>-<SCOPE_REF>/summary.md`: confirm the body of Consolidated Findings matches the new render, and `## Validator Warnings` either appears with bullet content (if warnings fired) or is omitted entirely.
