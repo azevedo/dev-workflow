@@ -310,6 +310,8 @@ Bullet format (exact):
 
 where `N ∈ {0, 25, 50, 75, 100}`.
 
+**Anchor scope.** The `<path>:<line>` anchor must identify a location in the codebase under review — a file in `Changed files` or reachable via `git ls-files`. Rubrics, specs, and external guideline documents are cited in the body, never as the anchor. A finding that compares the codebase against an external rubric should anchor to the offending in-repo file and reference the rubric in the body. Example: `**src/Button.tsx:42** ... — missing keyboard handler (per web-interface-guidelines §3.2)` anchors to the in-repo file, not to the guideline. Anchors that don't resolve in the repo are dropped by the consolidation pipeline.
+
 | Heading | Meaning |
 |---|---|
 | `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
@@ -353,6 +355,8 @@ Bullet format (exact):
 `- **<path>:<line>** *(confidence: N)* — <body>`
 
 where `N ∈ {0, 25, 50, 75, 100}`.
+
+**Anchor scope.** The `<path>:<line>` anchor must identify a location in the codebase under review — a file in `Changed files` or reachable via `git ls-files`. Rubrics, specs, and external guideline documents are cited in the body, never as the anchor. A finding that compares the codebase against an external rubric should anchor to the offending in-repo file and reference the rubric in the body. Example: `**src/Button.tsx:42** ... — missing keyboard handler (per web-interface-guidelines §3.2)` anchors to the in-repo file, not to the guideline. Anchors that don't resolve in the repo are dropped by the consolidation pipeline.
 
 | Heading | Meaning |
 |---|---|
@@ -403,6 +407,8 @@ Bullet format (exact):
 `- **<path>:<line>** *(confidence: N)* — <body>`
 
 where `N ∈ {0, 25, 50, 75, 100}`.
+
+**Anchor scope.** The `<path>:<line>` anchor must identify a location in the codebase under review — a file in `Changed files` or reachable via `git ls-files`. Rubrics, specs, and external guideline documents are cited in the body, never as the anchor. A finding that compares the codebase against an external rubric should anchor to the offending in-repo file and reference the rubric in the body. Example: `**src/Button.tsx:42** ... — missing keyboard handler (per web-interface-guidelines §3.2)` anchors to the in-repo file, not to the guideline. Anchors that don't resolve in the repo are dropped by the consolidation pipeline.
 
 | Heading | Meaning |
 |---|---|
