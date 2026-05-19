@@ -145,6 +145,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
 - **Resume across sessions** — updates plan checkboxes `[ ]` → `[x]` as tasks complete; detects and resumes from partial progress
 - **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
+- **Pre-slice scope check** — projects files-to-touch and LoC before coding; pauses via deviation handling when projection exceeds the slice's `Est. LoC` threshold.
 - **Slice-aware execution** — `--slice N` executes a single slice; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 

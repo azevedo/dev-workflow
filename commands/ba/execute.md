@@ -112,6 +112,88 @@ Also discover a lint command using the same approach. If found, lint runs alongs
 
 ---
 
+## Step 1.5: Pre-Slice Scope Check
+
+Before any code is written for this slice (or this run, for non-sliced plans), project the size of what you're about to do and reconcile it against the slice's `Est. LoC`. This catches scope creep — when an acceptance criterion implicitly covers more surface than the LoC estimate budgets — before it lands as code.
+
+**When this fires:**
+- Once per slice, after Step 1 has fully completed (Branch Check, Resume Detection including any resume-test prompt, Test Discovery).
+- Once per run on non-sliced plans, using a fallback threshold.
+- **Fresh-slice resume re-fires; mid-slice resume skips.** If no `[x]` marks exist in the current slice's tasks, fire. If any `[x]` exists in the current slice's tasks, skip — the post-slice 200-LoC warning remains the only safety net for this slice.
+- **Once Step 1.5 passes, it does not re-fire within this slice** — not after Step 2c's test-failure escape hatch, not when the files-to-touch list grows mid-implementation.
+
+### 1.5a. Build the files-to-touch list
+
+List every file you would create or modify to satisfy this slice's tasks. Include:
+
+- Files named in the plan's "Changes Required" / phase blocks for this slice.
+- Files implied by those changes (imports, type definitions, fixtures, snapshot updates).
+- New files you would need to create.
+
+Do **not** include files you "might also touch" — only files the slice's tasks plainly require.
+
+### 1.5b. Project LoC per file
+
+For each file in the list:
+
+- **Plan provides code in this slice's tasks**: count the lines of the provided code block.
+- **No code in plan, file exists**: estimate the diff size from the task description; reference similar implementations in the codebase if needed.
+- **New file, no code in plan**: estimate from the closest analogue (similar new files in this codebase).
+
+Sum the per-file estimates. Call this the **projection** (M).
+
+### 1.5c. Read the threshold (T)
+
+- **Sliced plan, well-formed cell**: Find this slice's row in the `## Slices` summary table. Parse the `Est. LoC` cell (format `~N` where N is a positive integer). Set **T = 2 × N**.
+- **Sliced plan, absent or unparseable cell**: if the cell is missing, the row is absent, or the value cannot be parsed as `~<integer>`, announce a one-line warning ("Couldn't parse Est. LoC for slice [N] — using fallback threshold 400 LoC") and set **T = 400**.
+- **Non-sliced plan**: set **T = 400** (2× the existing post-slice 200-LoC warning in Step 5's Slice Completion — keep these in sync if that threshold changes).
+
+### 1.5d. Compare and act
+
+- **If M < T**: announce a one-line summary ("Pre-slice scope check: projected ~[M] LoC vs Est. ~[N] (threshold [T]). Proceeding.") and continue to Step 2.
+- **If M ≥ T**: pause via Step 4 Deviation Handling using the protocol below.
+
+### 1.5e. Pause flow
+
+Surface the contradiction via the standard Expected/Found/Why block. Populate it so the **binding-scope rule** is visible to the user:
+
+```
+**Deviation detected:**
+- **Expected**: ~[N] LoC (slice Est. LoC). [If the slice's AC names more surfaces than the LoC budgets, add: "Acceptance criteria mention [X] surfaces; LoC estimate implies [Y]."]
+- **Found**: Projected ~[M] LoC across [file count] files: [short list].
+- **Why**: Scope: projected M ≥ 2× estimate. When AC and LoC disagree, **LoC is the binding scope signal** — surface the contradiction; do not silently implement both.
+```
+
+Then use **AskUserQuestion** with three options:
+
+1. **Accept and continue** — Proceed with the projected scope, record the override.
+2. **Update the plan** — Modify the plan to match reality, then re-project (see 1.5f).
+3. **Pause execution** — Stop here.
+
+**Record** each fire in the plan's `## Deviations` section (create the section if missing). Write the entry **before** the Pause returns control:
+
+```markdown
+### Scope tripwire: Slice [N] — projected M ≥ 2× estimate
+- **Expected**: ~[N] LoC (slice Est. LoC)
+- **Found**: ~[M] LoC projected across [file count] files
+- **Why**: [reason — including AC contradiction if applicable]
+- **Resolution**: [accepted / plan updated / paused]
+```
+
+If the same slice triggers multiple times (re-projection after an Update did not clear), append `(round 2)`, `(round 3)`, etc. to the heading so each round is visible in the audit trail.
+
+### 1.5f. Re-projection after "Update the plan"
+
+When the user picks "Update the plan", surface an explicit sync gate via **AskUserQuestion** ("Let me know when the edit is done — pick **Re-project** once the plan reflects the new scope") with two options: **Re-project** and **Pause execution**. Once the user picks Re-project:
+
+1. Re-read the slice's `Est. LoC` row from the (now updated) `## Slices` table.
+2. Re-build the files-to-touch list and re-project M.
+3. Re-evaluate against the new T = 2 × new N.
+4. If M < T: announce "Re-projection clears the new threshold. Proceeding." and continue to Step 2.
+5. If M ≥ T: re-enter the pause flow (1.5e). Each round writes its own subsection under `## Deviations` with `(round 2)`, `(round 3)`, etc. appended to the heading, so the audit trail shows the spiral, not just the final state.
+
+---
+
 ## Step 2: Execution Loop
 
 For each unchecked task in order:
@@ -362,6 +444,7 @@ Use **AskUserQuestion**:
 - **Track progress in the plan file.** Every completed task gets `[x]`. This is how resume works.
 - **Test after every task — targeted, not full suite.** Run tests related to changed files. Defer full suite + lint to completion or CI.
 - **Report deviations immediately.** Don't silently work around plan/reality mismatches.
+- **Pre-slice scope check is binding** (Step 1.5). LoC is the scope signal when AC and LoC conflict — surface it, don't implement both.
 - **Commit at logical boundaries — this is mandatory, not optional.** Each commit should pass tests and represent a coherent unit of work. Never reach completion with zero incremental commits on a STANDARD or COMPREHENSIVE plan.
 - **Evidence-based completion.** Never claim "done" without showing passing tests.
 - **No convention-checker during execution.** Tests and linting are the quality gates for code.
