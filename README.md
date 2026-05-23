@@ -167,7 +167,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Extensible** — discovers external review agents and skills; shows all reviewers (built-in and external) with overlap notes so you choose
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
 - **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that surfaces high-noise findings in a collapsed `Suppressed` section
-- **Fix application** — apply all fixes, Critical + High only, or one-by-one with Accept/Skip per finding; runs targeted tests after applying
+- **Fix application** — apply all fixes, Critical + High + Med-conf-100 (Critical + High at displayed confidence plus Medium only when confidence == 100), or one-by-one with Accept/Skip per finding; runs targeted tests after applying
 - **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
 
 ### Severity ladder and confidence anchors (`/ba:review`)
