@@ -732,9 +732,8 @@ Use **AskUserQuestion**:
 **Options:**
 1. **Apply all fixes** — Apply all Critical + High + Medium items with suggested fixes (Low excluded — nit/style is not auto-applied)
 2. **Apply Critical + High + Med-conf-100** — Critical + High at displayed confidence, plus Medium only when confidence == 100; Low and lower-confidence Medium excluded. Always offered; reports "0 findings matched the filter" when nothing qualifies.
-3. **Apply Critical + High only** — Fix only Critical and High severity items
-4. **Review one by one** — Go through each finding and decide Accept/Skip
-5. **Done** — Acknowledge findings without modifying code
+3. **Review one by one** — Go through each finding and decide Accept/Skip
+4. **Done** — Acknowledge findings without modifying code
 
 **"Review one by one" flow:**
 
@@ -747,7 +746,7 @@ For each finding, use a single **AskUserQuestion** that includes the full findin
 2. **Skip** — Not worth flagging
 3. **Modify** — Adjust the wording or severity before posting
 
-**After applying fixes** (applies to `Apply all fixes`, `Apply Critical + High + Med-conf-100`, `Apply Critical + High only`, and any per-finding `Accept` from `Review one by one`):
+**After applying fixes** (applies to `Apply all fixes`, `Apply Critical + High + Med-conf-100`, and any per-finding `Accept` from `Review one by one`):
 - Run targeted tests for affected files
 - If tests fail, report which changes likely caused it
 - Return to this menu (user may want to apply more or exit)
