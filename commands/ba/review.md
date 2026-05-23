@@ -731,9 +731,10 @@ Use **AskUserQuestion**:
 
 **Options:**
 1. **Apply all fixes** — Apply all Critical + High + Medium items with suggested fixes (Low excluded — nit/style is not auto-applied)
-2. **Apply Critical + High only** — Fix only Critical and High severity items
-3. **Review one by one** — Go through each finding and decide Accept/Skip
-4. **Done** — Acknowledge findings without modifying code
+2. **Apply Critical + High + Med-conf-100** — Critical + High at displayed confidence, plus Medium only when confidence == 100; Low and lower-confidence Medium excluded. Always offered; reports "0 findings matched the filter" when nothing qualifies.
+3. **Apply Critical + High only** — Fix only Critical and High severity items
+4. **Review one by one** — Go through each finding and decide Accept/Skip
+5. **Done** — Acknowledge findings without modifying code
 
 **"Review one by one" flow:**
 
@@ -746,10 +747,12 @@ For each finding, use a single **AskUserQuestion** that includes the full findin
 2. **Skip** — Not worth flagging
 3. **Modify** — Adjust the wording or severity before posting
 
-**After applying fixes:**
+**After applying fixes** (applies to `Apply all fixes`, `Apply Critical + High + Med-conf-100`, `Apply Critical + High only`, and any per-finding `Accept` from `Review one by one`):
 - Run targeted tests for affected files
 - If tests fail, report which changes likely caused it
 - Return to this menu (user may want to apply more or exit)
+
+**Filter for `Apply Critical + High + Med-conf-100`:** From the **rendered (post-gate) findings only** — *not* the `Suppressed (low confidence)` section — select each finding where `severity == Critical OR severity == High OR (severity == Medium AND confidence == 100)`. The merged confidence (post-Step-4d, after `+25 per extra reviewer` promotion) is the value compared. The option is always offered. If zero findings match, report `"0 findings matched the filter (Critical + High + Med-conf-100)."` and return to this menu (do not treat as `Done`).
 
 **After "Done":**
 
@@ -771,9 +774,10 @@ Use **AskUserQuestion**:
 **Question:** "How would you like to handle the findings?"
 
 **Options:**
-1. **Post inline comments** — Post findings as inline comments on the MR/PR (details below)
-2. **Review one by one** — Walk through each finding for discussion
-3. **Done** — Acknowledge findings without further action
+1. **Post inline comments** — Post all displayed (post-gate) findings as inline comments on the MR/PR (details below)
+2. **Post Critical + High + Med-conf-100** — Same posting flow as option 1, but pre-filtered: `severity == Critical OR severity == High OR (severity == Medium AND confidence == 100)`, operating on the rendered (post-gate) findings only — the Suppressed section is never eligible. Always offered; if zero findings match, report "0 findings matched the filter (Critical + High + Med-conf-100)." and return to this menu (not treated as Done). Uses the same CC-mapping and submission logic under "Posting inline comments" below.
+3. **Review one by one** — Walk through each finding for discussion
+4. **Done** — Acknowledge findings without further action
 
 **When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
 
