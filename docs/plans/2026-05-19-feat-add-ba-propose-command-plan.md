@@ -1,7 +1,7 @@
 ---
 title: "feat: Add ba:propose Shipping Command"
 type: feat
-status: in-progress
+status: completed
 date: 2026-05-19
 origin: docs/brainstorms/2026-05-19-ba-propose-shipping-skill-brainstorm.md
 detail_level: comprehensive
@@ -86,8 +86,8 @@ User-observable behaviors `ba:propose` must satisfy. Authored once here; serves 
 
 <!-- slice:5 "Docs + version bump" -->
 
-- [ ] CLAUDE.md gains a new `### Git Workflow Commands` subsection and a new convention bullet; README gains a new `### /ba:propose` block.
-- [ ] `.claude-plugin/plugin.json` version is bumped to `0.18.0`, `description` includes "propose", and `keywords` array includes `"propose"`.
+- [x] CLAUDE.md gains a new `### Git Workflow Commands` subsection and a new convention bullet; README gains a new `### /ba:propose` block.
+- [x] `.claude-plugin/plugin.json` version is bumped to `0.18.0`, `description` includes "propose", and `keywords` array includes `"propose"`.
 
 ## Proposed Solution
 
@@ -142,7 +142,7 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 | 2 | Input gathering (Step 2) | ~120 | 1 | done |
 | 3 | Composition spec (Step 3) | ~115 | 2 | done |
 | 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | done |
-| 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | pending |
+| 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | done |
 
 > Slice 4 is **oversized** (~190 LoC) — one phase, one `**File**:` block, atomic per the slice rules. Consider splitting Phase 4's `commands/ba/propose.md` append into two file blocks in a future plan revision (Step 4 preview vs. Step 5 apply + Failure Modes) to enable a finer cut. For this round, ship Phase 4 as one MR.
 
@@ -961,21 +961,21 @@ After:
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep 'Git Workflow Commands' CLAUDE.md` — new category present
-- [ ] `grep '/ba:propose' CLAUDE.md` — command listed in CLAUDE.md
-- [ ] `grep 'Git workflow commands.*never modify source files' CLAUDE.md` — convention bullet present
-- [ ] `grep '/ba:propose' README.md` — command listed in README
-- [ ] `grep -c 'force-with-lease\|--body-file' README.md` — discipline bullets visible to users (>= 1)
-- [ ] `grep '"version": "0.18.0"' .claude-plugin/plugin.json` — version bumped
-- [ ] `grep '"propose"' .claude-plugin/plugin.json` — keyword added
-- [ ] `grep '"description":.*propose' .claude-plugin/plugin.json` — description updated
+- [x] `grep 'Git Workflow Commands' CLAUDE.md` — new category present
+- [x] `grep '/ba:propose' CLAUDE.md` — command listed in CLAUDE.md
+- [x] `grep 'Git workflow commands.*never modify source files' CLAUDE.md` — convention bullet present
+- [x] `grep '/ba:propose' README.md` — command listed in README
+- [x] `grep -c 'force-with-lease\|--body-file' README.md` — discipline bullets visible to users (>= 1)
+- [x] `grep '"version": "0.18.0"' .claude-plugin/plugin.json` — version bumped
+- [x] `grep '"propose"' .claude-plugin/plugin.json` — keyword added
+- [x] `grep '"description":.*propose' .claude-plugin/plugin.json` — description updated
 
 ##### Manual:
-- [ ] CLAUDE.md `### Git Workflow Commands` section reads as a peer of the other category subsections, not a footnote.
-- [ ] README `### /ba:propose` block matches the style of `/ba:slice` and `/ba:compound` (one-line description + bullet list).
-- [ ] `plugin.json` version bump matches semver convention for a new command (`0.X.0` minor bump).
-- [ ] No accidental edits to `marketplace.json` (out of scope).
-- [ ] No accidental edits to `commands/ba/execute.md`'s "Create MR/PR" delegation — that menu may eventually point at `/ba:propose` but is out of scope here.
+- [x] CLAUDE.md `### Git Workflow Commands` section reads as a peer of the other category subsections, not a footnote.
+- [x] README `### /ba:propose` block matches the style of `/ba:slice` and `/ba:compound` (one-line description + bullet list).
+- [x] `plugin.json` version bump matches semver convention for a new command (`0.X.0` minor bump).
+- [x] No accidental edits to `marketplace.json` (out of scope).
+- [x] No accidental edits to `commands/ba/execute.md`'s "Create MR/PR" delegation — that menu may eventually point at `/ba:propose` but is out of scope here.
 
 > **Phase gate:** Automated verification must pass. Manual verification completes the plan.
 
