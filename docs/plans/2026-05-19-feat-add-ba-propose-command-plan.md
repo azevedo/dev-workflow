@@ -139,7 +139,7 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 | # | Name | Est. LoC | Depends | Status |
 |---|---|---|---|---|
 | 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | done |
-| 2 | Input gathering (Step 2) | ~120 | 1 | pending |
+| 2 | Input gathering (Step 2) | ~120 | 1 | done |
 | 3 | Composition spec (Step 3) | ~115 | 2 | pending |
 | 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | pending |
 | 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | pending |
@@ -454,11 +454,11 @@ If no user-observable files changed, skip this prompt — `evidence = ()`.
 - [ ] `grep -c 'AskUserQuestion' commands/ba/propose.md` — interactive prompts increased (>= 8) *(deferred — see Deviations; literal token first appears in Phase 4)*
 
 ##### Manual:
-- [ ] Linear-failure vs Linear-absence distinction is explicit; `mcp_unavailable` flag is set on failure.
-- [ ] `docs/solutions/` scan is per-entry confirmable; "include all"/"skip all" shortcuts present.
-- [ ] Preserved-block extraction is re-run at apply time in Step 5d (not compared by hash) so the published body always reflects the freshest remote read.
-- [ ] Evidence prompt only triggers on heuristic UI-file detection; otherwise silent.
-- [ ] Empty-diff distinguishes "branch fully contained in base" from "diff unreadable" with separate messages.
+- [x] Linear-failure vs Linear-absence distinction is explicit; `mcp_unavailable` flag is set on failure.
+- [x] `docs/solutions/` scan is per-entry confirmable; "include all"/"skip all" shortcuts present.
+- [x] Preserved-block extraction is re-run at apply time in Step 5d (not compared by hash) so the published body always reflects the freshest remote read.
+- [x] Evidence prompt only triggers on heuristic UI-file detection; otherwise silent.
+- [x] Empty-diff distinguishes "branch fully contained in base" from "diff unreadable" with separate messages.
 
 > **Phase gate:** Automated verification must pass. Pause for manual verification before proceeding to Phase 3.
 
