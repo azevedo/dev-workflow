@@ -140,7 +140,7 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 |---|---|---|---|---|
 | 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | done |
 | 2 | Input gathering (Step 2) | ~120 | 1 | done |
-| 3 | Composition spec (Step 3) | ~115 | 2 | pending |
+| 3 | Composition spec (Step 3) | ~115 | 2 | done |
 | 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | pending |
 | 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | pending |
 
@@ -618,10 +618,10 @@ The seam intentionally exposes no tier flag, section list, template selector, or
 - [x] `grep '150 line\|150-line\|>= 150\|>150' commands/ba/propose.md` — soft cap documented
 
 ##### Manual:
-- [ ] Composition spec is clearly a contract Claude executes, not Python to import — phrased as instruction.
-- [ ] Section-vocabulary choice is visibly seam-hidden — the orchestrator never names a tier or section.
-- [ ] Linear MCP shape is normalized by Step 2b into composition-owned vocabulary (`issue_context.ref`, `.summary`, `.body_text`); Step 3 never reads Linear's field names. Schema drift is absorbed in Step 2b, not the composition seam.
-- [ ] Filter step lists exact "drop section if source missing" rules from the brainstorm.
+- [x] Composition spec is clearly a contract Claude executes, not Python to import — phrased as instruction.
+- [x] Section-vocabulary choice is visibly seam-hidden — the orchestrator never names a tier or section.
+- [x] Linear MCP shape is normalized by Step 2b into composition-owned vocabulary (`issue_context.ref`, `.summary`, `.body_text`); Step 3 never reads Linear's field names. Schema drift is absorbed in Step 2b, not the composition seam.
+- [x] Filter step lists exact "drop section if source missing" rules from the brainstorm.
 
 > **Phase gate:** Automated verification must pass. Pause for manual verification before proceeding to Phase 4.
 
