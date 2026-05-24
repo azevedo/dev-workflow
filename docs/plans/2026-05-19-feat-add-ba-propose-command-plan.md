@@ -6,6 +6,8 @@ date: 2026-05-19
 origin: docs/brainstorms/2026-05-19-ba-propose-shipping-skill-brainstorm.md
 detail_level: comprehensive
 iteration_count: 2
+sliced: true
+slice_count: 5
 tags: [command, ba-propose, git-workflow, commit, pull-request, merge-request, body-composition]
 ---
 
@@ -46,19 +48,32 @@ The high-level design is locked at the brainstorm (see brainstorm: `docs/brainst
 
 ## Behaviors to Test
 
-User-observable behaviors `ba:propose` must satisfy. Authored once here; serves scope, review, and test-coverage simultaneously. Each line is one structural grep or one manual scenario.
+User-observable behaviors `ba:propose` must satisfy. Authored once here; serves scope, review, and test-coverage simultaneously. Each line is one structural grep or one manual scenario. Behaviors are grouped by the slice that delivers them (see `## Slices` table below).
 
-- [ ] On a feature branch with new commits, running `/ba:propose` previews a title and body, then on confirmation pushes commits and opens a PR/MR.
-- [ ] Title is effect-phrased — when composition rewrites a mechanism-only title, the preview shows `Title: <effect-phrased>  (rewritten from: <original>)`.
-- [ ] When the remote host is `github.com` (or a GHES host inferred from remote URL), the command invokes `gh pr create --body-file <path>`.
-- [ ] When the remote host is `gitlab.com` (or a self-hosted GitLab), the command invokes `glab mr create --description-file <path>`.
-- [ ] When the remote host is neither GitHub nor GitLab, the command completes commit + push, prints the composed body, and tells the user the platform isn't supported — without ever calling `gh pr create` / `glab mr create`.
-- [ ] Cursor BugBot block (`<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->`) is preserved byte-identical when rewriting an existing PR/MR description.
-- [ ] Existing `## Demo` and `## Screenshots` blocks are preserved byte-identical when rewriting an existing PR/MR description.
+<!-- slice:1 "Scaffold, mode dispatch, branch routing" -->
+
+- [ ] Branch routing handles all four CE cases — detached HEAD, default branch with uncommitted work, default branch with no work, feature branch.
+
+<!-- slice:2 "Input gathering (Step 2)" -->
+
 - [ ] When a Linear issue ID is detected (supplied as arg or parsed from branch name) and the Linear MCP server responds, motivation is sourced from MCP.
 - [ ] When a Linear issue ID is detected but the Linear MCP server is unavailable, the preview shows a one-line warning ("Linear MCP unavailable — using diff-derived motivation") and the command continues without error.
 - [ ] When no Linear issue ID is present, the command never errors on missing Linear; motivation is derived from the diff and recent commits.
 - [ ] `docs/solutions/` entries touched on the current branch since the last merge to `origin/HEAD` are detected and presented one-by-one for inclusion confirmation; the user can accept any subset.
+- [ ] Empty-diff (feature branch fully contained in base) raises a `CompositionInputError` with the message "branch is fully contained in base; rebase or close."
+
+<!-- slice:3 "Composition spec (Step 3)" -->
+
+- [ ] Title is effect-phrased — when composition rewrites a mechanism-only title, the preview shows `Title: <effect-phrased>  (rewritten from: <original>)`.
+- [ ] Cursor BugBot block (`<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->`) is preserved byte-identical when rewriting an existing PR/MR description.
+- [ ] Existing `## Demo` and `## Screenshots` blocks are preserved byte-identical when rewriting an existing PR/MR description.
+
+<!-- slice:4 "Preview, apply, failure modes" -->
+
+- [ ] On a feature branch with new commits, running `/ba:propose` previews a title and body, then on confirmation pushes commits and opens a PR/MR.
+- [ ] When the remote host is `github.com` (or a GHES host inferred from remote URL), the command invokes `gh pr create --body-file <path>`.
+- [ ] When the remote host is `gitlab.com` (or a self-hosted GitLab), the command invokes `glab mr create --description-file <path>`.
+- [ ] When the remote host is neither GitHub nor GitLab, the command completes commit + push, prints the composed body, and tells the user the platform isn't supported — without ever calling `gh pr create` / `glab mr create`.
 - [ ] No `gh pr create` / `glab mr create` invocation uses `--body "$(cat ...)"`, stdin, pipes, or `--body-file -`. Every invocation uses `--body-file <temp_path>` (or `--description-file <temp_path>`) where `<temp_path>` was written by a quoted-sentinel heredoc.
 - [ ] Commit message and PR/MR body share the same composed markdown — no separate per-commit-vs-PR rendering path.
 - [ ] Staging uses explicit paths only — no `git add -A`, no `git add .` anywhere in the command's bash blocks.
@@ -66,10 +81,11 @@ User-observable behaviors `ba:propose` must satisfy. Authored once here; serves 
 - [ ] On pre-commit / commit-msg hook failure, the command surfaces hook output, leaves the working tree intact, and exits with a clear "fix the hook and re-run" message — never with `--no-verify`.
 - [ ] `--describe-only` prints the composed body without committing or pushing; on a branch with no open PR/MR it composes and prints, returning zero.
 - [ ] When the command is run on a feature branch that has an open PR/MR, it switches to edit semantics (`gh pr edit --body-file` / `glab mr update --description-file`) instead of failing with "PR already exists."
-- [ ] Branch routing handles all four CE cases — detached HEAD, default branch with uncommitted work, default branch with no work, feature branch.
 - [ ] The command never issues a force-push silently; non-fast-forward push prompts the user to use `--force-with-lease` or abort.
-- [ ] Empty-diff (feature branch fully contained in base) raises a `CompositionInputError` with the message "branch is fully contained in base; rebase or close."
 - [ ] Preview-abort returns the user to a menu: edit body, regenerate with a one-line hint, or exit. The flow never silently exits or silently recomposes.
+
+<!-- slice:5 "Docs + version bump" -->
+
 - [ ] CLAUDE.md gains a new `### Git Workflow Commands` subsection and a new convention bullet; README gains a new `### /ba:propose` block.
 - [ ] `.claude-plugin/plugin.json` version is bumped to `0.18.0`, `description` includes "propose", and `keywords` array includes `"propose"`.
 
@@ -118,6 +134,18 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 - **Embedding the spec as a sub-document at `commands/ba/propose/composition.md`.** Same rejection rationale — net-new convention, no payoff over a section heading inside the main file.
 - **Auto-creating `docs/solutions/`** as part of this plan. Rejected. The brainstorm doesn't require it, and `commands/ba/compound.md:56` already documents the "directory absent → return 'no docs found'" defensive pattern; `ba:propose` follows the same pattern. Pre-creating the directory introduces noise without benefit.
 
+## Slices
+
+| # | Name | Est. LoC | Depends | Status |
+|---|---|---|---|---|
+| 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | pending |
+| 2 | Input gathering (Step 2) | ~120 | 1 | pending |
+| 3 | Composition spec (Step 3) | ~115 | 2 | pending |
+| 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | pending |
+| 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | pending |
+
+> Slice 4 is **oversized** (~190 LoC) — one phase, one `**File**:` block, atomic per the slice rules. Consider splitting Phase 4's `commands/ba/propose.md` append into two file blocks in a future plan revision (Step 4 preview vs. Step 5 apply + Failure Modes) to enable a finer cut. For this round, ship Phase 4 as one MR.
+
 ## Implementation Phases
 
 ### Phase 1 — Command scaffold, frontmatter, mode dispatch, branch routing
@@ -125,6 +153,8 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 Lay down `commands/ba/propose.md` with the frontmatter, argument capture, mode-dispatch logic, host detection, and branch-routing decision tree. No body composition yet — Phase 1 ends with a command that can identify what mode it's in, detect the host, route correctly across the four CE branch states, and refuse cleanly on unsupported hosts or detached HEAD.
 
 #### Changes Required
+
+<!-- slice:1 "Scaffold, mode dispatch, branch routing" -->
 
 **File**: `commands/ba/propose.md` (new file)
 
@@ -267,6 +297,8 @@ If still empty, ask the user.
 Add Step 2 to the command file: the orchestrator's input-gathering steps that materialize `CompositionInputs` for the composition seam. Linear MCP optional with explicit failure-vs-absence distinction; `docs/solutions/` scan with per-entry confirmation; preserved-block extraction from existing PR body (re-extracted at apply time in Step 5d to close the BugBot-edit race window without explicit hash compare); evidence prompt.
 
 #### Changes Required
+
+<!-- slice:2 "Input gathering (Step 2)" -->
 
 **File**: `commands/ba/propose.md` (append Step 2)
 
@@ -438,6 +470,8 @@ Document the `compose_body` contract inline in `commands/ba/propose.md` as Step 
 
 #### Changes Required
 
+<!-- slice:3 "Composition spec (Step 3)" -->
+
 **File**: `commands/ba/propose.md` (append Step 3)
 
 ````markdown
@@ -598,6 +632,8 @@ The seam intentionally exposes no tier flag, section list, template selector, or
 Add Steps 4 and 5: the preview/confirm gate, then the apply mechanics — `git commit` with `-F`, file-level staging, `git push` with non-fast-forward handling, `gh pr create` / `glab mr create` with `--body-file` heredoc discipline, edit-vs-create branching when an open PR/MR exists, hook-failure recovery, post-push PR-create failure messaging. Plus the explicit Failure Modes appendix.
 
 #### Changes Required
+
+<!-- slice:4 "Preview, apply, failure modes" -->
 
 **File**: `commands/ba/propose.md` (append Steps 4, 5, and Failure Modes)
 
@@ -846,6 +882,8 @@ On success, print:
 Update `CLAUDE.md`, `README.md`, and `.claude-plugin/plugin.json` so the new command, new category, and new convention are documented in all three places per the established convention (`CLAUDE.md:74` — "Update README.md whenever commands, agents, or artifact paths are added or changed").
 
 #### Changes Required
+
+<!-- slice:5 "Docs + version bump" -->
 
 **File**: `CLAUDE.md`
 
