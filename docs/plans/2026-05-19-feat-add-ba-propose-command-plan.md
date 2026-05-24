@@ -138,7 +138,7 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 
 | # | Name | Est. LoC | Depends | Status |
 |---|---|---|---|---|
-| 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | pending |
+| 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | done |
 | 2 | Input gathering (Step 2) | ~120 | 1 | pending |
 | 3 | Composition spec (Step 3) | ~115 | 2 | pending |
 | 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | pending |
@@ -284,9 +284,9 @@ If still empty, ask the user.
 - [x] `grep 'Detached HEAD\|default branch' commands/ba/propose.md` — all four branch states mentioned
 
 ##### Manual:
-- [ ] Frontmatter matches the universal command shape (`name`, `description`, `argument-hint`).
-- [ ] Prose voice is instruction-to-Claude (imperative, "Run …", "Ask …") — matching `commands/ba/execute.md` and `commands/ba/review.md`.
-- [ ] Host-detection branch enumerates GHES and self-hosted GitLab explicitly, with a graceful unknown-host path.
+- [x] Frontmatter matches the universal command shape (`name`, `description`, `argument-hint`).
+- [x] Prose voice is instruction-to-Claude (imperative, "Run …", "Ask …") — matching `commands/ba/execute.md` and `commands/ba/review.md`.
+- [x] Host-detection branch enumerates GHES and self-hosted GitLab explicitly, with a graceful unknown-host path.
 
 > **Phase gate:** Automated verification must pass. Pause for manual verification before proceeding to Phase 2.
 
