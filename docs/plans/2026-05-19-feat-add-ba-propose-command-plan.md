@@ -5,7 +5,9 @@ status: active
 date: 2026-05-19
 origin: docs/brainstorms/2026-05-19-ba-propose-shipping-skill-brainstorm.md
 detail_level: comprehensive
-iteration_count: 1
+iteration_count: 2
+sliced: true
+slice_count: 5
 tags: [command, ba-propose, git-workflow, commit, pull-request, merge-request, body-composition]
 ---
 
@@ -46,19 +48,32 @@ The high-level design is locked at the brainstorm (see brainstorm: `docs/brainst
 
 ## Behaviors to Test
 
-User-observable behaviors `ba:propose` must satisfy. Authored once here; serves scope, review, and test-coverage simultaneously. Each line is one structural grep or one manual scenario.
+User-observable behaviors `ba:propose` must satisfy. Authored once here; serves scope, review, and test-coverage simultaneously. Each line is one structural grep or one manual scenario. Behaviors are grouped by the slice that delivers them (see `## Slices` table below).
 
-- [ ] On a feature branch with new commits, running `/ba:propose` previews a title and body, then on confirmation pushes commits and opens a PR/MR.
-- [ ] Title is effect-phrased — when composition rewrites a mechanism-only title, the preview shows `Title: <effect-phrased>  (rewritten from: <original>)`.
-- [ ] When the remote host is `github.com` (or a GHES host inferred from remote URL), the command invokes `gh pr create --body-file <path>`.
-- [ ] When the remote host is `gitlab.com` (or a self-hosted GitLab), the command invokes `glab mr create --description-file <path>`.
-- [ ] When the remote host is neither GitHub nor GitLab, the command completes commit + push, prints the composed body, and tells the user the platform isn't supported — without ever calling `gh pr create` / `glab mr create`.
-- [ ] Cursor BugBot block (`<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->`) is preserved byte-identical when rewriting an existing PR/MR description.
-- [ ] Existing `## Demo` and `## Screenshots` blocks are preserved byte-identical when rewriting an existing PR/MR description.
+<!-- slice:1 "Scaffold, mode dispatch, branch routing" -->
+
+- [ ] Branch routing handles all four CE cases — detached HEAD, default branch with uncommitted work, default branch with no work, feature branch.
+
+<!-- slice:2 "Input gathering (Step 2)" -->
+
 - [ ] When a Linear issue ID is detected (supplied as arg or parsed from branch name) and the Linear MCP server responds, motivation is sourced from MCP.
 - [ ] When a Linear issue ID is detected but the Linear MCP server is unavailable, the preview shows a one-line warning ("Linear MCP unavailable — using diff-derived motivation") and the command continues without error.
 - [ ] When no Linear issue ID is present, the command never errors on missing Linear; motivation is derived from the diff and recent commits.
 - [ ] `docs/solutions/` entries touched on the current branch since the last merge to `origin/HEAD` are detected and presented one-by-one for inclusion confirmation; the user can accept any subset.
+- [ ] Empty-diff (feature branch fully contained in base) raises a `CompositionInputError` with the message "branch is fully contained in base; rebase or close."
+
+<!-- slice:3 "Composition spec (Step 3)" -->
+
+- [ ] Title is effect-phrased — when composition rewrites a mechanism-only title, the preview shows `Title: <effect-phrased>  (rewritten from: <original>)`.
+- [ ] Cursor BugBot block (`<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->`) is preserved byte-identical when rewriting an existing PR/MR description.
+- [ ] Existing `## Demo` and `## Screenshots` blocks are preserved byte-identical when rewriting an existing PR/MR description.
+
+<!-- slice:4 "Preview, apply, failure modes" -->
+
+- [ ] On a feature branch with new commits, running `/ba:propose` previews a title and body, then on confirmation pushes commits and opens a PR/MR.
+- [ ] When the remote host is `github.com` (or a GHES host inferred from remote URL), the command invokes `gh pr create --body-file <path>`.
+- [ ] When the remote host is `gitlab.com` (or a self-hosted GitLab), the command invokes `glab mr create --description-file <path>`.
+- [ ] When the remote host is neither GitHub nor GitLab, the command completes commit + push, prints the composed body, and tells the user the platform isn't supported — without ever calling `gh pr create` / `glab mr create`.
 - [ ] No `gh pr create` / `glab mr create` invocation uses `--body "$(cat ...)"`, stdin, pipes, or `--body-file -`. Every invocation uses `--body-file <temp_path>` (or `--description-file <temp_path>`) where `<temp_path>` was written by a quoted-sentinel heredoc.
 - [ ] Commit message and PR/MR body share the same composed markdown — no separate per-commit-vs-PR rendering path.
 - [ ] Staging uses explicit paths only — no `git add -A`, no `git add .` anywhere in the command's bash blocks.
@@ -66,10 +81,11 @@ User-observable behaviors `ba:propose` must satisfy. Authored once here; serves 
 - [ ] On pre-commit / commit-msg hook failure, the command surfaces hook output, leaves the working tree intact, and exits with a clear "fix the hook and re-run" message — never with `--no-verify`.
 - [ ] `--describe-only` prints the composed body without committing or pushing; on a branch with no open PR/MR it composes and prints, returning zero.
 - [ ] When the command is run on a feature branch that has an open PR/MR, it switches to edit semantics (`gh pr edit --body-file` / `glab mr update --description-file`) instead of failing with "PR already exists."
-- [ ] Branch routing handles all four CE cases — detached HEAD, default branch with uncommitted work, default branch with no work, feature branch.
 - [ ] The command never issues a force-push silently; non-fast-forward push prompts the user to use `--force-with-lease` or abort.
-- [ ] Empty-diff (feature branch fully contained in base) raises a `CompositionInputError` with the message "branch is fully contained in base; rebase or close."
 - [ ] Preview-abort returns the user to a menu: edit body, regenerate with a one-line hint, or exit. The flow never silently exits or silently recomposes.
+
+<!-- slice:5 "Docs + version bump" -->
+
 - [ ] CLAUDE.md gains a new `### Git Workflow Commands` subsection and a new convention bullet; README gains a new `### /ba:propose` block.
 - [ ] `.claude-plugin/plugin.json` version is bumped to `0.18.0`, `description` includes "propose", and `keywords` array includes `"propose"`.
 
@@ -118,6 +134,18 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 - **Embedding the spec as a sub-document at `commands/ba/propose/composition.md`.** Same rejection rationale — net-new convention, no payoff over a section heading inside the main file.
 - **Auto-creating `docs/solutions/`** as part of this plan. Rejected. The brainstorm doesn't require it, and `commands/ba/compound.md:56` already documents the "directory absent → return 'no docs found'" defensive pattern; `ba:propose` follows the same pattern. Pre-creating the directory introduces noise without benefit.
 
+## Slices
+
+| # | Name | Est. LoC | Depends | Status |
+|---|---|---|---|---|
+| 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | pending |
+| 2 | Input gathering (Step 2) | ~120 | 1 | pending |
+| 3 | Composition spec (Step 3) | ~115 | 2 | pending |
+| 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | pending |
+| 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | pending |
+
+> Slice 4 is **oversized** (~190 LoC) — one phase, one `**File**:` block, atomic per the slice rules. Consider splitting Phase 4's `commands/ba/propose.md` append into two file blocks in a future plan revision (Step 4 preview vs. Step 5 apply + Failure Modes) to enable a finer cut. For this round, ship Phase 4 as one MR.
+
 ## Implementation Phases
 
 ### Phase 1 — Command scaffold, frontmatter, mode dispatch, branch routing
@@ -125,6 +153,8 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 Lay down `commands/ba/propose.md` with the frontmatter, argument capture, mode-dispatch logic, host detection, and branch-routing decision tree. No body composition yet — Phase 1 ends with a command that can identify what mode it's in, detect the host, route correctly across the four CE branch states, and refuse cleanly on unsupported hosts or detached HEAD.
 
 #### Changes Required
+
+<!-- slice:1 "Scaffold, mode dispatch, branch routing" -->
 
 **File**: `commands/ba/propose.md` (new file)
 
@@ -152,7 +182,7 @@ Recognized flags:
 - `--describe-only` — Compose and print the body; do not commit, push, or create/edit a PR/MR. Useful as a dry run.
 - `--issue <ID>` — Explicitly bind a Linear issue ID. Overrides branch-name detection.
 
-Note: there is no explicit `--describe-update` flag. When the command is run on a feature branch with an existing open PR/MR, Steps 2d and 5d auto-detect the open PR and switch to edit semantics (`gh pr edit` / `glab mr update`) without requiring a mode flag. If the user is on a branch with no new commits to push *and* an open PR exists, Step 0b asks whether to update the PR description only — the answer drives the same code path. One flag, one auto-detection — no parallel surface.
+Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b. One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
 
 ## Step 0: Pre-flight
 
@@ -166,30 +196,50 @@ Parse `REMOTE_URL` to classify:
 
 - Matches `github.com` → `HOST=github`, `CLI=gh`.
 - Matches `gitlab.com` → `HOST=gitlab`, `CLI=glab`.
-- Else parse the host from the remote URL and probe (in order):
-  - If `$GH_HOST` is already set in the environment AND matches the parsed host → `HOST=ghes`, `CLI=gh`.
-  - Else attempt `gh api /meta --hostname <parsed_host> 2>/dev/null`. Success (returns a JSON object with `github_services_sha`) → `HOST=ghes`, `CLI=gh`, `export GH_HOST=<parsed_host>`.
-  - Else attempt `glab config get -g host` and check whether the parsed host is registered. Match → `HOST=gitlab-self`, `CLI=glab`.
-  - All probes failed → `HOST=unknown`.
+- Else → `HOST=unknown` (unless the user overrides via the env-var escape hatch below).
 - No remote at all → `HOST=unknown`.
 
-If `HOST=unknown`, announce: "Remote `<URL>` is not GitHub or GitLab. `ba:propose` will still commit and push, but cannot open the PR/MR — paste the composed body into your platform's web UI when prompted."
+**Env-var escape hatch** for self-hosted users (GHES, self-hosted GitLab):
 
-### 0b. Detect mode
+- If `BA_PROPOSE_HOST=ghes` is set, treat as `HOST=ghes`, `CLI=gh`. Caller is responsible for `gh auth login` and `GH_HOST` if needed.
+- If `BA_PROPOSE_HOST=gitlab-self` is set, treat as `HOST=gitlab-self`, `CLI=glab`. Caller is responsible for `glab auth login`.
+
+This replaces an earlier ladder design (`gh api /meta` probe → `glab config get` probe → unknown). The probe ladder was rejected at plan-review time as YAGNI for v0.18.0 — the repo has no documented GHES / self-hosted GitLab users today, the probes have unspecified failure semantics (CLI-missing vs probe-error), and probe #2 had the side effect of mutating `GH_HOST` in the caller's environment. Re-add auto-detection in a future plan when a real user reports the escape hatch is insufficient.
+
+If `HOST=unknown`, announce: "Remote `<URL>` is not GitHub or GitLab. `ba:propose` will still commit and push, but cannot open the PR/MR — paste the composed body into your platform's web UI when prompted. (Self-hosted? Set `BA_PROPOSE_HOST=ghes` or `BA_PROPOSE_HOST=gitlab-self`.)"
+
+### 0b. Resolve ACTION
+
+Compute a single `ACTION` value that drives the rest of the orchestration. Every state the rest of the command cares about — describe vs apply, commit-push-then-PR vs PR-edit-only — collapses into one named enum so Step 5 dispatches on one dimension instead of a cross-product:
+
+| `ACTION` | Triggered when | Step 5 behavior |
+|---|---|---|
+| `describe_only` | `--describe-only` was passed | Compose, preview, print body, exit zero. No commit, no push, no PR/MR write. |
+| `commit_push_create` | No `--describe-only` AND no open PR/MR for branch | 5a stage → 5b commit → 5c push → 5d create. |
+| `commit_push_edit` | No `--describe-only` AND open PR/MR exists AND there are commits to push | 5a stage → 5b commit → 5c push → 5d edit. |
+| `edit_only` | No `--describe-only` AND open PR/MR exists AND nothing to push | Skip 5a-5c; 5d edits the existing PR/MR description. |
+
+Resolution sequence:
 
 ```bash
-MODE=full
-[[ "$ARGS" == *--describe-only* ]] && MODE=describe-only
+ACTION=commit_push_create
+if [[ "$ARGS" == *--describe-only* ]]; then
+  ACTION=describe_only
+else
+  # Probe upstream and open-PR state once
+  HAS_COMMITS_TO_PUSH=$([[ -n "$(git rev-list @{upstream}..HEAD 2>/dev/null)" ]] && echo yes || echo no)
+  OPEN_PR_EXISTS=$(... gh pr view / glab mr view — see Step 2d's probe ...)
+  if [[ "$OPEN_PR_EXISTS" == yes && "$HAS_COMMITS_TO_PUSH" == no ]]; then
+    # Confirm the edit-only intent — refusing this exits early
+    ask "Nothing to push. Update the PR description only?" yes/no
+    [[ answer == yes ]] && ACTION=edit_only || exit 0
+  elif [[ "$OPEN_PR_EXISTS" == yes ]]; then
+    ACTION=commit_push_edit
+  fi
+fi
 ```
 
-If `MODE=full` AND `git rev-list @{upstream}..HEAD 2>/dev/null` returns empty (nothing to push) AND an open PR/MR exists for the branch, ask:
-
-> "Nothing to push. Update the PR description only?"
->
-> 1. **Yes** — skip commit/push, proceed to Step 5d which auto-detects the open PR and edits it
-> 2. **No** — exit (nothing to do)
-
-A `Yes` answer sets an internal `skip_push = True` orchestrator flag. Step 5 reads this flag and skips Steps 5a-5c; Step 5d runs as normal and finds the existing PR via `gh pr view` / `glab mr view`, dispatching to `gh pr edit` / `glab mr update`.
+After Step 0b, every downstream step reads `ACTION` and nothing else for mode dispatch. `MODE` and `skip_push` are not separate variables — they were intermediate concepts in an earlier draft, collapsed at plan-review time into `ACTION` so cross-step state is named once. The Step 5 action plan table (below) dispatches on `ACTION` directly.
 
 ## Step 1: Branch routing
 
@@ -248,6 +298,8 @@ Add Step 2 to the command file: the orchestrator's input-gathering steps that ma
 
 #### Changes Required
 
+<!-- slice:2 "Input gathering (Step 2)" -->
+
 **File**: `commands/ba/propose.md` (append Step 2)
 
 ````markdown
@@ -299,7 +351,19 @@ If an ID is present, attempt the MCP call:
 mcp__claude_ai_Linear__get_issue(id: <ID>)
 ```
 
-- **Success** → `issue_context = IssueContext(raw=<mcp response>)`. Composition reads whatever fields it needs.
+- **Success** → normalize the MCP payload into composition-owned vocabulary before passing it across the seam:
+
+  ```
+  issue_context = IssueContext(
+    ref         = <mcp_response>.identifier,        # e.g., "TO-1234"
+    summary     = <mcp_response>.title,             # short headline
+    body_text   = <mcp_response>.description,       # long-form description, possibly empty
+    priority    = <mcp_response>.priority,          # optional, opaque to composition
+    raw         = <full mcp_response, Mapping[str, Any]>,
+  )
+  ```
+
+  The normalizer is Step 2b's job, not composition's. If Linear renames `description` → `body` or `identifier` → `key` in a future MCP schema, that change lands here in Step 2b and never reaches Step 3. Composition reads `issue_context.ref`, `.summary`, `.body_text` — not Linear's field names. The `.raw` mapping is retained as an escape hatch but composition should not read it for production sections; reach for `.raw` only when prototyping a new section, then promote the field into the normalizer.
 - **Failure** (MCP not installed, server down, auth expired, ID not found) → `issue_context = None`, AND record `mcp_unavailable = True` so the preview can surface a warning: "Linear MCP unavailable — using diff-derived motivation."
 
 The orchestrator never raises on MCP failure. Linear is optional.
@@ -319,18 +383,24 @@ For each entry returned:
 - Read the file's frontmatter and the first paragraph of `## Solution` (or first paragraph of body if no `## Solution`).
 - Prepare a one-line summary: `<frontmatter.problem or H1>` — link target relative to repo root.
 
-If at least one entry was returned, ask the user **per-entry** via AskUserQuestion:
+If at least one entry was returned, ask the user **once**, presenting the full list:
 
-> "Found `docs/solutions/<path>`: '<summary>'. Include as 'What I learned'?"
+> "Found N `docs/solutions/` entries touched on this branch:
+> 1. `<path-1>` — <summary-1>
+> 2. `<path-2>` — <summary-2>
+> ...
 >
-> 1. **Include** — add to the splice set
-> 2. **Skip** — do not add
-> 3. **Include all remaining** — accept the rest without further prompts
-> 4. **Skip all remaining** — reject the rest
+> Include as 'What I learned'?"
+>
+> 1. **Include all** — splice every detected entry
+> 2. **Skip all** — splice none
+> 3. **Choose** — drop into a per-entry yes/no loop (only when the user wants surgical control)
+
+Default for the typical case (1–3 entries) is "Include all" — that's what the loop is gathering. The per-entry **Choose** path opens an AskUserQuestion sequence with a single yes/no per remaining entry; no Include-all / Skip-all shortcuts at that level (the user already picked "Choose" because they want individual control).
 
 `solutions = (<accepted entries>...)`. Empty tuple is normal.
 
-If `docs/solutions/` does not exist or returns no entries, set `solutions = ()` silently.
+If `docs/solutions/` does not exist or returns no entries, set `solutions = ()` silently. The directory does not exist in the repo today — this code path is dormant until `/ba:compound` creates the first entry.
 
 ### 2d. Preserved blocks from existing PR/MR description
 
@@ -354,7 +424,7 @@ If `state == OPEN`:
 
 Step 5d re-fetches the body immediately before write and re-extracts these blocks at apply time — see Step 5d for the rationale. The Step 2d extract is what the preview displays; Step 5d's extract is what actually ships.
 
-If `MODE=full` and no open PR/MR, set `preserved_blocks = ()`.
+If `ACTION` is one of `commit_push_create` / `describe_only` and no open PR/MR exists for the branch, set `preserved_blocks = ()`. The `commit_push_edit` and `edit_only` cases imply an open PR/MR by Step 0b's resolution, so this branch isn't reached for those actions.
 
 ### 2e. Evidence (user-supplied URLs only)
 
@@ -400,6 +470,8 @@ Document the `compose_body` contract inline in `commands/ba/propose.md` as Step 
 
 #### Changes Required
 
+<!-- slice:3 "Composition spec (Step 3)" -->
+
 **File**: `commands/ba/propose.md` (append Step 3)
 
 ````markdown
@@ -427,7 +499,11 @@ CompositionInputs:
 ComposedBody:
   title              # effect-phrased, ≤72 chars, no trailing period
   body               # final markdown — feeds both commit and PR/MR
+  rewritten_from     # str or None — original title when 3.3 rewrote a mechanism-only draft; None when no rewrite occurred
+  size_warning       # bool — True when body exceeds Lynch's ~150-line soft cap (3.6)
 ```
+
+`rewritten_from` and `size_warning` are declared output fields so the orchestrator's preview (Step 4) reads them by name; composition never side-channels state to the orchestrator. The seam stays one-direction: inputs in, ComposedBody out.
 
 (See brainstorm: `## Locked Design`, *Interface*.)
 
@@ -465,52 +541,38 @@ Tier table (first match wins):
 | medium | `lines_changed <= 200 AND files_changed <= 10` |
 | large | otherwise |
 
-#### 3.2 Select default Lynch sections per tier
+#### 3.2 Section registry (tier threshold + source requirement + body rule)
 
-Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*).
+One declarative table replaces the earlier three-step pipeline (tier→sections → filter-by-availability → per-section generator). Each row owns one section: the minimum tier at which it activates, the input that must be present for it to appear, and the rule for generating its body. To add a new section, add one row. To add a new tier, raise/lower thresholds in this column only. Reviewers maintaining the spec read one place to see what each section depends on.
 
-| Tier | Default sections |
-|---|---|
-| typo | #1 |
-| small | #1, #2, conditionally #3 if non-obvious motivation |
-| medium | #1, #2, #3, #7 (cross-refs), conditionally #9, #14, #11 |
-| large | #1, #2, #3, #4 (if breaking), #6 (if dep changes), #7, #8, #9, #10, #11, #12, #14 |
-| perf | #1, #2, #3, #14 (before/after table) |
+Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*). "Activates at" uses the tier order `typo < small < medium < large`; `perf` is a tier-modifier (see 3.1 note below) that activates rows tagged with `perf` regardless of size threshold.
 
-#### 3.3 Filter sections by content availability
+| # | Section | Activates at | Required input (drop section if missing) | Body rule |
+|---|---|---|---|---|
+| 1 | Title | typo | — | See 3.3 (title rewriting). Always present. |
+| 2 | Impact | small | — | One sentence: what was impossible/broken before, what's possible/fixed now. Falls back to commit log when motivation is thin. |
+| 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` when `issue_context` is present; else derive from `diff.commit_log` and changed file paths. Composition reads only composition-owned fields; the Linear-shape mapping lives in Step 2b. |
+| 4 | Breaking changes | large | Diff signals an API removal or schema change | Name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation. |
+| 6 | Dependency justifications | large | Lockfile / dependency-manifest changes in diff | List lockfile-detected adds; one-line rationale per addition. |
+| 7 | Cross-refs | medium, large | `issue_context.ref` is present | `Fixes <issue_context.ref>` (normalized ref from Step 2b, e.g., `TO-1234`). Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or full URL). |
+| 8 | Bug summaries | large | `issue_context.body_text` is present | Paragraph form, never just `Fixes #N`. |
+| 9 | Testing instructions | medium (conditional), large | Automated tests don't exist for the change | Spell out the manual verification path. |
+| 10 | Testing limitations | large | — | Disclose what wasn't tested. |
+| 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
+| 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. |
+| 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. |
 
-Drop any default section whose source is missing:
+For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #14); preserved blocks splice into canonical positions (Step 3.4).
 
-- No `issue_context` → drop "Motivation from issue" sub-flavor of #3; derive motivation from `diff.commit_log` instead.
-- No `solutions` entries → drop #11.
-- No detected breaking change in diff (no API removal, no schema change) → drop #4.
-- No lockfile / dependency-manifest changes → drop #6.
-- No `evidence` AND no `preserved_blocks` of kind `demo`/`screenshots` → drop #14.
+> **Note on `perf` as a tier-modifier**: a perf-typed change can be small *or* large by line count. The table treats `perf` as a flag that activates row #3 and row #14 regardless of size threshold; size-derived threshold rules still apply to other rows. This avoids the "first-match-wins" gotcha where a tiny perf change would otherwise classify as `typo` and drop row #14's before/after table.
 
-#### 3.4 Generate section bodies
-
-For each surviving section, generate copy from the relevant inputs:
-
-- **#1 Title** — see 3.5 below.
-- **#2 Impact** — one sentence: what was impossible/broken before, what's possible/fixed now.
-- **#3 Motivation** — pull from `issue_context.raw` if present (read whatever fields exist; common shapes: `title`, `description`, `priority`); else derive from `diff.commit_log` and changed file paths.
-- **#4 Breaking changes** — name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation.
-- **#6 Dependency justifications** — list lockfile-detected adds; one-line rationale per addition.
-- **#7 Cross-refs** — `Fixes <issue_context.identifier>` if applicable; never prefix list items with `#` (auto-links `#1` as issue ref — use `org/repo#N` or full URL).
-- **#8 Bug summaries** — paragraph form, never just `Fixes #N`. Pull from `issue_context.raw.description` if available.
-- **#9 Testing instructions** — only when automated tests don't exist for the change.
-- **#10 Testing limitations** — disclose what wasn't tested.
-- **#11 What I learned** — for each `solutions` entry, render as a bullet linking to the file with the entry's summary.
-- **#12 Alternatives considered** — only when the diff isn't self-explanatory.
-- **#14 Screenshots / Demo** — splice `evidence` markdown verbatim; if `preserved_blocks` includes `demo`/`screenshots`, prefer those byte-identical.
-
-#### 3.5 Title rewriting
+#### 3.3 Title rewriting
 
 Draft a title from `diff.commit_log[0]` or the user's free-text hint if provided.
 
 Check for mechanism-only phrasing — leading verbs like `add`, `move`, `extract`, `refactor`, `update`, `change`, `bump`, `wrap` followed by a noun phrase that names a code construct (`mutex`, `class`, `function`, `field`, etc.) without naming the user-observable effect.
 
-If mechanism-only, rewrite to effect form. Stash the original as `rewritten_from` for the preview's disclosure line. Worked example from Lynch — keep in mind when judging:
+If mechanism-only, rewrite to effect form. Emit the original on `ComposedBody.rewritten_from` (declared in the Outputs contract above); leave `ComposedBody.rewritten_from = None` when no rewrite was needed. Worked example from Lynch — keep in mind when judging:
 
 | Bad (mechanism) | Good (effect) |
 |---|---|
@@ -520,7 +582,7 @@ Cap at 72 chars. Strip trailing period. Imperative mood. Lowercase after the con
 
 **`fix:` vs `feat:` rule** (from CE / `pr-description-writing.md`): when both fit, default to `fix:` — adding code to remedy missing behavior is `fix:`. Reserve `feat:` for capabilities the user could not previously accomplish.
 
-#### 3.6 Splice preserved blocks
+#### 3.4 Splice preserved blocks
 
 After sections are rendered, splice preserved blocks at their canonical positions:
 
@@ -530,13 +592,13 @@ After sections are rendered, splice preserved blocks at their canonical position
 
 Byte-identical: the raw markdown carried in `preserved_blocks` is inserted as-is. Do not re-format, re-indent, or alter whitespace.
 
-#### 3.7 Final assembly
+#### 3.5 Final assembly
 
 Commit message and PR/MR body share the same rendered string: `title + "\n\n" + body`. No per-commit-vs-PR divergence is computed here. If the user wants a tighter commit body than the PR body on a given run, they edit the preview (Step 4) — Per the brainstorm's *2026-05-19 Addendum — `--diverge` dropped*, the YAGNI rejection of Design B's `overrides` applies here too.
 
-#### 3.8 Soft size cap warning
+#### 3.6 Soft size cap warning
 
-After full composition, count body lines. If `body` exceeds 150 lines (Lynch's soft cap for large tier), record a `size_warning = True` flag for the preview. Do not auto-trim — the user decides.
+After full composition, count `body` lines. Emit `ComposedBody.size_warning = (line_count > 150)` (Lynch's soft cap for large tier). Do not auto-trim — the user decides. The preview at Step 4 reads `size_warning` by name; composition never side-channels state to the orchestrator.
 
 ### Trade-offs documented at lock time
 
@@ -558,7 +620,7 @@ The seam intentionally exposes no tier flag, section list, template selector, or
 ##### Manual:
 - [ ] Composition spec is clearly a contract Claude executes, not Python to import — phrased as instruction.
 - [ ] Section-vocabulary choice is visibly seam-hidden — the orchestrator never names a tier or section.
-- [ ] Linear MCP shape is read defensively (`issue_context.raw.<field> if available`), absorbing schema drift.
+- [ ] Linear MCP shape is normalized by Step 2b into composition-owned vocabulary (`issue_context.ref`, `.summary`, `.body_text`); Step 3 never reads Linear's field names. Schema drift is absorbed in Step 2b, not the composition seam.
 - [ ] Filter step lists exact "drop section if source missing" rules from the brainstorm.
 
 > **Phase gate:** Automated verification must pass. Pause for manual verification before proceeding to Phase 4.
@@ -571,6 +633,8 @@ Add Steps 4 and 5: the preview/confirm gate, then the apply mechanics — `git c
 
 #### Changes Required
 
+<!-- slice:4 "Preview, apply, failure modes" -->
+
 **File**: `commands/ba/propose.md` (append Steps 4, 5, and Failure Modes)
 
 ````markdown
@@ -580,13 +644,13 @@ Print the preview block:
 
 ```
 ─────────────────────────────────────────
-Mode: <full | describe-only>  (Host: <github|gitlab|...>)
-Title: <title>
-       (rewritten from: <rewritten_from>)             [if applicable]
-Body lines: <N>                                       size warning if N > 150
-Lead: <first two sentences of body>
+Action: <commit_push_create | commit_push_edit | edit_only | describe_only>  (Host: <github|gitlab|...>)
+Title: <result.title>
+       (rewritten from: <result.rewritten_from>)      [only if result.rewritten_from is not None]
+Body lines: <N>                                       (size warning prefix if result.size_warning)
+Lead: <first two sentences of result.body>
 ─────────────────────────────────────────
-[full body printed below]
+[full result.body printed below]
 ─────────────────────────────────────────
 ```
 
@@ -594,8 +658,8 @@ Tier observability is deliberately omitted from the preview — exposing the sea
 
 Pre-prefix the block with warnings if any:
 
-- `⚠ Linear MCP unavailable — using diff-derived motivation` (from Step 2b)
-- `⚠ Composed body is <N> lines; Lynch's soft cap is ~150` (from Step 3.8)
+- `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
+- `⚠ Composed body is <N> lines (long for typical PR descriptions — consider trimming)` (when `result.size_warning` is True; phrasing avoids surfacing the "Lynch's soft cap" source vocabulary)
 
 Then ask via AskUserQuestion:
 
@@ -610,13 +674,16 @@ Loop until the user picks Apply or Exit.
 
 ## Step 5: Apply
 
-Compose the per-mode action plan:
+Step 5 dispatches on the single `ACTION` value resolved in Step 0b. The `HOST=unknown` case short-circuits inside 5d regardless of `ACTION`.
 
-| Mode / state | Actions |
+| `ACTION` | Actions |
 |---|---|
-| `full` (default) | 5a (stage) → 5b (commit) → 5c (push) → 5d (create or edit PR/MR — auto-detected) |
-| `full` + `skip_push=True` (nothing to push + open PR; user said "update description only") | 5d only (edits existing PR/MR) |
-| `describe-only` | print body to stdout; exit |
+| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) |
+| `commit_push_edit` | 5a (stage) → 5b (commit) → 5c (push) → 5d (edit existing PR/MR) |
+| `edit_only` | 5d only (edit existing PR/MR description; no commit, no push) |
+| `describe_only` | Print body to stdout; exit zero. |
+
+`HOST=unknown` overlay: when `HOST=unknown` and `ACTION` is any of the three apply variants, 5a-5c run as normal (commit and push still succeed against the remote), but 5d short-circuits to "paste manually" mode — see 5d's host-unknown handling. The matrix is closed: every (`ACTION`, `HOST`) pair has defined behavior.
 
 ### 5a. Stage explicit paths
 
@@ -693,7 +760,7 @@ EXISTING_PR_URL=$(gh pr view --json url,state -q 'select(.state=="OPEN") | .url'
 EXISTING_MR_URL=$(glab mr view -F json 2>/dev/null | jq -r 'select(.state=="opened") | .web_url')
 ```
 
-**Fetch-before-write** (when editing — close the BugBot-edit race window without a hash compare):
+**Fetch-before-write** (when editing — last read wins):
 
 ```bash
 # Re-fetch body immediately before publish; re-extract preserved blocks from the now-current remote body
@@ -701,9 +768,11 @@ CURRENT_BODY=$(gh pr view --json body -q .body)
 # (re-run the Step 2d extract on $CURRENT_BODY → fresh preserved_blocks tuple)
 ```
 
-If the re-extracted preserved blocks differ from what Step 2d captured (the preview showed earlier), splice the *current* extract into the body being written. The preview may have shown a stale block; the published body always uses the freshest remote read. This costs one extra `gh pr view` call and ~5 lines of plan; in exchange we drop the hash capture, the three-way recovery menu, and one full re-loop through Steps 2d/3/4.
+**Invariant**: Preserved blocks are byte-identical by construction (Step 3.4 inserts the raw markdown as-is). The *last* read of the remote body wins; an explicit hash comparison adds no information. So if the re-extracted preserved blocks differ from what Step 2d captured, the fresh extract is authoritative.
 
-The earlier-considered sha256 staleness check + interactive re-fetch/apply-anyway/abort menu was simplified out per the *2026-05-19 plan review* (same YAGNI lens as `--diverge`): preserved blocks are byte-identical by construction, so re-extracting from the latest remote read is sufficient — no comparison logic needed.
+**Splice via re-composition, not manual edit.** To incorporate the fresh preserved blocks without leaking Step 3.4's splice-position rules into the orchestrator, rebuild `CompositionInputs` with the fresh `preserved_blocks` tuple and call `compose_body` a second time. By the determinism invariant (Step 3 contract), `title` and the non-preserved sections of `body` re-derive identically because all other inputs are unchanged; the only change between the preview's composed body and the published body is the (refreshed) preserved-block content at their canonical positions. The orchestrator never names a splice position. Cost: one extra composition pass (no I/O, deterministic) and one extra `gh pr view` round-trip; in exchange the seam stays narrow and "preview ≈ publish" holds modulo the freshest preserved blocks.
+
+Surface a one-line notice in 5d's output when the published body's preserved blocks differ from those shown at preview: `ℹ Preserved blocks updated between preview and publish — published body uses the latest remote read.` This keeps the user informed without recreating the rejected interactive recovery menu.
 
 **Write body to temp file** (always — no `--body "$(cat ...)"`, no stdin, no pipes):
 
@@ -814,9 +883,11 @@ Update `CLAUDE.md`, `README.md`, and `.claude-plugin/plugin.json` so the new com
 
 #### Changes Required
 
+<!-- slice:5 "Docs + version bump" -->
+
 **File**: `CLAUDE.md`
 
-Insert a new `### Git workflow Commands` subsection between Knowledge (line 28) and `## Agents` (line 30). Verbatim block to insert at line 29:
+Insert a new `### Git Workflow Commands` subsection between Knowledge (line 28) and `## Agents` (line 30). Title Case matches the cadence of peer subsections in `CLAUDE.md:7-26`. Verbatim block to insert at line 29:
 
 ```markdown
 
@@ -832,6 +903,8 @@ Append a new convention bullet at the end of `## Conventions` (currently `CLAUDE
 ```
 
 **File**: `README.md`
+
+README's `## Commands` section is intentionally flat — no category subsections, each command gets its own `### /ba:xxx` block (see `README.md:36-197`). The new "Git Workflow" grouping lives in CLAUDE.md only. README readers see `/ba:propose` as a peer of every other `/ba:` command. This asymmetry is deliberate: CLAUDE.md tracks categories so Claude can reason about them; README is a flat user-facing reference.
 
 Insert a new `### /ba:propose [args]` block at line 172 (immediately before `### Severity ladder and confidence anchors (/ba:review)`):
 
@@ -976,7 +1049,7 @@ Five cross-layer scenarios that unit-level greps would not catch:
 |---|---|---|
 | `--body-file` discipline regresses (someone adds `--body "$(cat ...)"` in a future edit) | High | Automated grep in Success Criteria; explicit Important Guidelines bullet; the Failure Modes table singles it out. |
 | Composition seam leaks (orchestrator starts reading composition internals) | Medium | Locked design documented in Step 3; reviewers can flag drift. |
-| Preserved-block byte-identity breaks (a future composition tweak alters whitespace) | High | Step 3.6 explicitly says "raw markdown is inserted as-is — do not re-format"; success criterion includes BugBot round-trip behavior. |
+| Preserved-block byte-identity breaks (a future composition tweak alters whitespace) | High | Step 3.4 explicitly says "raw markdown is inserted as-is — do not re-format"; success criterion includes BugBot round-trip behavior. |
 | MCP schema drift breaks Linear motivation | Low | `issue_context.raw: Mapping[str, Any]` is opaque — composition reads "whatever fields exist if available." |
 | `gh`/`glab` not installed | Medium | Detection failure in Step 0a leads to `HOST=unknown` path; no hard dependency assertion. |
 | Hook bypass via accident | High | Explicit "never `--no-verify`" rule; Failure Modes recovery is fix-and-retry, never bypass. |
