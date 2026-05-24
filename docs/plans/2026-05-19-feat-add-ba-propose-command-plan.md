@@ -141,7 +141,7 @@ This mirrors the brainstorm's locked design (see brainstorm: `## Locked Design`,
 | 1 | Scaffold, mode dispatch, branch routing | ~90 | -- | done |
 | 2 | Input gathering (Step 2) | ~120 | 1 | done |
 | 3 | Composition spec (Step 3) | ~115 | 2 | done |
-| 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | pending |
+| 4 | Preview, apply, failure modes (Step 4-5 + appendix) | ~190 | 3 | done |
 | 5 | Docs + version bump (CLAUDE.md / README / plugin.json) | ~25 | 4 | pending |
 
 > Slice 4 is **oversized** (~190 LoC) — one phase, one `**File**:` block, atomic per the slice rules. Consider splitting Phase 4's `commands/ba/propose.md` append into two file blocks in a future plan revision (Step 4 preview vs. Step 5 apply + Failure Modes) to enable a finer cut. For this round, ship Phase 4 as one MR.
