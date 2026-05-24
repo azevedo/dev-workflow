@@ -56,11 +56,11 @@ User-observable behaviors `ba:propose` must satisfy. Authored once here; serves 
 
 <!-- slice:2 "Input gathering (Step 2)" -->
 
-- [ ] When a Linear issue ID is detected (supplied as arg or parsed from branch name) and the Linear MCP server responds, motivation is sourced from MCP.
-- [ ] When a Linear issue ID is detected but the Linear MCP server is unavailable, the preview shows a one-line warning ("Linear MCP unavailable — using diff-derived motivation") and the command continues without error.
-- [ ] When no Linear issue ID is present, the command never errors on missing Linear; motivation is derived from the diff and recent commits.
-- [ ] `docs/solutions/` entries touched on the current branch since the last merge to `origin/HEAD` are detected and presented one-by-one for inclusion confirmation; the user can accept any subset.
-- [ ] Empty-diff (feature branch fully contained in base) raises a `CompositionInputError` with the message "branch is fully contained in base; rebase or close."
+- [x] When a Linear issue ID is detected (supplied as arg or parsed from branch name) and the Linear MCP server responds, motivation is sourced from MCP.
+- [x] When a Linear issue ID is detected but the Linear MCP server is unavailable, the preview shows a one-line warning ("Linear MCP unavailable — using diff-derived motivation") and the command continues without error.
+- [x] When no Linear issue ID is present, the command never errors on missing Linear; motivation is derived from the diff and recent commits.
+- [x] `docs/solutions/` entries touched on the current branch since the last merge to `origin/HEAD` are detected and presented one-by-one for inclusion confirmation; the user can accept any subset.
+- [x] Empty-diff (feature branch fully contained in base) raises a `CompositionInputError` with the message "branch is fully contained in base; rebase or close."
 
 <!-- slice:3 "Composition spec (Step 3)" -->
 
@@ -445,13 +445,13 @@ If no user-observable files changed, skip this prompt — `evidence = ()`.
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep 'mcp__claude_ai_Linear__get_issue' commands/ba/propose.md` — MCP tool referenced
-- [ ] `grep 'CompositionInputError' commands/ba/propose.md` — error types defined
-- [ ] `grep 'CURSOR_SUMMARY' commands/ba/propose.md` — BugBot sentinel mentioned
-- [ ] `grep '## Demo\|## Screenshots' commands/ba/propose.md` — preserved-block kinds enumerated
-- [ ] `grep 'docs/solutions/' commands/ba/propose.md` — solutions integration present
-- [ ] `grep 'origin/HEAD\|DEFAULT_BRANCH' commands/ba/propose.md` — default-branch detection present
-- [ ] `grep -c 'AskUserQuestion' commands/ba/propose.md` — interactive prompts increased (>= 8)
+- [x] `grep 'mcp__claude_ai_Linear__get_issue' commands/ba/propose.md` — MCP tool referenced
+- [x] `grep 'CompositionInputError' commands/ba/propose.md` — error types defined
+- [x] `grep 'CURSOR_SUMMARY' commands/ba/propose.md` — BugBot sentinel mentioned
+- [x] `grep '## Demo\|## Screenshots' commands/ba/propose.md` — preserved-block kinds enumerated
+- [x] `grep 'docs/solutions/' commands/ba/propose.md` — solutions integration present
+- [x] `grep 'origin/HEAD\|DEFAULT_BRANCH' commands/ba/propose.md` — default-branch detection present
+- [ ] `grep -c 'AskUserQuestion' commands/ba/propose.md` — interactive prompts increased (>= 8) *(deferred — see Deviations; literal token first appears in Phase 4)*
 
 ##### Manual:
 - [ ] Linear-failure vs Linear-absence distinction is explicit; `mcp_unavailable` flag is set on failure.
@@ -1134,3 +1134,11 @@ Not in this plan:
 - [x] New "Git workflow" command category added to CLAUDE.md per brainstorm's Convention Compliance directive
 - [x] Origin brainstorm reference present in frontmatter and Sources
 - [x] All built-in reviewers / protected-artifact rules unaffected by this plan
+
+## Deviations
+
+### Phase 2: AskUserQuestion grep threshold (>= 8) unmet
+- **Expected**: `grep -c 'AskUserQuestion' commands/ba/propose.md` returns >= 8 by end of Phase 2.
+- **Found**: Returns 1 — the single occurrence sits in Step 0b's mode-resolution prose (carried over from Phase 1). Phase 2's content as written in the plan uses prose-style prompts (`ask the user **once**`, `ask:` with numbered option lists) and never spells the literal `AskUserQuestion` token. The token first appears literally in Phase 4 (Step 4 preview), where the count will jump.
+- **Why**: Plan-internal mismatch — the Phase 2 success-criteria threshold cannot be satisfied by the Phase 2 markdown content the plan itself prescribes. The metric was apparently authored on the assumption that prose `ask:` lines would also count. Phase 1's `>= 5 by end of plan` target tracks the same metric and will pass once Phase 4 lands.
+- **Resolution**: Accepted. Slice 2's user-observable behaviors (Linear MCP optional/absent, `docs/solutions/` per-entry confirm, empty-diff error) are all satisfied by the Step 2 prose prompts as written; the interactive-prompt invariant is satisfied in spirit. Phase 4's introduction of literal `AskUserQuestion` blocks will bring the cumulative count well above the original end-of-plan goal.

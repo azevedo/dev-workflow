@@ -106,4 +106,140 @@ DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null |
 
 If still empty, ask the user.
 
-## Step 2: … (continued in Phase 2)
+## Step 2: Gather inputs
+
+Each sub-step materializes one field of `CompositionInputs`. None of this happens inside composition.
+
+### 2a. Diff and branch metadata
+
+```bash
+git fetch --no-tags origin "$DEFAULT_BRANCH"
+DIFF_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH")
+git diff --stat "$DIFF_BASE..HEAD"
+git diff --numstat "$DIFF_BASE..HEAD"
+git log --pretty=oneline "$DIFF_BASE..HEAD"
+git rev-parse --abbrev-ref HEAD
+```
+
+Capture into the orchestrator's local state:
+
+- `diff.range = "$DIFF_BASE..HEAD"`
+- `diff.file_stats = <output of --numstat>`
+- `diff.commit_log = <output of --pretty=oneline>`
+- `branch.name = <current branch>`
+- `branch.base_ref = "origin/$DEFAULT_BRANCH"`
+- `branch.last_merge_sha = "$DIFF_BASE"`
+
+If `git diff --stat "$DIFF_BASE..HEAD"` is empty AND there are commits in the log, raise the empty-diff error:
+
+> **CompositionInputError: branch is fully contained in base.**
+> Your commits exist but the diff vs `<DEFAULT_BRANCH>` is empty. Likely causes: someone landed equivalent changes in `<DEFAULT_BRANCH>` and your branch is now redundant, or the base was force-pushed past your branch tip. Rebase, or close the branch.
+
+If `git diff --stat` is non-empty but unreadable (returns non-zero with no diff), raise:
+
+> **CompositionInputError: diff unreadable.**
+> `git diff $DIFF_BASE..HEAD` returned non-zero. Check the repository state.
+
+### 2b. Linear issue context (optional)
+
+Determine the issue ID:
+
+1. If `--issue <ID>` was passed, use it.
+2. Else, regex-extract from branch name: `[A-Z]{2,5}-[0-9]+` (e.g., `bru/TO-1234-fix-x` → `TO-1234`).
+3. Else, no issue ID — skip MCP entirely, `issue_context = None`.
+
+If an ID is present, attempt the MCP call:
+
+```
+mcp__claude_ai_Linear__get_issue(id: <ID>)
+```
+
+- **Success** → normalize the MCP payload into composition-owned vocabulary before passing it across the seam:
+
+  ```
+  issue_context = IssueContext(
+    ref         = <mcp_response>.identifier,        # e.g., "TO-1234"
+    summary     = <mcp_response>.title,             # short headline
+    body_text   = <mcp_response>.description,       # long-form description, possibly empty
+    priority    = <mcp_response>.priority,          # optional, opaque to composition
+    raw         = <full mcp_response, Mapping[str, Any]>,
+  )
+  ```
+
+  The normalizer is Step 2b's job, not composition's. If Linear renames `description` → `body` or `identifier` → `key` in a future MCP schema, that change lands here in Step 2b and never reaches Step 3. Composition reads `issue_context.ref`, `.summary`, `.body_text` — not Linear's field names. The `.raw` mapping is retained as an escape hatch but composition should not read it for production sections; reach for `.raw` only when prototyping a new section, then promote the field into the normalizer.
+- **Failure** (MCP not installed, server down, auth expired, ID not found) → `issue_context = None`, AND record `mcp_unavailable = True` so the preview can surface a warning: "Linear MCP unavailable — using diff-derived motivation."
+
+The orchestrator never raises on MCP failure. Linear is optional.
+
+`mcp_unavailable` is **orchestrator-side state only** — it lives in the run-local variables alongside `DIFF_BASE`, `DEFAULT_BRANCH`, etc. It never flows into `CompositionInputs`; composition makes no decision based on it. The flag's sole consumer is the preview warning prefix in Step 4.
+
+### 2c. `docs/solutions/` auto-detection
+
+If `docs/solutions/` exists at the repo root:
+
+```bash
+git log "$DIFF_BASE..HEAD" --name-only --pretty=format: -- docs/solutions/ | sort -u
+```
+
+For each entry returned:
+
+- Read the file's frontmatter and the first paragraph of `## Solution` (or first paragraph of body if no `## Solution`).
+- Prepare a one-line summary: `<frontmatter.problem or H1>` — link target relative to repo root.
+
+If at least one entry was returned, ask the user **once**, presenting the full list:
+
+> "Found N `docs/solutions/` entries touched on this branch:
+> 1. `<path-1>` — <summary-1>
+> 2. `<path-2>` — <summary-2>
+> ...
+>
+> Include as 'What I learned'?"
+>
+> 1. **Include all** — splice every detected entry
+> 2. **Skip all** — splice none
+> 3. **Choose** — drop into a per-entry yes/no loop (only when the user wants surgical control)
+
+Default for the typical case (1–3 entries) is "Include all" — that's what the loop is gathering. The per-entry **Choose** path opens an AskUserQuestion sequence with a single yes/no per remaining entry; no Include-all / Skip-all shortcuts at that level (the user already picked "Choose" because they want individual control).
+
+`solutions = (<accepted entries>...)`. Empty tuple is normal.
+
+If `docs/solutions/` does not exist or returns no entries, set `solutions = ()` silently. The directory does not exist in the repo today — this code path is dormant until `/ba:compound` creates the first entry.
+
+### 2d. Preserved blocks from existing PR/MR description
+
+If an open PR/MR exists for the current branch:
+
+```bash
+# GitHub
+gh pr view --json url,state,body,isDraft
+
+# GitLab
+glab mr view -F json
+```
+
+If `state == OPEN`:
+
+- Extract `<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->` block(s) — preserved verbatim.
+- Extract `## Demo` section (heading + content until next H2 or EOF).
+- Extract `## Screenshots` section (same shape).
+
+`preserved_blocks = ((kind="bugbot", raw_markdown=<text>), (kind="demo", raw_markdown=<text>), (kind="screenshots", raw_markdown=<text>))` — only kinds present.
+
+Step 5d re-fetches the body immediately before write and re-extracts these blocks at apply time — see Step 5d for the rationale. The Step 2d extract is what the preview displays; Step 5d's extract is what actually ships.
+
+If `ACTION` is one of `commit_push_create` / `describe_only` and no open PR/MR exists for the branch, set `preserved_blocks = ()`. The `commit_push_edit` and `edit_only` cases imply an open PR/MR by Step 0b's resolution, so this branch isn't reached for those actions.
+
+### 2e. Evidence (user-supplied URLs only)
+
+If the diff suggests user-observable behavior — UI files changed, e.g. files matching `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.css`, `templates/`, `views/`, etc. — ask:
+
+> "This change appears user-visible. Include evidence?"
+>
+> 1. **Use existing evidence** — paste URL(s) or markdown embed → splice as `## Demo`
+> 2. **Skip** — no evidence section
+
+If "Use existing evidence", prompt for the markdown to splice. Accept whatever the user pastes verbatim (URL validation is out of scope — preview catches obvious issues).
+
+`evidence = ((kind="markdown", raw=<text>),)` or `()`.
+
+If no user-observable files changed, skip this prompt — `evidence = ()`.
