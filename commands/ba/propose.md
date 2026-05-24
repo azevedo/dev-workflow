@@ -243,3 +243,132 @@ If "Use existing evidence", prompt for the markdown to splice. Accept whatever t
 `evidence = ((kind="markdown", raw=<text>),)` or `()`.
 
 If no user-observable files changed, skip this prompt — `evidence = ()`.
+
+## Step 3: Compose body (the seam)
+
+This is the composition spec — Claude executes it to produce `title` and `body` from the inputs gathered in Step 2. It is pure: it reads from `CompositionInputs` only, performs no I/O, makes no MCP calls, runs no git commands. If you find yourself needing a fact that isn't in `CompositionInputs`, that's a gather-side bug — go back to Step 2.
+
+### Contract
+
+**Inputs** (already materialized in Step 2):
+
+```
+CompositionInputs:
+  diff               # range, file stats, commit log
+  branch             # name, base ref, last merge SHA
+  issue_context      # opaque Mapping or None
+  solutions          # tuple of accepted entries, possibly empty
+  preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
+  evidence           # tuple of (kind, raw), possibly empty
+```
+
+**Outputs**:
+
+```
+ComposedBody:
+  title              # effect-phrased, ≤72 chars, no trailing period
+  body               # final markdown — feeds both commit and PR/MR
+  rewritten_from     # str or None — original title when 3.3 rewrote a mechanism-only draft; None when no rewrite occurred
+  size_warning       # bool — True when body exceeds Lynch's ~150-line soft cap (3.6)
+```
+
+`rewritten_from` and `size_warning` are declared output fields so the orchestrator's preview (Step 4) reads them by name; composition never side-channels state to the orchestrator. The seam stays one-direction: inputs in, ComposedBody out.
+
+(See brainstorm: `## Locked Design`, *Interface*.)
+
+### Invariants (every composition pass must satisfy these)
+
+- `body` never restates the diff verbatim. The diff is visible on the platform; the body explains what the diff cannot show.
+- `title` is effect-phrased. If the initial draft is mechanism-only (e.g., "add a mutex to guard X"), rewrite to effect form ("prevent X during simultaneous Y") and stash the original for the preview's "rewritten from" disclosure.
+- Preserved blocks appear exactly once, byte-identical to input. Splice positions chosen internally.
+- Section order follows Lynch's priority (descriptive title → impact → motivation → breaking changes → external refs → dependency justifications → cross-refs → bug summaries → testing instr → testing limits → what I learned → alternatives → searchable artifacts → screenshots → rants → tempted-to-explain).
+- Empty inputs (no Linear, no solutions, no preserved blocks, tiny diff) still produce a valid minimal body.
+- Stateless; deterministic given identical inputs.
+
+Errors collapse to `CompositionInputError` — raised only by Step 2 when the diff is unreadable or empty. Composition itself does not raise.
+
+### Internal pipeline (seam-hidden, swappable)
+
+The implementation below is the first cut. Future authors can swap to pure-Lynch, pure-CE, or a continuous-score scheme without changing the call site. None of these names ("tier", "section selector", "splicer") appear in the orchestrator.
+
+#### 3.1 Classify size tier
+
+Read `diff.file_stats` and `diff.commit_log`. Compute totals:
+
+- `lines_changed = sum(additions + deletions across all files)`
+- `files_changed = count of files`
+- `is_perf = (lines_changed >= 30 AND any commit message in branch matches /perf|performance/) OR (diff includes a benchmark or measurement file — paths matching *bench*, *benchmark*, *measure*, *perf-test*, or files with `.bench.` infix)`
+- `is_typo = files_changed == 1 AND lines_changed <= 4 AND the change is pure string/comment/whitespace — no operators, no conditionals, no call expressions, no type annotations`
+
+Tier table (first match wins):
+
+| Tier | Heuristic |
+|---|---|
+| typo | `is_typo` |
+| perf | `is_perf` |
+| small | `lines_changed <= 30 AND files_changed <= 3` |
+| medium | `lines_changed <= 200 AND files_changed <= 10` |
+| large | otherwise |
+
+#### 3.2 Section registry (tier threshold + source requirement + body rule)
+
+One declarative table replaces the earlier three-step pipeline (tier→sections → filter-by-availability → per-section generator). Each row owns one section: the minimum tier at which it activates, the input that must be present for it to appear, and the rule for generating its body. To add a new section, add one row. To add a new tier, raise/lower thresholds in this column only. Reviewers maintaining the spec read one place to see what each section depends on.
+
+Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*). "Activates at" uses the tier order `typo < small < medium < large`; `perf` is a tier-modifier (see 3.1 note below) that activates rows tagged with `perf` regardless of size threshold.
+
+| # | Section | Activates at | Required input (drop section if missing) | Body rule |
+|---|---|---|---|---|
+| 1 | Title | typo | — | See 3.3 (title rewriting). Always present. |
+| 2 | Impact | small | — | One sentence: what was impossible/broken before, what's possible/fixed now. Falls back to commit log when motivation is thin. |
+| 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` when `issue_context` is present; else derive from `diff.commit_log` and changed file paths. Composition reads only composition-owned fields; the Linear-shape mapping lives in Step 2b. |
+| 4 | Breaking changes | large | Diff signals an API removal or schema change | Name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation. |
+| 6 | Dependency justifications | large | Lockfile / dependency-manifest changes in diff | List lockfile-detected adds; one-line rationale per addition. |
+| 7 | Cross-refs | medium, large | `issue_context.ref` is present | `Fixes <issue_context.ref>` (normalized ref from Step 2b, e.g., `TO-1234`). Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or full URL). |
+| 8 | Bug summaries | large | `issue_context.body_text` is present | Paragraph form, never just `Fixes #N`. |
+| 9 | Testing instructions | medium (conditional), large | Automated tests don't exist for the change | Spell out the manual verification path. |
+| 10 | Testing limitations | large | — | Disclose what wasn't tested. |
+| 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
+| 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. |
+| 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. |
+
+For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #14); preserved blocks splice into canonical positions (Step 3.4).
+
+> **Note on `perf` as a tier-modifier**: a perf-typed change can be small *or* large by line count. The table treats `perf` as a flag that activates row #3 and row #14 regardless of size threshold; size-derived threshold rules still apply to other rows. This avoids the "first-match-wins" gotcha where a tiny perf change would otherwise classify as `typo` and drop row #14's before/after table.
+
+#### 3.3 Title rewriting
+
+Draft a title from `diff.commit_log[0]` or the user's free-text hint if provided.
+
+Check for mechanism-only phrasing — leading verbs like `add`, `move`, `extract`, `refactor`, `update`, `change`, `bump`, `wrap` followed by a noun phrase that names a code construct (`mutex`, `class`, `function`, `field`, etc.) without naming the user-observable effect.
+
+If mechanism-only, rewrite to effect form. Emit the original on `ComposedBody.rewritten_from` (declared in the Outputs contract above); leave `ComposedBody.rewritten_from = None` when no rewrite was needed. Worked example from Lynch — keep in mind when judging:
+
+| Bad (mechanism) | Good (effect) |
+|---|---|
+| Add a mutex to guard the database handle | Prevent database corruption during simultaneous sign-ups |
+
+Cap at 72 chars. Strip trailing period. Imperative mood. Lowercase after the conventional-commits prefix.
+
+**`fix:` vs `feat:` rule** (from CE / `pr-description-writing.md`): when both fit, default to `fix:` — adding code to remedy missing behavior is `fix:`. Reserve `feat:` for capabilities the user could not previously accomplish.
+
+#### 3.4 Splice preserved blocks
+
+After sections are rendered, splice preserved blocks at their canonical positions:
+
+- `## Demo` → after #2 / #3, before #11.
+- `## Screenshots` → after `## Demo`, or in `## Demo`'s slot if no `## Demo`.
+- `<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->` → at the very end of the body, after all generated sections and after any rants/tempted-to-explain content.
+
+Byte-identical: the raw markdown carried in `preserved_blocks` is inserted as-is. Do not re-format, re-indent, or alter whitespace.
+
+#### 3.5 Final assembly
+
+Commit message and PR/MR body share the same rendered string: `title + "\n\n" + body`. No per-commit-vs-PR divergence is computed here. If the user wants a tighter commit body than the PR body on a given run, they edit the preview (Step 4) — Per the brainstorm's *2026-05-19 Addendum — `--diverge` dropped*, the YAGNI rejection of Design B's `overrides` applies here too.
+
+#### 3.6 Soft size cap warning
+
+After full composition, count `body` lines. Emit `ComposedBody.size_warning = (line_count > 150)` (Lynch's soft cap for large tier). Do not auto-trim — the user decides. The preview at Step 4 reads `size_warning` by name; composition never side-channels state to the orchestrator.
+
+### Trade-offs documented at lock time
+
+The seam intentionally exposes no tier flag, section list, template selector, or ordering hint to the orchestrator. Section-choice debugging requires reading this spec. If observability becomes a real pain point, add a `ComposedBody.trace` field later. (See brainstorm: `## Locked Design`, *Trade-offs*.)

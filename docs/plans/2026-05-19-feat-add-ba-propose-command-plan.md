@@ -64,9 +64,9 @@ User-observable behaviors `ba:propose` must satisfy. Authored once here; serves 
 
 <!-- slice:3 "Composition spec (Step 3)" -->
 
-- [ ] Title is effect-phrased — when composition rewrites a mechanism-only title, the preview shows `Title: <effect-phrased>  (rewritten from: <original>)`.
-- [ ] Cursor BugBot block (`<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->`) is preserved byte-identical when rewriting an existing PR/MR description.
-- [ ] Existing `## Demo` and `## Screenshots` blocks are preserved byte-identical when rewriting an existing PR/MR description.
+- [x] Title is effect-phrased — when composition rewrites a mechanism-only title, the preview shows `Title: <effect-phrased>  (rewritten from: <original>)`.
+- [x] Cursor BugBot block (`<!-- CURSOR_SUMMARY --> … <!-- /CURSOR_SUMMARY -->`) is preserved byte-identical when rewriting an existing PR/MR description.
+- [x] Existing `## Demo` and `## Screenshots` blocks are preserved byte-identical when rewriting an existing PR/MR description.
 
 <!-- slice:4 "Preview, apply, failure modes" -->
 
@@ -608,14 +608,14 @@ The seam intentionally exposes no tier flag, section list, template selector, or
 #### Success Criteria
 
 ##### Automated:
-- [ ] `grep '## Step 3' commands/ba/propose.md` — composition section exists
-- [ ] `grep -c 'tier' commands/ba/propose.md` — tier logic documented (>= 5 occurrences)
-- [ ] `grep 'CompositionInputs\|ComposedBody' commands/ba/propose.md` — contract types named
-- [ ] `grep 'Lynch' commands/ba/propose.md` — Lynch attribution present
-- [ ] `grep 'effect-phrased\|effect, not mechanism\|mechanism' commands/ba/propose.md` — title rewriting rule documented
-- [ ] `grep 'mutex.*sign-ups\|database corruption' commands/ba/propose.md` — Lynch worked example carried over
-- [ ] `grep '72 char\|72-char\|≤72\|<=72' commands/ba/propose.md` — title cap documented
-- [ ] `grep '150 line\|150-line\|>= 150\|>150' commands/ba/propose.md` — soft cap documented
+- [x] `grep '## Step 3' commands/ba/propose.md` — composition section exists
+- [x] `grep -c 'tier' commands/ba/propose.md` — tier logic documented (>= 5 occurrences)
+- [x] `grep 'CompositionInputs\|ComposedBody' commands/ba/propose.md` — contract types named
+- [x] `grep 'Lynch' commands/ba/propose.md` — Lynch attribution present
+- [x] `grep 'effect-phrased\|effect, not mechanism\|mechanism' commands/ba/propose.md` — title rewriting rule documented
+- [x] `grep 'mutex.*sign-ups\|database corruption' commands/ba/propose.md` — Lynch worked example carried over
+- [x] `grep '72 char\|72-char\|≤72\|<=72' commands/ba/propose.md` — title cap documented
+- [x] `grep '150 line\|150-line\|>= 150\|>150' commands/ba/propose.md` — soft cap documented
 
 ##### Manual:
 - [ ] Composition spec is clearly a contract Claude executes, not Python to import — phrased as instruction.
