@@ -372,3 +372,217 @@ After full composition, count `body` lines. Emit `ComposedBody.size_warning = (l
 ### Trade-offs documented at lock time
 
 The seam intentionally exposes no tier flag, section list, template selector, or ordering hint to the orchestrator. Section-choice debugging requires reading this spec. If observability becomes a real pain point, add a `ComposedBody.trace` field later. (See brainstorm: `## Locked Design`, *Trade-offs*.)
+
+## Step 4: Preview and confirm
+
+Print the preview block:
+
+```
+─────────────────────────────────────────
+Action: <commit_push_create | commit_push_edit | edit_only | describe_only>  (Host: <github|gitlab|...>)
+Title: <result.title>
+       (rewritten from: <result.rewritten_from>)      [only if result.rewritten_from is not None]
+Body lines: <N>                                       (size warning prefix if result.size_warning)
+Lead: <first two sentences of result.body>
+─────────────────────────────────────────
+[full result.body printed below]
+─────────────────────────────────────────
+```
+
+Tier observability is deliberately omitted from the preview — exposing the seam-internal vocabulary would break the "tier never named at call site" invariant from Step 3. If tier debugging becomes a real pain point, add an optional `ComposedBody.trace` field per the brainstorm's *Locked Design > Trade-offs*.
+
+Pre-prefix the block with warnings if any:
+
+- `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
+- `⚠ Composed body is <N> lines (long for typical PR descriptions — consider trimming)` (when `result.size_warning` is True; phrasing avoids surfacing the "Lynch's soft cap" source vocabulary)
+
+Then ask via AskUserQuestion:
+
+> "Apply?"
+>
+> 1. **Apply** — proceed to Step 5
+> 2. **Edit body** — open the body in `$EDITOR` (fallback `nano`), re-preview after save
+> 3. **Regenerate with hint** — prompt for a one-line hint, re-run Step 3 with the hint, re-preview
+> 4. **Exit** — abort without changes
+
+Loop until the user picks Apply or Exit.
+
+## Step 5: Apply
+
+Step 5 dispatches on the single `ACTION` value resolved in Step 0b. The `HOST=unknown` case short-circuits inside 5d regardless of `ACTION`.
+
+| `ACTION` | Actions |
+|---|---|
+| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) |
+| `commit_push_edit` | 5a (stage) → 5b (commit) → 5c (push) → 5d (edit existing PR/MR) |
+| `edit_only` | 5d only (edit existing PR/MR description; no commit, no push) |
+| `describe_only` | Print body to stdout; exit zero. |
+
+`HOST=unknown` overlay: when `HOST=unknown` and `ACTION` is any of the three apply variants, 5a-5c run as normal (commit and push still succeed against the remote), but 5d short-circuits to "paste manually" mode — see 5d's host-unknown handling. The matrix is closed: every (`ACTION`, `HOST`) pair has defined behavior.
+
+### 5a. Stage explicit paths
+
+Identify the changed files from Step 2a's `--numstat` output. Stage all of them in a single commit using explicit paths only — no `git add -A`, no `git add .`:
+
+```bash
+git add path/to/file1 path/to/file2 path/to/file3
+```
+
+The command always produces one commit per run. Users who want multiple commits run `/ba:propose` twice on separately-staged subsets — the user already controls the grouping by deciding what to stage before the run. A heuristic split-by-subdirectory was considered and rejected as YAGNI: same lens as the brainstorm's *2026-05-19 Addendum — `--diverge` dropped*.
+
+### 5b. Commit
+
+Write the commit message to a temp file and pass via `-F`:
+
+```bash
+COMMIT_MSG_FILE=$(mktemp "${TMPDIR:-/tmp}/ba-propose-commit.XXXXXX")
+cat > "$COMMIT_MSG_FILE" <<'__BA_PROPOSE_COMMIT_END__'
+<title>
+
+<commit body — same content as PR/MR body>
+__BA_PROPOSE_COMMIT_END__
+
+git commit -F "$COMMIT_MSG_FILE"
+```
+
+The quoted sentinel `'__BA_PROPOSE_COMMIT_END__'` blocks `$VAR`, backticks, and literal `EOF` expansion.
+
+**Hook failure recovery.** If `git commit` returns non-zero:
+
+- Print the hook output verbatim.
+- Leave the working tree exactly as the hook left it.
+- Exit with message: "Hook failed — fix the reported issue and re-run `/ba:propose`. Composition outputs are deterministic; re-running re-derives them. Never re-run with `--no-verify` unless you've audited the hook and have an explicit reason."
+- Do NOT pass `--no-verify`. Never.
+
+### 5c. Push
+
+```bash
+git push -u origin HEAD
+```
+
+If push fails with non-fast-forward (rejected for `non-fast-forward` or `protected`):
+
+```bash
+git fetch origin "$BRANCH_NAME"
+git rev-list --left-right --count "origin/$BRANCH_NAME...HEAD"
+```
+
+Ask the user:
+
+> "Upstream `origin/<branch>` has commits not in your local branch. Force-pushing would discard them."
+>
+> 1. **Force-with-lease** — `git push --force-with-lease origin HEAD` (safe re-write; aborts if upstream changed since last fetch)
+> 2. **Abort** — leave the push undone; investigate manually
+
+Never `git push --force` without lease. Never silent.
+
+### 5d. Create or edit PR/MR
+
+If `HOST=unknown`:
+
+- Skip this step.
+- Print: "Host `<URL>` not supported by `ba:propose`. Composed body:" followed by the body.
+- Print: "Paste into your platform's UI manually. Commits were pushed successfully."
+- Exit zero (commit + push succeeded).
+
+Otherwise, check for existing open PR/MR:
+
+```bash
+# GitHub
+EXISTING_PR_URL=$(gh pr view --json url,state -q 'select(.state=="OPEN") | .url' 2>/dev/null)
+
+# GitLab
+EXISTING_MR_URL=$(glab mr view -F json 2>/dev/null | jq -r 'select(.state=="opened") | .web_url')
+```
+
+**Fetch-before-write** (when editing — last read wins):
+
+```bash
+# Re-fetch body immediately before publish; re-extract preserved blocks from the now-current remote body
+CURRENT_BODY=$(gh pr view --json body -q .body)
+# (re-run the Step 2d extract on $CURRENT_BODY → fresh preserved_blocks tuple)
+```
+
+**Invariant**: Preserved blocks are byte-identical by construction (Step 3.4 inserts the raw markdown as-is). The *last* read of the remote body wins; an explicit hash comparison adds no information. So if the re-extracted preserved blocks differ from what Step 2d captured, the fresh extract is authoritative.
+
+**Splice via re-composition, not manual edit.** To incorporate the fresh preserved blocks without leaking Step 3.4's splice-position rules into the orchestrator, rebuild `CompositionInputs` with the fresh `preserved_blocks` tuple and call `compose_body` a second time. By the determinism invariant (Step 3 contract), `title` and the non-preserved sections of `body` re-derive identically because all other inputs are unchanged; the only change between the preview's composed body and the published body is the (refreshed) preserved-block content at their canonical positions. The orchestrator never names a splice position. Cost: one extra composition pass (no I/O, deterministic) and one extra `gh pr view` round-trip; in exchange the seam stays narrow and "preview ≈ publish" holds modulo the freshest preserved blocks.
+
+Surface a one-line notice in 5d's output when the published body's preserved blocks differ from those shown at preview: `ℹ Preserved blocks updated between preview and publish — published body uses the latest remote read.` This keeps the user informed without recreating the rejected interactive recovery menu.
+
+**Write body to temp file** (always — no `--body "$(cat ...)"`, no stdin, no pipes):
+
+```bash
+BODY_FILE=$(mktemp "${TMPDIR:-/tmp}/ba-propose-body.XXXXXX")
+cat > "$BODY_FILE" <<'__BA_PROPOSE_BODY_END__'
+<full PR/MR body — same content as commit message>
+__BA_PROPOSE_BODY_END__
+```
+
+**Dispatch:**
+
+```bash
+# GitHub — create
+gh pr create \
+  --title "<title>" \
+  --body-file "$BODY_FILE" \
+  --base "$DEFAULT_BRANCH"
+
+# GitHub — edit existing
+gh pr edit "$EXISTING_PR_URL" \
+  --title "<title>" \
+  --body-file "$BODY_FILE"
+
+# GitLab — create
+glab mr create \
+  --title "<title>" \
+  --description-file "$BODY_FILE" \
+  --target-branch "$DEFAULT_BRANCH"
+
+# GitLab — edit existing
+glab mr update "$EXISTING_MR_URL" \
+  --title "<title>" \
+  --description-file "$BODY_FILE"
+```
+
+**Post-push PR-create failure.** If push succeeded in 5c but the `gh pr create` / `glab mr create` call fails:
+
+- Surface the platform's exact error message.
+- Print: "Push succeeded; PR/MR creation failed. Re-run `/ba:propose` after fixing the platform issue — commits are already pushed, so staging/commit/push are no-ops, and Step 5d will create the PR."
+- Exit non-zero. Do not retry automatically. Do not rewind the push.
+
+### 5e. Output
+
+On success, print:
+
+```
+✓ <title>
+  <PR or MR URL>
+```
+
+## Failure Modes
+
+| Failure | Where it surfaces | Recovery |
+|---|---|---|
+| Invalid branch state (detached HEAD, default branch with or without work) | Step 1 | Interactive routing per Step 1's four-way decision table — offer create-branch or refuse. |
+| `HOST=unknown` | Step 0a | Skip 5d; commit + push only; print body for manual paste. |
+| Empty diff (base moved) | Step 2a | `CompositionInputError` with rebase-or-close message. |
+| Linear MCP failure with ID present | Step 2b | Warn at preview; fall back to diff-derived motivation. |
+| Preserved-block race window | Step 5d | Re-fetch + re-extract immediately before publish; published body uses the freshest remote read. No interactive recovery needed. |
+| Body > 150 lines | Step 4 | Warn at preview; user decides. |
+| Hook failure on commit | Step 5b | Surface output, exit, never `--no-verify`. |
+| Non-fast-forward push | Step 5c | Offer `--force-with-lease` or abort. |
+| PR-create after-push fails | Step 5d | Surface error; instruct user to re-run `/ba:propose` (commits already pushed, so 5a-5c are no-ops, 5d retries the create). |
+
+## Important Guidelines
+
+- Composition is a pure contract — it consumes the value objects in `CompositionInputs` and reaches out to nothing. Add I/O? Add it to Step 2.
+- Never `git add -A` / `git add .`. Explicit paths only.
+- Never `--no-verify` unless the user has explicitly asked, with an audited reason.
+- Never silent force-push. `--force-with-lease` only, with explicit confirmation.
+- `--body-file` always points at a temp file written by a quoted-sentinel heredoc. Never `--body "$(cat ...)"`, never stdin, never pipes.
+- Preserved blocks (`<!-- CURSOR_SUMMARY -->`, `## Demo`, `## Screenshots`) are byte-identical in and out.
+- Linear is optional. Failure ≠ absence — warn at preview when MCP failed.
+- `docs/solutions/` absence is normal. Defensive empty-tuple.
+- The diff is visible on the platform; the body explains what the diff cannot show.
+- Title = effect, not mechanism. Rewrite if drafted as mechanism, disclose the rewrite in preview.
+- `fix:` over `feat:` when ambiguous.
