@@ -1,7 +1,7 @@
 ---
 title: "feat: Add ba:propose Shipping Command"
 type: feat
-status: active
+status: in-progress
 date: 2026-05-19
 origin: docs/brainstorms/2026-05-19-ba-propose-shipping-skill-brainstorm.md
 detail_level: comprehensive
@@ -52,7 +52,7 @@ User-observable behaviors `ba:propose` must satisfy. Authored once here; serves 
 
 <!-- slice:1 "Scaffold, mode dispatch, branch routing" -->
 
-- [ ] Branch routing handles all four CE cases — detached HEAD, default branch with uncommitted work, default branch with no work, feature branch.
+- [x] Branch routing handles all four CE cases — detached HEAD, default branch with uncommitted work, default branch with no work, feature branch.
 
 <!-- slice:2 "Input gathering (Step 2)" -->
 
@@ -273,15 +273,15 @@ If still empty, ask the user.
 #### Success Criteria
 
 ##### Automated:
-- [ ] `ls commands/ba/propose.md` — file exists
-- [ ] `head -5 commands/ba/propose.md` — frontmatter starts with `name: ba:propose`
-- [ ] `grep -c '#\$ARGUMENTS' commands/ba/propose.md` — argument capture present (>= 1)
+- [x] `ls commands/ba/propose.md` — file exists
+- [x] `head -5 commands/ba/propose.md` — frontmatter starts with `name: ba:propose`
+- [x] `grep -c '#\$ARGUMENTS' commands/ba/propose.md` — argument capture present (>= 1)
 - [ ] `grep -c 'AskUserQuestion' commands/ba/propose.md` — interactive prompts present (>= 5 by end of plan)
-- [ ] `grep -c '^## Step ' commands/ba/propose.md` — step structure present (>= 1 after Phase 1; >= 6 after Phase 5)
-- [ ] `grep -E 'git add -A|git add \.' commands/ba/propose.md` — returns empty (no bulk staging)
-- [ ] `grep '\--no-verify' commands/ba/propose.md` — returns empty (no hook bypass)
-- [ ] `grep 'github.com\|gitlab.com' commands/ba/propose.md` — both hosts referenced
-- [ ] `grep 'Detached HEAD\|default branch' commands/ba/propose.md` — all four branch states mentioned
+- [x] `grep -c '^## Step ' commands/ba/propose.md` — step structure present (>= 1 after Phase 1; >= 6 after Phase 5)
+- [x] `grep -E 'git add -A|git add \.' commands/ba/propose.md` — returns empty (no bulk staging)
+- [x] `grep '\--no-verify' commands/ba/propose.md` — returns empty (no hook bypass)
+- [x] `grep 'github.com\|gitlab.com' commands/ba/propose.md` — both hosts referenced
+- [x] `grep 'Detached HEAD\|default branch' commands/ba/propose.md` — all four branch states mentioned
 
 ##### Manual:
 - [ ] Frontmatter matches the universal command shape (`name`, `description`, `argument-hint`).
