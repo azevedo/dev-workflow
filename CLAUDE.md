@@ -27,6 +27,10 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 - `/ba:compound [context]` — Document solved problems to `docs/solutions/` for future learnings
 
+### Git Workflow Commands (ship code — commit, push, open PR/MR)
+
+- `/ba:propose [--describe-only] [--issue <ID>]` — Commit, push, and open PR/MR with a composed title and body
+
 ## Agents
 
 - `repo-researcher` — Codebase structure, patterns, and CLAUDE.md conventions
@@ -72,3 +76,4 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - All built-in reviewers always appear as options in `/ba:review` — external reviewers are shown alongside them with overlap notes, never hidden or replaced
 - `/ba:review` dispatches reviewer subagents with a protected-artifacts guard naming `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, and `docs/reviews/` — reviewers must not suggest deleting, relocating, or otherwise removing files under these roots (content review is unaffected)
 - Update README.md whenever commands, agents, or artifact paths are added or changed
+- Git workflow commands (`ba:propose`) commit, push, and open PR/MR — they never modify source files outside the staged diff

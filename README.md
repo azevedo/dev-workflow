@@ -170,6 +170,20 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Fix application** — apply all fixes, Critical + High + Med-conf-100 (Critical + High at displayed confidence plus Medium only when confidence == 100), or one-by-one with Accept/Skip per finding; runs targeted tests after applying
 - **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
 
+### /ba:propose [--describe-only] [--issue <ID>]
+
+Commit, push, and open a PR/MR with a composed title and body.
+
+- Pure-function body composition: orchestrator gathers inputs (diff, branch, Linear, docs/solutions, preserved blocks, evidence) → composition reads value objects and returns title + body
+- Host-detected dispatch: GitHub `gh`, GitLab `glab`, graceful fallback for unknown hosts (compose + push only)
+- Body composition selects from Michael Lynch's 16-section menu, sized to the diff — the size-tier vocabulary is hidden behind the composition seam (no flag, no preview surface)
+- Linear MCP optional with diff-derived fallback; clear preview warning when MCP is unavailable
+- `docs/solutions/` auto-detection on current-branch-touched entries; per-entry confirm to splice as "What I learned"
+- Cursor BugBot block and existing `## Demo` / `## Screenshots` preserved byte-identical
+- Commit message and PR/MR body share the same composed markdown — no separate render path
+- `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
+- Preview-then-confirm always — apply / edit / regenerate-with-hint / exit
+
 ### Severity ladder and confidence anchors (`/ba:review`)
 
 All `/ba:review` reviewers — built-in and external — emit findings under a four-level ladder + a positive bucket:
