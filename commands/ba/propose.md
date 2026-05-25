@@ -58,27 +58,35 @@ Compute a single `ACTION` value that drives the rest of the orchestration. Every
 | `commit_push_edit` | No `--describe-only` AND open PR/MR exists AND there are commits to push | 5a stage → 5b commit → 5c push → 5d edit. |
 | `edit_only` | No `--describe-only` AND open PR/MR exists AND nothing to push | Skip 5a-5c; 5d edits the existing PR/MR description. |
 
-Resolution sequence:
+Resolution sequence — also caches `OPEN_PR_URL` for reuse by Steps 2d and 5d so the open-PR probe runs exactly once per command invocation:
 
 ```bash
 ACTION=commit_push_create
+OPEN_PR_URL=""
 if [[ "$ARGS" == *--describe-only* ]]; then
   ACTION=describe_only
 else
-  # Probe upstream and open-PR state once
+  # Probe upstream once.
   HAS_COMMITS_TO_PUSH=$([[ -n "$(git rev-list @{upstream}..HEAD 2>/dev/null)" ]] && echo yes || echo no)
-  OPEN_PR_EXISTS=$(... gh pr view / glab mr view — see Step 2d's probe ...)
-  if [[ "$OPEN_PR_EXISTS" == yes && "$HAS_COMMITS_TO_PUSH" == no ]]; then
+
+  # Probe open-PR/MR state once; cache the URL (empty string when none).
+  if [[ "$HOST" == "github" || "$HOST" == "ghes" ]]; then
+    OPEN_PR_URL=$(gh pr view --json url,state -q 'select(.state=="OPEN") | .url' 2>/dev/null)
+  elif [[ "$HOST" == "gitlab" || "$HOST" == "gitlab-self" ]]; then
+    OPEN_PR_URL=$(glab mr view -F json 2>/dev/null | jq -r 'select(.state=="opened") | .web_url')
+  fi
+
+  if [[ -n "$OPEN_PR_URL" && "$HAS_COMMITS_TO_PUSH" == no ]]; then
     # Confirm the edit-only intent — refusing this exits early
     ask "Nothing to push. Update the PR description only?" yes/no
     [[ answer == yes ]] && ACTION=edit_only || exit 0
-  elif [[ "$OPEN_PR_EXISTS" == yes ]]; then
+  elif [[ -n "$OPEN_PR_URL" ]]; then
     ACTION=commit_push_edit
   fi
 fi
 ```
 
-After Step 0b, every downstream step reads `ACTION` and nothing else for mode dispatch. `MODE` and `skip_push` are not separate variables — they were intermediate concepts in an earlier draft, collapsed at plan-review time into `ACTION` so cross-step state is named once. The Step 5 action plan table (below) dispatches on `ACTION` directly.
+After Step 0b, every downstream step reads `ACTION` and `OPEN_PR_URL` and nothing else for mode dispatch / PR-targeting. `MODE` and `skip_push` are not separate variables — they were intermediate concepts in an earlier draft, collapsed at plan-review time into `ACTION` so cross-step state is named once. The Step 5 action plan table (below) dispatches on `ACTION` directly; `OPEN_PR_URL` is the canonical PR identifier threaded through Steps 2d and 5d.
 
 ## Step 1: Branch routing
 
@@ -100,9 +108,13 @@ Detect branch state and route per CE's four-way decision tree (see `docs/researc
 
 ```bash
 DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')
-[[ -z "$DEFAULT_BRANCH" ]] && DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null)
+if [[ -z "$DEFAULT_BRANCH" && ( "$HOST" == "github" || "$HOST" == "ghes" ) ]]; then
+  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null)
+fi
 [[ -z "$DEFAULT_BRANCH" ]] && DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')
 ```
+
+The `gh repo view` probe is guarded behind `HOST=github|ghes` so a non-GitHub remote (GitLab, Bitbucket, unknown) does not invoke the wrong CLI. `git symbolic-ref` is host-agnostic and tried first; `git remote show origin` is the host-agnostic fallback that carries the unknown-host case.
 
 If still empty, ask the user.
 
@@ -186,20 +198,26 @@ For each entry returned:
 - Read the file's frontmatter and the first paragraph of `## Solution` (or first paragraph of body if no `## Solution`).
 - Prepare a one-line summary: `<frontmatter.problem or H1>` — link target relative to repo root.
 
-If at least one entry was returned, ask the user **once**, presenting the full list:
+If at least one entry was returned, ask the user **once** via `AskUserQuestion`. Print the numbered list of detected entries (with summaries) as the question text so the user can see what's being included before choosing:
 
-> "Found N `docs/solutions/` entries touched on this branch:
-> 1. `<path-1>` — <summary-1>
-> 2. `<path-2>` — <summary-2>
-> ...
->
-> Include as 'What I learned'?"
->
-> 1. **Include all** — splice every detected entry
-> 2. **Skip all** — splice none
-> 3. **Choose** — drop into a per-entry yes/no loop (only when the user wants surgical control)
+```
+AskUserQuestion(
+  question: "Found N docs/solutions/ entries touched on this branch:\n
+            1. <path-1> — <summary-1>\n
+            2. <path-2> — <summary-2>\n
+            ...\n
+            \nInclude as 'What I learned'?",
+  header: "Solutions",
+  multiSelect: false,
+  options: [
+    { label: "Include all",  description: "Splice every detected entry" },
+    { label: "Skip all",     description: "Splice none" },
+    { label: "Choose",       description: "Drop into a per-entry yes/no loop (surgical control)" },
+  ],
+)
+```
 
-Default for the typical case (1–3 entries) is "Include all" — that's what the loop is gathering. The per-entry **Choose** path opens an AskUserQuestion sequence with a single yes/no per remaining entry; no Include-all / Skip-all shortcuts at that level (the user already picked "Choose" because they want individual control).
+Default for the typical case (1–3 entries) is "Include all" — that's what the loop is gathering. The per-entry **Choose** path opens a follow-up `AskUserQuestion` sequence with a single yes/no per remaining entry; no Include-all / Skip-all shortcuts at that level (the user already picked "Choose" because they want individual control).
 
 `solutions = (<accepted entries>...)`. Empty tuple is normal.
 
@@ -396,7 +414,9 @@ Pre-prefix the block with warnings if any:
 - `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
 - `⚠ Composed body is <N> lines (long for typical PR descriptions — consider trimming)` (when `result.size_warning` is True; phrasing avoids surfacing the "Lynch's soft cap" source vocabulary)
 
-Then ask via AskUserQuestion:
+**`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer commands `/ba:review --local` and `/ba:slice` follow the same rule.)
+
+For every other `ACTION`, ask via `AskUserQuestion`:
 
 > "Apply?"
 >
@@ -485,15 +505,20 @@ If `HOST=unknown`:
 - Print: "Paste into your platform's UI manually. Commits were pushed successfully."
 - Exit zero (commit + push succeeded).
 
-Otherwise, check for existing open PR/MR:
+Otherwise, reuse the cached `OPEN_PR_URL` from Step 0b — the open-PR/MR probe runs once per invocation, not three times:
 
 ```bash
-# GitHub
-EXISTING_PR_URL=$(gh pr view --json url,state -q 'select(.state=="OPEN") | .url' 2>/dev/null)
-
-# GitLab
-EXISTING_MR_URL=$(glab mr view -F json 2>/dev/null | jq -r 'select(.state=="opened") | .web_url')
+# Reuse the cached URL from Step 0b. Empty string means "no open PR/MR" → take the create path; non-empty → take the edit path.
+if [[ -n "$OPEN_PR_URL" ]]; then
+  # edit existing PR/MR — $OPEN_PR_URL is the canonical handle
+  :
+else
+  # create a new PR/MR
+  :
+fi
 ```
+
+If `OPEN_PR_URL` was populated in Step 0b but the PR has since been closed (race window between probe and apply — see *Failure Modes*), the platform's `edit` call will fail with a not-found error; surface the error per the *Post-push PR-create failure* recovery below.
 
 **Fetch-before-write** (when editing — last read wins):
 
@@ -528,7 +553,7 @@ gh pr create \
   --base "$DEFAULT_BRANCH"
 
 # GitHub — edit existing
-gh pr edit "$EXISTING_PR_URL" \
+gh pr edit "$OPEN_PR_URL" \
   --title "<title>" \
   --body-file "$BODY_FILE"
 
@@ -539,7 +564,7 @@ glab mr create \
   --target-branch "$DEFAULT_BRANCH"
 
 # GitLab — edit existing
-glab mr update "$EXISTING_MR_URL" \
+glab mr update "$OPEN_PR_URL" \
   --title "<title>" \
   --description-file "$BODY_FILE"
 ```
@@ -572,6 +597,7 @@ On success, print:
 | Hook failure on commit | Step 5b | Surface output, exit, never `--no-verify`. |
 | Non-fast-forward push | Step 5c | Offer `--force-with-lease` or abort. |
 | PR-create after-push fails | Step 5d | Surface error; instruct user to re-run `/ba:propose` (commits already pushed, so 5a-5c are no-ops, 5d retries the create). |
+| PR closed between Step 0b probe and Step 5d apply | Step 5d | The `gh pr edit` / `glab mr update` call against the cached `OPEN_PR_URL` will fail with a not-found error. Surface the platform error verbatim; instruct the user to re-run `/ba:propose` (the next probe will see no open PR and take the create path). |
 
 ## Important Guidelines
 
