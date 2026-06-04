@@ -180,6 +180,16 @@ Commit, push, and open a PR/MR with a composed title and body.
 - `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
 - Preview-then-confirm always — apply / edit / regenerate-with-hint / exit
 
+### `/ba:handoff [focus]`
+
+Compacts the current conversation into a handoff document saved to your OS temp directory (`$TMPDIR`), so a fresh or parallel session can pick up the work without re-reading the transcript.
+
+- **Git-state aware** — records branch, dirty/clean, and pushed/unpushed so the next session knows where the code stands
+- **References, doesn't restate** — points at in-repo artifacts by path (`docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, `docs/reviews/`) instead of duplicating them
+- **Execution-aware** — if you're mid-`/ba:execute`, names the plan path and the slice number reached
+- **Suggested next steps** — lists exact slash invocations for the next agent to run, not prose hints
+- **Verified facts only** — redacts secrets and never fabricates paths, IDs, or test results
+
 ### Severity ladder and confidence anchors (`/ba:review`)
 
 All `/ba:review` reviewers — built-in and external — emit findings under a four-level ladder + a positive bucket:
@@ -265,7 +275,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 - `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
 - `/ba:compound` — capture solved problems to `docs/solutions/` ✅
 - `/ba:slice` — plan decomposition into MR-sized slices for incremental delivery ✅
-- `/ba:handoff` — session continuity for multi-session work
+- `/ba:handoff` — session continuity for multi-session work ✅
 - `/ba:execute` V3 — batch mode and subagent-driven execution
 - Plan size vs human-review tax — investigate splitting `/ba:plan` output into a short decision doc (human-reviewed, ~200 lines: scope, architecture, risks, phases, slice table) + per-slice mechanical briefs (types, code stubs, test lists) generated fresh at `/ba:execute` time. Motivation: plans routinely grow past human-reviewable size (1000+ LoC) because one artifact serves both human reviewers and implementation agents; fresh per-slice briefs also catch mechanical drift (stale imports, renamed types, hallucinated helpers) that a plan-time snapshot accumulates before execution. Open questions: does the decision doc stay coherent across slices if kept that thin; can brief generation stay deterministic enough that slice N doesn't contradict slice N-1.
 

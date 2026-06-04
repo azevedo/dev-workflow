@@ -27,6 +27,10 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 - `/ba:compound [context]` — Document solved problems to `docs/solutions/` for future learnings
 
+### Session Commands (capture context for handoff — never write code)
+
+- `/ba:handoff [focus]` — Compact the current conversation into a handoff document (git state, in-repo artifact paths, suggested next steps) saved to `$TMPDIR` for a fresh or parallel session
+
 ### Git Workflow Commands (ship code — commit, push, open PR/MR)
 
 - `/ba:propose [--describe-only] [--issue <ID>]` — Commit, push, and open PR/MR with a composed title and body
@@ -64,7 +68,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 ## Conventions
 
-- Command prefix: `ba:`
+- Command namespace: `ba:` comes from the `commands/ba/` directory — every command invokes as `/ba:<name>` (full form `/dev-workflow:ba:<name>`). This namespace is command-only; plugin skills (if any are ever added) are namespaced by the plugin name (`/dev-workflow:<skill>`), not `ba:`
 - Agent names: lowercase-with-hyphens; suffix names the role (`-reviewer` for `agents/review/`; `-checker`, `-gate`, `-analyzer`, `-generator` for `agents/workflow/`)
 - All artifacts require YAML frontmatter
 - Bump `version` in `.claude-plugin/plugin.json` for every release
