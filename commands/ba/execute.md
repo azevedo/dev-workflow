@@ -411,7 +411,7 @@ Use **AskUserQuestion**:
 
 **Based on selection:**
 - **Review code** -> Invoke `/ba:review` for this slice's diff.
-- **Create MR/PR** -> Same as existing behavior. Use the slice name as MR title prefix: "[Slice N/M] [slice name]". Include slice acceptance criteria in description.
+- **Create MR/PR** -> Same as the standard Create MR/PR step below (prefer `/ba:propose`). Pass `[Slice N/M] [slice name]` as the `/ba:propose` hint so the composed title reflects the slice -- best-effort, since `/ba:propose` composes an effect-phrased title; if you need the exact "[Slice N/M]" prefix, use the manual `gh`/`glab` fallback.
 - **Next slice (fresh session)** -> Tell the user: "Run `/clear` then `/ba:execute --slice [N+1] docs/plans/[filename]`". This gives a clean context window for the next slice.
 - **Next slice (continue here)** -> Proceed immediately to execute slice N+1 in the current session. **If this is the second or more consecutive slice in this session**, add a note: "You've executed [count] slices in this session. Fresh context is recommended for best results -- consider `/clear` before the next slice."
 - **Done for now** -> Display summary including which slices are done and which remain, then exit.
@@ -431,7 +431,7 @@ Use **AskUserQuestion**:
 
 **Based on selection:**
 - **Review code** → Invoke `/ba:review` directly. The review command will auto-detect scope from the current branch.
-- **Create MR/PR** → Detect VCS platform from git remote (GitHub → `gh pr create`, GitLab → `glab mr create`). Also check for available MR/PR skills or custom commands in the environment. If unclear, ask the user which tool to use. Use the plan title and overview + completion summary as the description.
+- **Create MR/PR** → Prefer `/ba:propose` — it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, and creates or updates the PR/MR as appropriate. Invoke `/ba:propose` directly. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. **Fallback** — if `/ba:propose` is unavailable or the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command the user prefers.
 - **Review changes** → Show the diff, then return to options.
 - **Continue working** → Ask what they want to work on. Exit structured execution flow.
 - **Done** → Display final summary and exit.
