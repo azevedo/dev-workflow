@@ -81,6 +81,15 @@ completion and cannot do tight human-in-the-loop back-and-forth.
 - **Scopes from the current branch diff vs base** — *Rationale:* the just-built
   feature is the context; changed files → routes/components to look at.
 - **No persisted artifacts** — purely conversational; no run-dir, no checklist.
+- **`observe` surfaces cheap objective signals (CLS + console errors)** —
+  *Rationale:* layout shift and console errors come free from `agent-browser`
+  and directly bear on feel (jank, broken interactions), so they enrich the FEEL
+  read with zero new machinery. Broader browser-driven verification (a11y
+  scoring, web vitals, visual regression, a `/frontend-verify` skill) is
+  **deliberately deferred as a loose idea — not a roadmap item.** It doesn't fit
+  `/ba:review` (server-less and already slow; driving a browser would make it
+  slower), and auto-auditing every target would break polish's conversational
+  character.
 
 ## Locked Design
 
@@ -110,8 +119,10 @@ platform-map roadmap item lands.
 3. **Serve** — resolve a base URL: probe for a running dev server; if none,
    auto-detect framework and launch (skipped to probe-or-assume under `--no-launch`).
 4. **Drive + Iterate** — the only interactive phase. Per target: open it via the
-   **ui-driver seam** (`navigate`/`observe`/`act`), surface feel observations,
-   take developer direction, apply UI/feel fixes, hot-reload, re-observe.
+   **ui-driver seam** (`navigate`/`observe`/`act`); `observe` surfaces the FEEL
+   read *plus* the cheap objective signals the driver already produces —
+   **layout shift (CLS)** and **console errors** — as context that bears on feel.
+   Take developer direction, apply UI/feel fixes, hot-reload, re-observe.
    Bug-notes accumulate in memory.
 5. **Wrap** — fires once on the session-end condition; replays accumulated
    bug-notes as a single deferral handoff to `/ba:review`/`/ba:debug`. Writes nothing.
@@ -211,6 +222,12 @@ bug-note flow, or session-end condition.
 - **Persisted artifacts** of any kind (run-dirs, checklists, screenshots-to-disk).
 - **Fixing correctness bugs** — noted and deferred to `/ba:review`/`/ba:debug`.
 - **Sub-agent dispatch** — polish is main-agent-driven.
+- **Browser-driven objective verification suites** (a11y scoring, web vitals
+  dashboards, visual-regression baselines, a `/frontend-verify` skill) —
+  considered and deferred as a loose idea (not roadmapped). `observe`'s cheap
+  CLS + console-error signals are the only objective layer in v0; richer
+  verification would force a server-up cost onto the already-slow `/ba:review`
+  or break polish's tight feel loop.
 
 ## Acceptance Criteria
 
@@ -226,6 +243,8 @@ bug-note flow, or session-end condition.
   with `agent-browser` as the v0 adapter.
 - Noticed correctness bugs are surfaced and deferred, never auto-fixed; the wrap
   step replays them once.
+- `observe` surfaces layout-shift (CLS) and console errors from the driver
+  alongside the FEEL read; no broader objective-verification suite runs in v0.
 - No file is written by a polish session.
 - A new **Polish Commands** category is added to `CLAUDE.md` and `README.md`, and
   `/ba:polish` is listed; `version` in `.claude-plugin/plugin.json` is bumped.
