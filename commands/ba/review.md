@@ -314,15 +314,17 @@ Reviewer selection — <T> candidates (<S> ✓ selected, <A> ○ set aside)
 ```
 
 **No elision.** The real guarantee is the **enumeration**: every candidate appears on its own line
-exactly once. The header count is a sanity aid on top of that, not the mechanism — derive `<T>` as
-`7 (built-ins from 2a) + count(all externals discovered in 2b)`, the **pre-judgment** total. It
-counts every discovered candidate, including borderline keyword matches kept under 2b's "when in
-doubt, include" rule — it is **not** the `✓` count. Never truncate, summarize ("…and N others"), or
-drop a low-relevance reviewer — a candidate missing from the ledger is unreachable, which violates
-the never-hide guarantee. If discovery (2b) found no externals, append after the roster: "No
-external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/,
-.claude/agents/, .claude/commands/, .agents/, .agents/agents/, .agents/skills/, .agents/commands/."
-so an all-built-in ledger is distinguishable from a discovery that silently failed.
+exactly once. Never truncate, summarize ("…and N others"), or drop a low-relevance reviewer — a
+candidate missing from the ledger is unreachable, which violates the never-hide guarantee.
+
+**Header count `<T>`** is a sanity aid, not the mechanism: the **pre-judgment** total =
+`7 (built-ins from 2a) + count(all externals from 2b)` — every discovered candidate, including
+borderline keyword matches kept under 2b's "when in doubt, include" rule. It is **not** the `✓` count.
+
+If discovery (2b) found no externals, append after the roster: "No external reviewers found in
+~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/agents/, .claude/commands/,
+.agents/, .agents/agents/, .agents/skills/, .agents/commands/." so an all-built-in ledger is
+distinguishable from a discovery that silently failed.
 
 Then confirm with a single **AskUserQuestion**. The branch depends on whether the `✓` set is empty.
 
@@ -355,8 +357,9 @@ single option.**
 Apply these distribution rules:
 
 1. Collect all reviewers into an ordered list: 7 built-ins first, then discovered externals.
-2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize questions. Never leave 1
-   reviewer alone in a group — merge it into the adjacent group (keeping that group at ≤4).
+2. Partition into groups of 2-4 (prefer 3-4 to minimize questions). If the final group would be a
+   lone reviewer, rebalance with the adjacent group — split their combined members into two groups
+   of 2-3, rather than pushing one group past 4.
 3. Use short `header` values (max 12 chars), e.g. `"Analysis"`, `"Quality"`, `"External"`.
 4. The reviewers marked `✓` in the ledger are the recommended default. **If the entering `✓` set
    is empty** (an all-`○` ledger), open Adjust with **nothing** pre-checked — do not fall back to
@@ -367,11 +370,13 @@ Apply these distribution rules:
    text list. Cancelling any round is a **Cancel review** (the invariant below).
 
 The **"Other"** free-text option still accepts a reviewer name not in the roster; typed names
-resolve via Step 3's user-typed handling, which is **self-contained in Step 3** (`:392-399`,
-unchanged) and does not depend on any logic removed from the old menu.
+resolve via Step 3's user-typed handling, which is **self-contained in Step 3** and does not
+depend on any logic removed from the old menu.
 
-**Invariant — never dispatch an empty set.** At any confirm or Adjust step, an empty resulting set
-routes to a forced choice, never a silent run:
+**Invariant — never dispatch an empty set.** This is the single rule behind both the empty-`✓`
+branch above and any all-deselected Adjust result — they are two entry points to it, not competing
+mechanisms. At any confirm or Adjust step, an empty resulting set routes to a forced choice, never
+a silent run:
 - **Non-empty** result → proceed to Step 3 with that set.
 - **Empty** result (the judge selected none, or the user deselected everything) → ask "No reviewers
   selected. Adjust again or cancel?" Looping re-opens the pick-list; **cancel here is identical to
