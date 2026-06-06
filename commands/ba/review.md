@@ -211,7 +211,7 @@ If the diff exceeds 2000 lines, warn: "Large diff detected ([N] lines). Review q
 
 ---
 
-## Step 2: Discover & Select Reviewers
+## Step 2: Discover, Judge & Select Reviewers
 
 ### 2a. Gather built-in reviewers
 
@@ -227,7 +227,9 @@ List the seven built-in review agents from `agents/review/`:
 | `deep-module-reviewer` | Ousterhout deep-module design: small interface / deep implementation, dependency injection, return-over-side-effects, duplication, shallow-layer merging |
 | `complexity-reviewer` | Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns |
 
-**All seven built-in reviewers MUST appear as options in Step 2c. Do not filter or omit any.**
+**All seven built-in reviewers MUST appear in the selection ledger (Step 2d) — selected (`✓`)
+or set aside (`○`), each with a reason. Never omit a reviewer from the ledger or from the
+Adjust pick-list.**
 
 ### 2b. Discover external reviewers
 
@@ -258,39 +260,124 @@ For each discovered external reviewer, record:
 - **description**: from frontmatter
 - **source**: "agent" or "skill"
 
-### 2c. Present unified selection
+### 2c. Judge each candidate against the diff
 
-Use **AskUserQuestion** with `multiSelect: true` to present reviewers. Each reviewer gets its own individual option — never bundle multiple reviewers into a single option.
+You already captured `FULL_DIFF` and `CHANGED_FILES` in Step 1. **Reuse that read — do NOT run
+`git diff`, `glab mr diff`, `gh pr diff`, or any diff command here** (the Step 1f STOP rule still
+binds). For **each** candidate reviewer — the seven built-ins **and** every discovered external,
+judged uniformly with no built-in/external precedence — answer one question:
 
-**Never hide or remove reviewers.** All built-in reviewers and all discovered external reviewers must appear as separate options. If an external reviewer overlaps with a built-in (e.g., both cover architecture or naming), show both — append "(overlaps with [built-in name])" to the external's description so the user can make an informed choice.
+> **Does this diff contain substantive work in this reviewer's domain?**
 
-**AskUserQuestion limits:** 1-4 questions per call, 2-4 options per question. Distribute reviewers across multiple questions within a single call to stay within these limits.
+This is a judgment call on the **surfaces actually present in the diff** — UI markup/styles,
+exported symbols, untested logic, error/IO paths, auth/input handling, abstraction/coupling, test
+files, and so on. It is **not** a scoring rubric and **not** a category→reviewer mapping. Judge
+what the diff actually does. *(A fixed category→reviewer table is rejected on purpose: it
+over-selects on shallow file-extension matches and under-selects on cross-cutting changes. Reading
+the diff surfaces directly avoids both — do not regress this step into a lookup table.)*
 
-**Distribution rules:**
+- **Meaningful-work bar.** Select (`✓`) a reviewer only when the diff has substantive work in its
+  domain — not a token file match, not merely a "safe pair." Otherwise set it aside (`○`).
+- **Uniform pass.** Built-in and discovered-external reviewers clear the same bar. An external
+  earns `✓` on merit; a built-in may be set aside.
+- **Overlap.** When two otherwise-selected reviewers are largely redundant *on this diff*, keep
+  the deeper one and set the other aside (`○`), naming the **surviving** reviewer as the reason.
+  Keep both when each contributes a distinct part worth having. No numeric threshold — this is a
+  stated judgment, recorded in the ledger. A built-in may be set aside by overlap with an external
+  (and vice versa); name the survivor either way. For a three-way overlap, keep one and name it as
+  the survivor for the other two.
+- **Uncertainty.** When the call is genuinely 50/50, set aside (`○`) with a reason that names the
+  **absent or ambiguous surface** — the ledger + Adjust make a wrong set-aside one toggle away to
+  correct. (This is why `○` reasons must cite the missing surface, not say "not relevant": the
+  honest reason is what lets the user spot a wrong call.)
+- **Reason quality.** Every `✓` reason cites the **present** surface; every `○` reason cites the
+  **absent** surface or the overlapping reviewer.
+
+This judgment writes **no state** — it is recomputed fresh on every run.
+
+### 2d. Present the selection ledger and confirm
+
+Print the **full roster** as plain text (not a widget) in stable order — the seven built-ins
+first, then discovered externals — every candidate on its own line:
+
+```
+Reviewer selection — <T> candidates (<S> ✓ selected, <A> ○ set aside)
+
+✓ architecture-reviewer — new module with cross-cutting exports; structure worth a look
+✓ simplification-reviewer — ~200-line addition; check for over-engineering
+✓ test-coverage-reviewer — new exported logic arrives with no tests
+○ security-reviewer — no auth, input-handling, or sensitive-data surface in this diff
+○ error-handling-reviewer — no new IO or error paths
+○ deep-module-reviewer — overlaps with architecture-reviewer here; architecture covers the structure
+○ complexity-reviewer — diff is small and linear; no cognitive-load surface
+○ dragon-test-reviewer (agent) — overlaps with test-coverage-reviewer on this diff
+```
+
+**No elision.** The real guarantee is the **enumeration**: every candidate appears on its own line
+exactly once. The header count is a sanity aid on top of that, not the mechanism — derive `<T>` as
+`7 (built-ins from 2a) + count(all externals discovered in 2b)`, the **pre-judgment** total. It
+counts every discovered candidate, including borderline keyword matches kept under 2b's "when in
+doubt, include" rule — it is **not** the `✓` count. Never truncate, summarize ("…and N others"), or
+drop a low-relevance reviewer — a candidate missing from the ledger is unreachable, which violates
+the never-hide guarantee. If discovery (2b) found no externals, append after the roster: "No
+external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/,
+.claude/agents/, .claude/commands/, .agents/, .agents/agents/, .agents/skills/, .agents/commands/."
+so an all-built-in ledger is distinguishable from a discovery that silently failed.
+
+Then confirm with a single **AskUserQuestion**. The branch depends on whether the `✓` set is empty.
+
+**When the `✓` set is non-empty** — question: "Run the selected reviewers, or adjust the set?"
+1. **Run the ✓ set** — dispatch the selected reviewers (Step 3).
+2. **Adjust** — open the full pick-list to change the set.
+3. **Cancel review** — exit without running any reviewer (no findings produced).
+
+**When the `✓` set is empty** (no reviewer judged to have substantive work, e.g. a docs-only or
+binary-only diff) — question: "No reviewer was judged to have substantive work in this diff. Pick
+reviewers manually, or cancel?" Drop the "Run" option (per the never-dispatch-empty-set invariant
+below); the options are exactly `1 = Adjust`, `2 = Cancel review` — no hidden "Run" at position 1.
+1. **Adjust** — pick reviewers manually from the full list.
+2. **Cancel review** — exit without running any reviewer.
+
+> The third option is **Cancel review**, not "Done." This refines the brainstorm's shorthand
+> "Done" to avoid colliding with Step 5's "Done" (acknowledge findings) and the misread "I'm done,
+> proceed." It runs nothing and produces no findings.
+
+**Common-case guarantee:** when the user accepts the default `✓` set ("Run the ✓ set"), exactly
+**one** AskUserQuestion appears between the ledger and dispatch.
+
+#### Adjust — full pick-list
+
+Present **every** candidate from the ledger (built-in and external — the identical set, with **no**
+judgment re-filtering) as an individual, selectable option via **AskUserQuestion** with
+`multiSelect: true`. **Each reviewer gets its own option — never bundle multiple reviewers into a
+single option.**
+
+Apply these distribution rules:
 
 1. Collect all reviewers into an ordered list: 7 built-ins first, then discovered externals.
-2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize the number of questions. Never leave 1 reviewer alone in a group — merge it into the adjacent group (keeping that group at ≤4).
-3. Use short `header` values (max 12 chars) to label each question, e.g.: `"Analysis"`, `"Quality"`, `"External"`.
-4. If total reviewers exceed 16 (4 questions × 4 options), present the first 16 and list any remaining in a follow-up text message.
+2. Partition into groups of 2-4. Prefer groups of 3-4 to minimize questions. Never leave 1
+   reviewer alone in a group — merge it into the adjacent group (keeping that group at ≤4).
+3. Use short `header` values (max 12 chars), e.g. `"Analysis"`, `"Quality"`, `"External"`.
+4. The reviewers marked `✓` in the ledger are the recommended default. **If the entering `✓` set
+   is empty** (an all-`○` ledger), open Adjust with **nothing** pre-checked — do not fall back to
+   the `○` set as a default.
+5. **If candidates exceed 16** (the `AskUserQuestion` 4×4 ceiling), present them across consecutive
+   `AskUserQuestion` calls (≤16 each), accumulating the picks in the orchestrator's turn context
+   only (never persisted), so every reviewer stays individually selectable — never a non-selectable
+   text list. Cancelling any round is a **Cancel review** (the invariant below).
 
-**Typical distributions:**
+The **"Other"** free-text option still accepts a reviewer name not in the roster; typed names
+resolve via Step 3's user-typed handling, which is **self-contained in Step 3** (`:392-399`,
+unchanged) and does not depend on any logic removed from the old menu.
 
-| Scenario | Questions |
-|---|---|
-| 7 built-in, 0 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity (header "Quality") |
-| 7 built-in, 1 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity, external-1 (header "Quality") |
-| 7 built-in, 2-4 external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity (header "Quality") · Q3: 2-4 externals (header "External") |
-| 7 built-in, 5+ external | Q1: Architecture, Security, Simplification, Deep-module (header "Analysis") · Q2: Error handling, Test coverage, Complexity, external-1 (header "Quality") · Q3-Q4: remaining externals partitioned to never leave 1 alone (header "External") |
+**Invariant — never dispatch an empty set.** At any confirm or Adjust step, an empty resulting set
+routes to a forced choice, never a silent run:
+- **Non-empty** result → proceed to Step 3 with that set.
+- **Empty** result (the judge selected none, or the user deselected everything) → ask "No reviewers
+  selected. Adjust again or cancel?" Looping re-opens the pick-list; **cancel here is identical to
+  "Cancel review"** at the confirm step — no reviewers run, no findings, no persist directory created.
 
-**Question text:** First question: `"Which reviewers should I run? (select all that apply)"`. Subsequent questions: `"Additional reviewers:"`.
-
-**Option format:**
-- Built-in: label = `"Architecture reviewer"`, description = `"Codebase patterns, coupling, separation of concerns, naming"`
-- External: label = `"dragon-test-reviewer (agent)"`, description = `"Dragon testing conventions (overlaps with Test coverage reviewer)"`
-
-If no external reviewers were found after running the Globs, say so explicitly after presenting built-ins: "No external reviewers found in ~/.claude/agents/, ~/.claude/skills/, ~/.claude/commands/, .claude/agents/, .claude/commands/, .agents/, .agents/agents/, .agents/skills/, .agents/commands/."
-
-If the user selects nothing across all questions, ask: "No reviewers selected. Would you like to exit or re-select?"
+Discovery (2b) is **not** re-run on Adjust or on any loop — the roster is fixed for the run.
 
 ---
 
