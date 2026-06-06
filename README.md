@@ -160,7 +160,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
 - **Seven built-in reviewers** — architecture, security, simplification, error handling, test coverage, deep-module design, and complexity; always available out of the box
-- **Extensible** — discovers external review agents and skills; shows all reviewers (built-in and external) with overlap notes so you choose
+- **Smart selection** — discovers external review agents and skills, then reads the diff and judges which reviewers have real work; presents the full roster as a **selection ledger** (selected + set aside, each with a one-line reason, overlaps named) for a one-step confirm or adjust. Nothing hidden, every reviewer reachable, no state persisted
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased, unbiased analysis
 - **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that surfaces high-noise findings in a collapsed `Suppressed` section
 - **Fix application** — apply all fixes, Critical + High + Med-conf-100 (Critical + High at displayed confidence plus Medium only when confidence == 100), or one-by-one with Accept/Skip per finding; runs targeted tests after applying

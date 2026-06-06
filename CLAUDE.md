@@ -77,7 +77,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Convention-compliance check is mandatory before writing planning artifacts (brainstorms, plans) to disk — slice annotations to existing plans are exempt (they annotate delivery structure, not content)
 - Research docs (`docs/research/`) are exempt — they are pre-convention ephemeral artifacts
 - Agents may declare `tools` in frontmatter to restrict available tools (e.g., locator agents use Grep, Glob, LS only — no Read)
-- All built-in reviewers always appear as options in `/ba:review` — external reviewers are shown alongside them with overlap notes, never hidden or replaced
+- `/ba:review` selection is a stateless per-diff judgment presented as a **selection ledger**: every reviewer (built-in and discovered external) appears each run — selected or set aside, each with a one-line reason — and every reviewer is reachable via **Adjust**. Reviewers are never silently dropped; the ledger over-satisfies the never-hide intent (visible, reasoned, reachable). No selection state is persisted.
 - `/ba:review` dispatches reviewer subagents with a protected-artifacts guard naming `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, and `docs/reviews/` — reviewers must not suggest deleting, relocating, or otherwise removing files under these roots (content review is unaffected)
 - Update README.md whenever commands, agents, or artifact paths are added or changed
 - Git workflow commands (`ba:propose`) commit, push, and open PR/MR — they never modify source files outside the staged diff

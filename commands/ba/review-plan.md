@@ -49,6 +49,8 @@ Always include these seven built-in reviewers — they live in `agents/review/` 
 
 **All seven MUST appear as options in Step 2. Do not filter or omit any.**
 
+<!-- Divergence note: /ba:review uses a per-diff selection ledger (2c judge + 2d confirm); /ba:review-plan keeps this cold menu — there is no diff to judge against, so the two intentionally diverge. -->
+
 ### 1b. External reviewers
 
 Search for additional review agents and skills available in the current environment. Look for anything that can review a plan's proposals.
