@@ -75,6 +75,17 @@ or adjust." Behaviour:
 
 Recommended build order: **#1 → #3 → #2.**
 
+> **Status update (2026-06-07).** Both follow-ons assessed after measurement and **deferred**.
+> **#3 (pre-existing):** in-repo measurement found pre-existing findings rare and the hunk-level
+> rule prone to mis-collapsing findings-about-the-change on citation drift —
+> `docs/research/2026-06-07-preexisting-finding-frequency-research.md`.
+> **#2 (verify):** an out-of-repo transcript census found fix/premise errors rare, and same-agent
+> verification shown to be *theater*. Reframed as an **autonomy** prerequisite: when an
+> autonomous-action path (auto-apply / auto-post) is added, build CE's *independent* validator —
+> which subsumes **#2 and #3 in one pass** (`git blame` for pre-existing, not hunk arithmetic) —
+> rather than the inline self-evidence line. Reasoning + CE precedent:
+> `docs/research/2026-06-07-verify-fix-precondition-frequency-research.md`.
+
 ### Declined & separate candidates
 
 - **#4 — taste-rule injection into reviewers — declined as conceived.** The idea was to
