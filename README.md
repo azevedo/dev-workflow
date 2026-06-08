@@ -163,7 +163,14 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Smart selection** — discovers external review agents and skills, then reads the diff and judges which reviewers have real work; presents the full roster as a **selection ledger** (selected + set aside, each with a one-line reason, overlaps named) for a one-step confirm or adjust. Nothing hidden, every reviewer reachable, no state persisted
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased analysis
 - **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that surfaces high-noise findings in a collapsed `Suppressed` section
-- **Fix application** — apply all fixes, Critical + High + Med-conf-100 (Critical + High at displayed confidence plus Medium only when confidence == 100), or one-by-one with Accept/Skip per finding; runs targeted tests after applying
+- **Fix application & own-MR resolution** — for local scopes and your **own** MR (authorship detected
+  from `gh`/`glab`), apply fixes locally: apply-all, Critical + High + Med-conf-100, or a one-by-one walk
+  where each finding leads with a recommended disposition (**Apply / Skip / Modify**). A precondition
+  check confirms the local tree matches the reviewed diff before editing; after applying, a guard runs
+  **bidirectional reconciliation** of accepted-vs-applied and then a **verify-then-keep** targeted-test
+  pass that **auto-reverts + resurfaces** any fix that fails. Reviewing **someone else's** MR stays
+  posting-only. See
+  `commands/ba/review.md` §5 for the authoritative resolution flow.
 - **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
 
 ### /ba:propose [--describe-only] [--issue <ID>]

@@ -76,7 +76,7 @@ git remote get-url origin 2>/dev/null
 gh pr diff <N>
 ```
 ```bash
-gh pr view <N> --json title,body,baseRefName,headRefName,additions,deletions,changedFiles,files
+gh pr view <N> --json title,body,baseRefName,headRefName,additions,deletions,changedFiles,files,author,headRefOid,isCrossRepository
 ```
 
 **GitLab:**
@@ -94,8 +94,26 @@ glab mr view <N> --output json
 - **MR_TITLE** — from API metadata
 - **MR_DESCRIPTION** — from API metadata (use as additional review context alongside plan)
 - **BASE_BRANCH** / **HEAD_BRANCH** — from API metadata
+- **MR_AUTHOR** — `author.login` (GitHub) / `author.username` (GitLab); also keep `author.name` (+ email if present) for the Step 5 authorship fallback
+- **MR_HEAD_SHA** — `headRefOid` (GitHub) / `.diff_refs.head_sha` (GitLab; `.sha` is the alias)
+- **IS_FORK** — `isCrossRepository` (GitHub) / `source_project_id != target_project_id` (GitLab)
 
 If the CLI command fails (not installed, auth error, MR not found), report the error clearly and exit. Do not silently fall back to local.
+
+**After extraction — capture the current user (for Step 5 authorship routing):**
+
+GitHub:
+```bash
+gh api user --jq .login
+```
+GitLab:
+```bash
+glab api user --jq .username
+```
+
+If the user call fails (auth error), do **not** error out — record `CURRENT_USER` as unavailable; Step 5
+will fall back to a best-effort `git config user.name` / `user.email` comparison. The review proceeds;
+only own-MR fix-local routing is affected.
 
 **Then skip to step 1d.** Do NOT execute step 1c.
 
@@ -817,6 +835,12 @@ The options depend on the scope type.
 
 ### For local scopes (branch, staged, recent, local-range)
 
+> **Unified fix-local walk.** This section is reached by both local-scope review and own-MR **Fix locally**
+> (the MR menu's authored-by-you branch). The `Apply Critical + High + Med-conf-100` filter defined in this
+> section (see **Filter for `Apply Critical + High + Med-conf-100`** below) is the **single source of
+> truth** for that predicate — the own-MR menu option, the others'-MR posting menu, and the README bullet
+> reference it by name rather than restating it, so the filter lives in one place.
+
 Use **AskUserQuestion**:
 
 **Question:** "How would you like to handle the findings?"
@@ -824,24 +848,86 @@ Use **AskUserQuestion**:
 **Options:**
 1. **Apply all fixes** — Apply all Critical + High + Medium items with suggested fixes (Low excluded — nit/style is not auto-applied)
 2. **Apply Critical + High + Med-conf-100** — Critical + High at displayed confidence, plus Medium only when confidence == 100; Low and lower-confidence Medium excluded. Always offered; reports "0 findings matched the filter" when nothing qualifies.
-3. **Review one by one** — Go through each finding and decide Accept/Skip
+3. **Review one by one** — Go through each finding and decide Apply/Skip/Modify
 4. **Done** — Acknowledge findings without modifying code
 
 **"Review one by one" flow:**
 
 For each finding, use a single **AskUserQuestion** that includes the full finding context in the question text — do NOT output the finding as separate text before the question. The AskUserQuestion widget covers preceding text, so the user must be able to see everything they need inside the question itself.
 
-**Question format:** `"Finding [N]/[total]: [title]\n\nFiles: [file:line references]\n\n[code snippet or description]\n\nAgree?"` — include enough context for the user to decide without scrolling up.
+**Question format:** `"Finding [N]/[total]: [title]\n\nFiles: [file:line references]\n\n[code snippet or description]\n\nDisposition?"` — include enough context to decide without scrolling up.
 
-**Options:**
-1. **Agree** — Include this in the review comments
-2. **Skip** — Not worth flagging
-3. **Modify** — Adjust the wording or severity before posting
+**Options** (recommended disposition listed first and pre-selected — confirming is one step):
+1. **Apply** — Mechanically apply the suggested fix to the local working tree.
+2. **Skip** — Don't apply (a taste call, or not worth it on your own code).
+3. **Modify** — Apply with edits: you describe the adjustment, then it's applied.
 
-**After applying fixes** (applies to `Apply all fixes`, `Apply Critical + High + Med-conf-100`, and any per-finding `Accept` from `Review one by one`):
-- Run targeted tests for affected files
-- If tests fail, report which changes likely caused it
-- Return to this menu (user may want to apply more or exit)
+Lead each finding with a **recommended disposition** and a one-line reason, e.g.
+`(Recommended — Apply: clean mechanical fix, no taste call)` or `(Recommended — Skip: stylistic, your
+call)`. The recommendation is a **fix-quality judgment**, not a severity threshold — a clean Medium may
+be Apply; a High taste-call may be Skip. The recommended option is first and pre-selected; overriding it
+costs exactly one interaction. No finding is hidden or pre-decided beyond the default selection.
+
+For a finding **resurfaced by the guard**, show its prior-revert marker and recommend **Skip**
+or **Modify** (not Apply) — re-applying the identical reverted fix would just re-fail. The **bulk** apply
+modes (`Apply all fixes` / `Apply Critical + High + Med-conf-100`) skip any prior-revert-marked finding for
+the same reason — a resurfaced finding is only re-applied through a deliberate per-finding choice.
+
+**After applying accepted dispositions (the guard).**
+Runs on every fix-local apply (`Apply all fixes`, `Apply Critical + High + Med-conf-100`, and per-finding
+Apply/Modify). If the accepted set is empty (all Skipped, or a filter that matched zero), apply nothing,
+note "nothing applied," and return to the menu — no reconciliation, no test run.
+
+**1. Bidirectional reconciliation.** Map findings to edits by **target region** (file + line range),
+many-to-many — one edit may satisfy several findings; one finding may need edits across files:
+- **Under-application** — an accepted (Apply/Modify) finding whose target region was NOT changed.
+  Surface: "Finding <N> was accepted but no edit landed." Never silently resolve.
+- **Over-application** — an edit to a region NO accepted finding targets (e.g., a Skipped finding's
+  region). Surface: "An edit touched <file:line> but no accepted finding targets it." Never silently
+  resolve.
+- A **Modify** satisfies its finding via the modified edit. For both Apply and Modify, "target region"
+  means the **applied edit's actual diff region** (not the suggested fix's text), so a legitimately wider
+  Modify is not flagged as over-application. A multi-file finding counts as **applied** when any of its
+  targeted regions is edited — a partial Modify is the user's choice, not under-application.
+- On a **bulk** apply (`Apply all fixes` / `Apply Critical + High + Med-conf-100`), edits land sequentially
+  and shift later line numbers; match each finding's target region against the post-edit offsets, and treat
+  a residual shifted-anchor mismatch as expected noise the user can dismiss — not a real over/under-application.
+
+**2. Verify-then-keep (auto-revert + resurface).** Detect the project's targeted test/compile command
+for the affected files (from repo conventions — `package.json` scripts, Makefile target, language
+default, or a command documented in CLAUDE.md/README):
+- **Could not verify** (no runnable test/compile command for the affected files) → keep the fixes but
+  surface: "applied fixes were NOT verified (no runnable tests for the affected files) — review
+  manually." Unverified is distinct from passing.
+- Otherwise, note whether the targeted tests **already pass before applying** (a cheap baseline run; if a
+  baseline can't be established, treat the pre-state as unknown). Apply, then re-run:
+  - **Green** → keep the fixes.
+  - **Newly red** (passed at baseline, fail after applying) → **auto-revert and resurface**: when the
+    test output *clearly* implicates a specific fix's file(s), revert that fix; otherwise revert **all**
+    fixes from this apply batch — never guess the culprit, never leave a newly-failing tree. Resurface
+    each reverted finding as an open finding ("an unverified fix is not finished"). Reverting the whole
+    batch when attribution is unclear also avoids cascade / half-state issues between dependent fixes.
+  - **Already red / environmental** (failing at baseline, or failing for env reasons — missing deps, no
+    services, no DB) → the failure is **not attributable** to the applied fixes: keep the fixes and
+    surface "tests failing independently of the applied fixes — review manually." Do **not** revert good
+    work for a broken environment.
+  - **Unknown baseline** (the pre-apply baseline could not be established) and post-apply **red** → the
+    failure is **not attributable** to the applied fixes either (no baseline to compare against): keep the
+    fixes and surface "tests failed after applying, but the pre-apply baseline could not be established —
+    cannot attribute the failure to these fixes; review manually." Do **not** revert without attribution.
+
+Auto-revert is the **only** sanctioned reversal; it is never a silent drop because the resurfacing IS
+the surfacing.
+
+**3. Return to the menu** with the reconciliation report (if any), the verify outcome, and any
+resurfaced findings listed as **open**. A resurfaced finding re-enters at the menu, **not** auto-re-walked;
+re-attempting is user-driven, and the walk recommends Skip/Modify for it so a broken fix can't
+loop. No skipped finding is ever applied; no accepted finding is reversed except via this surfaced revert.
+
+**Protected artifacts (applier-facing).** The applier may edit the **content** of files under
+`docs/{brainstorms,plans,solutions,research,reviews}/` when a finding targets them, but must never apply
+a finding that deletes, relocates, or renames them — consistent with the reviewer-dispatch guard
+(identity protected, contents not).
 
 **Filter for `Apply Critical + High + Med-conf-100`:** From the **rendered (post-gate) findings only** — *not* the `Suppressed (low confidence)` section — select each finding where `severity == Critical OR severity == High OR (severity == Medium AND confidence == 100)`. The merged confidence (post-Step-4d, after `+25 per extra reviewer` promotion) is the value compared. The option is always offered. If zero findings match, report `"0 findings matched the filter (Critical + High + Med-conf-100)."` and return to this menu (do not treat as `Done`).
 
@@ -860,19 +946,95 @@ Use **AskUserQuestion**:
 
 ### For MR/PR scope (remote)
 
-Use **AskUserQuestion**:
+**Authorship determination.** Before showing the menu, determine whether this MR is yours.
+Compare `MR_AUTHOR` to `CURRENT_USER`, trimming whitespace — **case-insensitively for GitHub** (logins
+are case-insensitive) and **case-sensitively for GitLab** (usernames are case-sensitive) (GitHub
+`author.login` vs `gh api user --jq .login`; GitLab `author.username` vs `glab api user --jq .username`).
+If `CURRENT_USER` is unavailable, fall back to comparing `git config user.name` against `MR_AUTHOR`'s
+name — email is usually absent from both `gh`/`glab` MR-view author objects, so this is a best-effort
+name comparison. Because a name match is too weak to grant fix-local — common names collide and
+`git config user.name` may be a substring of `author.name` — **the fallback never yields `mine`**: a
+name match yields **undetermined**, a clear mismatch yields **theirs**, and only a login-to-login
+comparison (when `CURRENT_USER` is available) can yield **mine**. If `CURRENT_USER` is unavailable
+**and** git config has no identity (fresh clone, CI), there is nothing to compare → **undetermined**,
+reason "no local git identity configured".
+
+Set `MR_AUTHORSHIP`:
+- **mine** — author matches current user.
+- **theirs** — author is a different, known user. A bot-opened MR (Dependabot, release bot) is *theirs*
+  — you can still review it `--local` on a checked-out branch.
+- **undetermined** — identity could not be resolved (auth failure + inconclusive fallback).
+
+Announce one line before the menu:
+- mine → "This MR is authored by you — fixing locally is available."
+- theirs → "This MR is authored by `<MR_AUTHOR>` — resolution is posting-only."
+- undetermined → "Could not confirm MR authorship (`<reason>`) — treating as not-yours; to fix locally,
+  re-run `/ba:review --local` on the checked-out branch."
+
+**When `MR_AUTHORSHIP == mine`**, use **AskUserQuestion** — "How would you like to handle the findings?"
+1. **Fix locally** *(Recommended — it's your MR)* — Apply fixes to your local checkout
+   (precondition-gated; see below). Leads to the fix-local resolution sub-menu.
+2. **Post inline comments** — Post all displayed (post-gate) findings as inline comments (e.g., notes
+   for later or for co-reviewers).
+3. **Post Critical + High + Med-conf-100** — Same posting flow, pre-filtered.
+4. **Done** — Acknowledge findings without further action.
+
+(The standalone "Review one by one for discussion" walk is **not** offered on your own MR — a discussion
+walk is thin with no second party. The one-by-one *fix* walk is reached via **Fix locally**. **AskUserQuestion
+allows at most 4 options — a harness limit, not a style choice** — so a fifth option can't be added without
+removing one.)
+
+**When `MR_AUTHORSHIP == theirs` or `undetermined`**, use **AskUserQuestion** — today's posting-only menu,
+unchanged:
 
 **Question:** "How would you like to handle the findings?"
 
 **Options:**
 1. **Post inline comments** — Post all displayed (post-gate) findings as inline comments on the MR/PR (details below)
-2. **Post Critical + High + Med-conf-100** — Same posting flow as option 1, but pre-filtered: `severity == Critical OR severity == High OR (severity == Medium AND confidence == 100)`, operating on the rendered (post-gate) findings only — the Suppressed section is never eligible. Always offered; if zero findings match, report "0 findings matched the filter (Critical + High + Med-conf-100)." and return to this menu (not treated as Done). Uses the same CC-mapping and submission logic under "Posting inline comments" below.
+2. **Post Critical + High + Med-conf-100** — Same posting flow as option 1, but pre-filtered using the **Filter for `Apply Critical + High + Med-conf-100`** defined under **For local scopes** (operating on the rendered (post-gate) findings only — the Suppressed section is never eligible). Always offered; if zero findings match, report "0 findings matched the filter (Critical + High + Med-conf-100)." and return to this menu (not treated as Done). Uses the same CC-mapping and submission logic under "Posting inline comments" below.
 3. **Review one by one** — Walk through each finding for discussion
 4. **Done** — Acknowledge findings without further action
 
 **When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
 
-**"Review one by one" flow:** Same as local scope — include the full finding context inside each AskUserQuestion's question text. Never output finding details as separate text before the question widget.
+**"Review one by one" flow (posting, for discussion):** Use the same finding-context-inside-the-question convention as the fix-local walk — include the full finding context inside each AskUserQuestion's question text; never output finding details as separate text before the question widget. This posting walk shows **no** disposition recommendation (the Apply/Skip/Modify recommendation is fix-local only) — it is still for discussion, not applying.
+
+#### Fix locally — precondition check
+
+Selecting **Fix locally** does NOT immediately edit files. First confirm the local tree IS the reviewed
+tree, so the remote diff's `file:line` anchors apply. Use the `MR_HEAD_SHA` captured in Step 1b — do
+**not** re-fetch it (Step 1f STOP rule: the precondition compares SHAs and reads `git status`; it does
+not re-diff). Check, in order; each failure surfaces a SPECIFIC reason — never edit a misaligned tree:
+
+1. **Head aligned** — `git rev-parse HEAD` equals `MR_HEAD_SHA` (captured Step 1b). A detached HEAD at
+   the right SHA **passes** — alignment, not branch name, is the gate. To **classify** an alignment
+   failure (so the right fallback is offered), read two more primitives: `git branch --show-current` and
+   whether the head branch exists locally (`git branch --list <HEAD_BRANCH>`). Empty current branch **or**
+   absent head branch → **not checked out**; on the head branch but SHA differs → **head moved** (rebased
+   / squashed / updated since review). If `IS_FORK`, name that as context in the reason — the head likely
+   isn't local and a checkout will fetch it.
+2. **Changed files clean** — `git status --porcelain -- <CHANGED_FILES>` is empty. Uncommitted edits to
+   reviewed files would shift anchors and confound the guard's test attribution.
+
+(`IS_FORK` is **not** an independent gate: at the reviewed SHA the anchors are valid regardless of fork;
+if you're not at it, "fork" is merely *why* — so it annotates the not-aligned reason rather than failing
+its own check.)
+
+On failure, surface the reason and offer reason-specific fallbacks (each via AskUserQuestion):
+- **Not checked out** (empty/other current branch, or the head branch — possibly a fork — isn't local) →
+  **Checkout** (`gh pr checkout <N>` / `glab mr checkout <N>`, which fetches a fork too; then re-run the
+  precondition) / **Post comment** / **Patch** (emit the reviewer-suggested fixes as a `git apply`-able patch).
+- **Head moved** (on the branch but SHA ≠ reviewed; rebased/squashed/updated) → do **not** silently
+  checkout onto a stale diff. **Re-review** (`/ba:review <N>` to capture a fresh diff against the current
+  head) / **Post comment** / **Patch**.
+- **Dirty changed files** → **Stash or commit** the changed files then re-run / **Post comment** / **Patch**.
+
+After any **Checkout**, re-run the precondition (both checks) — **Checkout is offered once**; it is not
+offered again after a post-Checkout re-run failure. If alignment still can't be reached, the only safe
+applying path is **Re-review**; otherwise **Post comment** / **Patch**.
+
+Then proceed to the fix-local resolution sub-menu (see **For local scopes** — the same Apply-all /
+Critical+High+Med-conf-100 / one-by-one walk / Done options, the same guard).
 
 #### Posting inline comments
 
