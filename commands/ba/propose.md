@@ -287,7 +287,7 @@ ComposedBody:
   title              # effect-phrased, ≤72 chars, no trailing period
   body               # final markdown — feeds both commit and PR/MR
   rewritten_from     # str or None — original title when 3.3 rewrote a mechanism-only draft; None when no rewrite occurred
-  size_warning       # bool — True when body exceeds Lynch's ~150-line soft cap (3.6)
+  size_warning       # str or None — when the body overshoots its tier's soft target (3.1a), a ready-to-print phrase naming that target shape (e.g. "~one screen for a change this size"); None when within target. Mirrors rewritten_from's None-or-value shape. The phrase names the target SHAPE, never the tier label — the tier stays seam-internal (Step 4 invariant).
 ```
 
 `rewritten_from` and `size_warning` are declared output fields so the orchestrator's preview (Step 4) reads them by name; composition never side-channels state to the orchestrator. The seam stays one-direction: inputs in, ComposedBody out.
@@ -297,6 +297,7 @@ ComposedBody:
 ### Invariants (every composition pass must satisfy these)
 
 - `body` never restates the diff verbatim. The diff is visible on the platform; the body explains what the diff cannot show.
+- Match weight to weight: when in doubt, shorter wins, and a larger diff earns *more selectivity, not more content*. Default to the smallest body that still saves the reviewer a round-trip. This governs prose verbosity and optional/narrative sections — it never suppresses a required section (breaking changes, dependency justifications, cross-refs still appear when their input is present). See the per-tier shape targets (3.1a) and the leave-out list (3.2a).
 - `title` is effect-phrased. If the initial draft is mechanism-only (e.g., "add a mutex to guard X"), rewrite to effect form ("prevent X during simultaneous Y") and stash the original for the preview's "rewritten from" disclosure.
 - Preserved blocks appear exactly once, byte-identical to input. Splice positions chosen internally.
 - Section order follows Lynch's priority (descriptive title → impact → motivation → breaking changes → external refs → dependency justifications → cross-refs → bug summaries → testing instr → testing limits → what I learned → alternatives → searchable artifacts → screenshots → rants → tempted-to-explain).
@@ -328,6 +329,20 @@ Tier table (first match wins):
 | medium | `lines_changed <= 200 AND files_changed <= 10` |
 | large | otherwise |
 
+#### 3.1a Per-tier shape targets
+
+The tier from 3.1 sets a **soft** target shape. These are editorial guidance, not gates — do not auto-trim; the user decides (same stance as 3.6). 3.6 warns only when a body overshoots its own tier's target.
+
+| Tier | Target shape |
+|---|---|
+| typo | One line. No body. |
+| small | Prose, no `##` headers unless two genuinely distinct concerns. ~300 characters. |
+| medium | Narrative frame, then what-and-why. At most two `H2` sections (~one screen). |
+| large | Narrative + 3–5 design-decision callouts + brief test summary. ~150 lines as a backstop; a summary table beats an `H3` per mechanism. |
+| perf | Before/after table + short narrative (size-independent — see the 3.1 perf-modifier note). |
+
+"No headers unless two distinct concerns" is what folds impact (#2) and motivation (#3) into one prose paragraph at small/medium tier; they become separate headed sections only at large tier.
+
 #### 3.2 Section registry (tier threshold + source requirement + body rule)
 
 One declarative table replaces the earlier three-step pipeline (tier→sections → filter-by-availability → per-section generator). Each row owns one section: the minimum tier at which it activates, the input that must be present for it to appear, and the rule for generating its body. To add a new section, add one row. To add a new tier, raise/lower thresholds in this column only. Reviewers maintaining the spec read one place to see what each section depends on.
@@ -343,15 +358,24 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 6 | Dependency justifications | large | Lockfile / dependency-manifest changes in diff | List lockfile-detected adds; one-line rationale per addition. |
 | 7 | Cross-refs | medium, large | `issue_context.ref` is present | `Fixes <issue_context.ref>` (normalized ref from Step 2b, e.g., `TO-1234`). Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or full URL). |
 | 8 | Bug summaries | large | `issue_context.body_text` is present | Paragraph form, never just `Fixes #N`. |
-| 9 | Testing instructions | medium (conditional), large | Automated tests don't exist for the change | Spell out the manual verification path. |
+| 9 | Testing instructions | medium (conditional), large | Automated tests don't exist for the change | Spell out the manual verification path. Give the manual path, not an enumeration of every unit case — "unit-covered; manual checks below" is enough. |
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
-| 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. |
-| 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. |
+| 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
+| 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 
 For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #14); preserved blocks splice into canonical positions (Step 3.4).
 
 > **Note on `perf` as a tier-modifier**: a perf-typed change can be small *or* large by line count. The table treats `perf` as a flag that activates row #3 and row #14 regardless of size threshold; size-derived threshold rules still apply to other rows. This avoids the "first-match-wins" gotcha where a tiny perf change would otherwise classify as `typo` and drop row #14's before/after table.
+
+#### 3.2a Leave out (the anti-bloat list)
+
+Cross-cutting omissions that apply regardless of which sections activate (Lynch's "Leave out"). These are instances of the selectivity invariant:
+
+- **No what-changed play-by-play.** Do not re-narrate the diff in prose ("renamed X, moved Y, extracted Z, updated the tests"). The diff already shows the mechanism; the body explains what the diff cannot. This is the single biggest source of bloat on small diffs.
+- **No file list / change-size enumeration.** Obvious from the diff.
+- **One what/why, not two headed sections** at small/medium tier (governed by the per-tier shape targets in 3.1a).
+- **Short-term discussion and tooling artifacts stay out** — preview URLs, build links, "I'll address comments below."
 
 #### 3.3 Title rewriting
 
@@ -383,9 +407,16 @@ Byte-identical: the raw markdown carried in `preserved_blocks` is inserted as-is
 
 Commit message and PR/MR body share the same rendered string: `title + "\n\n" + body`. No per-commit-vs-PR divergence is computed here. If the user wants a tighter commit body than the PR body on a given run, they edit the preview (Step 4) — Per the brainstorm's *2026-05-19 Addendum — `--diverge` dropped*, the YAGNI rejection of Design B's `overrides` applies here too.
 
-#### 3.6 Soft size cap warning
+#### 3.6 Soft size-target warning
 
-After full composition, count `body` lines. Emit `ComposedBody.size_warning = (line_count > 150)` (Lynch's soft cap for large tier). Do not auto-trim — the user decides. The preview at Step 4 reads `size_warning` by name; composition never side-channels state to the orchestrator.
+After full composition, compare `body` against its tier's soft target shape (3.1a):
+
+- small — warn if the body exceeds ~300 characters or introduces `##` headers without two distinct concerns.
+- medium — warn if the body exceeds ~one screen or more than two `H2` sections.
+- large — warn if the body exceeds ~150 lines (backstop).
+- typo / perf — no size warning (typo is one line; perf is shaped by its table).
+
+When a tier overshoots, set `ComposedBody.size_warning` to a short phrase naming the *target shape* for a change this size (never the tier label). Otherwise `size_warning = None`. Do not auto-trim — the user decides. The preview at Step 4 reads `size_warning` by name; composition never side-channels state to the orchestrator.
 
 ### Trade-offs documented at lock time
 
@@ -400,7 +431,7 @@ Print the preview block:
 Action: <commit_push_create | commit_push_edit | edit_only | describe_only>  (Host: <github|gitlab|...>)
 Title: <result.title>
        (rewritten from: <result.rewritten_from>)      [only if result.rewritten_from is not None]
-Body lines: <N>                                       (size warning prefix if result.size_warning)
+Body lines: <N>                                       (size-target prefix if result.size_warning is not None)
 Lead: <first two sentences of result.body>
 ─────────────────────────────────────────
 [full result.body printed below]
@@ -412,7 +443,7 @@ Tier observability is deliberately omitted from the preview — exposing the sea
 Pre-prefix the block with warnings if any:
 
 - `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
-- `⚠ Composed body is <N> lines (long for typical PR descriptions — consider trimming)` (when `result.size_warning` is True; phrasing avoids surfacing the "Lynch's soft cap" source vocabulary)
+- `⚠ <result.size_warning>` (printed verbatim when `result.size_warning is not None` — e.g. `⚠ Composed body is longer than typical for a change this size (target: ~one screen) — consider trimming`. The phrase names the target shape only; it never surfaces the tier label or the "Lynch's soft cap" source vocabulary.)
 
 **`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer commands `/ba:review --local` and `/ba:slice` follow the same rule.)
 
@@ -593,7 +624,7 @@ On success, print:
 | Empty diff (base moved) | Step 2a | `CompositionInputError` with rebase-or-close message. |
 | Linear MCP failure with ID present | Step 2b | Warn at preview; fall back to diff-derived motivation. |
 | Preserved-block race window | Step 5d | Re-fetch + re-extract immediately before publish; published body uses the freshest remote read. No interactive recovery needed. |
-| Body > 150 lines | Step 4 | Warn at preview; user decides. |
+| Body overshoots its tier's soft target (3.1a) | Step 4 | Warn at preview with a phrase naming the target shape; user decides. No auto-trim. |
 | Hook failure on commit | Step 5b | Surface output, exit, never `--no-verify`. |
 | Non-fast-forward push | Step 5c | Offer `--force-with-lease` or abort. |
 | PR-create after-push fails | Step 5d | Surface error; instruct user to re-run `/ba:propose` (commits already pushed, so 5a-5c are no-ops, 5d retries the create). |
@@ -610,5 +641,6 @@ On success, print:
 - Linear is optional. Failure ≠ absence — warn at preview when MCP failed.
 - `docs/solutions/` absence is normal. Defensive empty-tuple.
 - The diff is visible on the platform; the body explains what the diff cannot show.
+- Match weight to weight — shorter wins; a bigger diff earns more selectivity, not more content. No what-changed play-by-play, no unit-test enumeration, screenshots in `<details>`. Required safety sections (breaking changes, dep justifications) are exempt from trimming.
 - Title = effect, not mechanism. Rewrite if drafted as mechanism, disclose the rewrite in preview.
 - `fix:` over `feat:` when ambiguous.
