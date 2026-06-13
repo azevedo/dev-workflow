@@ -8,6 +8,15 @@ scope: form (how/where plan content is presented for review) — NOT purpose (wh
 evidence: 24 plan docs, plan.md + sibling command specs, 1 session transcript, 7 PRs
 ---
 
+> **Scope of this pass (read first).** This is the **md-only-repo pass**, run against the
+> `dev-workflow` plugin repo itself — whose deliverable *is* markdown, so plan "code blocks" are
+> command specs (see Finding 3). It did **not** have access to: a real code (non-md) repo, a larger
+> plan corpus, actual execution transcripts, or inline PR review comments. A separate **code-repo
+> pass** is planned on another machine and will be pushed to this branch for consolidation.
+> Treat the volume findings as solid (measured), but treat every **review-value** judgment as a
+> hypothesis to validate against the code-repo pass's transcripts and PR comments — that is the
+> evidence this pass had to infer around (see "Honest gap").
+
 ## Summary
 
 **Problem (fixed):** reviewing a `/ba:plan` doc costs too much to read.
