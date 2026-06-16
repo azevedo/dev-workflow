@@ -98,7 +98,7 @@ Brainstorm docs are saved to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`
 
 ### `/ba:plan [feature]`
 
-Transforms feature descriptions into implementation plans with exact file paths and code.
+Transforms feature descriptions into implementation plans with exact file paths and decisions (literal code only under a `**Code-shape decision:**` label, where the code's shape is the design decision).
 
 - **Auto-detects brainstorms** — searches `docs/brainstorms/` for recent (14-day) topic-matched docs and carries forward all decisions
 - **Parallel research** — dispatches agents to analyze codebase patterns and search prior learnings
