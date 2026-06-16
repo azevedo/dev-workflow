@@ -542,7 +542,7 @@ Convention compliance: [N aligned, N overrides, N debt items]
 ## Important Guidelines
 
 - **Research before writing** — understand the codebase before proposing changes
-- **Exact file paths and decisions** — never use placeholders; literal code only under a `**Code-shape decision:**` label
+- **Exact file paths and decisions** — never use placeholders; literal code only under a `**Code-shape decision:**` label (when unsure, include the label)
 - **Separate automated and manual verification** — different audiences, different timing
 - **"What We're NOT Doing" at every level** — prevents scope creep
 - **Convention compliance is mandatory** — not optional, not skippable
