@@ -229,7 +229,7 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 
 ```language
 [Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
-Add a literal code block only under a **Code-shape decision:** label — see "Key rules".]
+Add a literal code block only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
 ```
 
 ## Sources
@@ -286,7 +286,7 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 **File**: `exact/path/to/file.ext`
 ```language
 [Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
-Add a literal code block only under a **Code-shape decision:** label — see "Key rules".]
+Add a literal code block only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
 ```
 
 ### Success Criteria
@@ -355,7 +355,7 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 **File**: `exact/path/to/file.ext`
 ```language
 [Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
-Add a literal code block only under a **Code-shape decision:** label — see "Key rules".]
+Add a literal code block only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
 ```
 
 #### Success Criteria

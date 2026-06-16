@@ -134,7 +134,11 @@ Do **not** include files you "might also touch" — only files the slice's tasks
 
 ### 1.5b. Project LoC per file
 
-A fenced block counts as **literal code** only when it is immediately preceded by a `**Code-shape decision:**` label; any unlabeled fence is pseudo-code. Exception: if the plan has no `**Code-shape decision:**` labels anywhere (a pre-change plan), treat every fenced block as literal.
+Classify each fenced block as **literal** or **pseudo-code** before counting (three cases):
+
+- **Fence under a `**Code-shape decision:**` label** → literal.
+- **Unlabeled fence, in a plan that has at least one `**Code-shape decision:**` label** → pseudo-code.
+- **Any fence, in a plan with no `**Code-shape decision:**` labels anywhere** (a pre-change plan) → literal.
 
 For each file in the list:
 
@@ -208,7 +212,7 @@ For COMPREHENSIVE plans, also announce phase transitions: "**--- Phase [N]: [Pha
 
 ### 2b. Implement
 
-Implement the plan's decisions for this task. Where the plan provides a literal code block, implement that code as specified — it captures a committed decision (a `**Code-shape decision:**` block makes this explicit; any literal code block in a plan is binding). Where the plan gives decisions, pseudo-code, or descriptions, implement to them following existing codebase patterns. Where a literal code block and prose both address the same file or function, the code block governs the structure; the prose is context.
+Implement the plan's decisions for this task. Where the plan provides a literal code block — classified per Step 1.5b (a fence under a `**Code-shape decision:**` label, or any fence in a pre-change plan with no labels anywhere) — implement that code as specified; it captures a committed decision and is binding verbatim. Where the plan gives decisions, pseudo-code, or unlabeled fences (pseudo-code), implement to them following existing codebase patterns. Where a literal code block and prose both address the same file or function, the code block governs the structure; the prose is context.
 
 When rewriting an existing file, read the original first and carry over any WHY comments (non-obvious rationale, workarounds, invariant explanations) that are not reproduced in the plan's code block but are not explicitly removed by the plan. Plan code samples are structural references, not complete comment inventories.
 
