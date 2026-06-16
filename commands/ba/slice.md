@@ -69,9 +69,9 @@ Based on detail level, extract the task list and estimate LoC for each:
 
 ### LoC Counting Rules
 
-- Count only lines inside code fences (triple-backtick blocks)
+- Count only lines inside **literal** code fences. A fence counts as literal only when it is immediately preceded by a `**Code-shape decision:**` label; any unlabeled fence is pseudo-code — do not line-count it, fall through to the estimate rule below. **Backward-compat:** if the plan has no `**Code-shape decision:**` labels anywhere (a pre-change plan), treat every fenced block as literal and count it — otherwise old plans route all code to the estimate fallback and slice under-sizes MRs. (Mirror execute Step 1.5b's routing.)
 - Exclude test file changes (files matching: `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.*`, files under `tests/`, `__tests__/`, `test/`)
-- If a task has no code fence, estimate conservatively (~30-50 LoC per described file change) and mark as "est. approximate"
+- If a task has no literal code fence (pseudo-code/decisions only), estimate conservatively (~30-50 LoC per described file change) and mark as "est. approximate"
 - Track total estimated LoC across all tasks
 
 ### Single-Slice Check
