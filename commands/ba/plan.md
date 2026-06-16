@@ -44,6 +44,7 @@ ls -la docs/brainstorms/*.md 2>/dev/null | head -10
    - Open questions (flag for resolution during planning)
    - Acceptance criteria
    - Convention compliance findings
+   - `## Locked Design` (if the brainstorm has one): reference it explicitly in any `**Code-shape decision:**` block — its interface/signatures/invariants/error modes are the anchor for code-bearing blocks. Do not paraphrase its signatures. This is *additive* — a code-shape block is still permitted with no brainstorm (it anchors to the plan's own Proposed Solution / research).
 4. **Skip the idea refinement below** — the brainstorm already answered WHAT to build
 5. **The brainstorm is the origin document.** Reference specific decisions with `(see brainstorm: docs/brainstorms/<filename>)` throughout the plan. Do not paraphrase decisions in a way that loses their original context.
 6. Do not omit brainstorm content — if the brainstorm discussed it, the plan must address it.
@@ -146,7 +147,7 @@ Select based on complexity. Simpler is mostly better.
 
 **Best for:** Simple bugs, small improvements, clear features with ≤3 files.
 
-Sections: Problem/feature description, acceptance criteria, context, MVP code.
+Sections: Problem/feature description, acceptance criteria, context, MVP (decisions + pseudo-code by default; literal code only under a `**Code-shape decision:**` label).
 
 #### STANDARD (Most Features)
 
@@ -227,7 +228,8 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 ### [filename.ext]
 
 ```language
-[Actual code — not descriptions of code]
+[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
+Add a literal code block only under a **Code-shape decision:** label — see "Key rules".]
 ```
 
 ## Sources
@@ -283,7 +285,8 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 
 **File**: `exact/path/to/file.ext`
 ```language
-[Actual code — not descriptions]
+[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
+Add a literal code block only under a **Code-shape decision:** label — see "Key rules".]
 ```
 
 ### Success Criteria
@@ -351,7 +354,8 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 #### Changes Required
 **File**: `exact/path/to/file.ext`
 ```language
-[Actual code]
+[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
+Add a literal code block only under a **Code-shape decision:** label — see "Key rules".]
 ```
 
 #### Success Criteria
@@ -419,10 +423,16 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 
 **Key rules for all templates:**
 - Include **exact file paths** — never placeholders
-- Include **actual code** — not descriptions of code
+- **Default to decisions, not code** — approach, exact file paths, patterns to follow, pseudo-code for shape, and test scenarios. Include a literal code block ONLY under a `**Code-shape decision:** <why the shape is non-obvious>` label.
 - Separate success criteria into **Automated** and **Manual**
 - Phase gates in COMPREHENSIVE: automated passes first, then pause for manual verification
 - Always include "What We're NOT Doing"
+
+**Code-shape decision rule:** Add a literal code block + label only when re-deriving the shape from a prose decision would plausibly produce a *different, wrong* structure (a specific reducer state machine, a concurrency-sensitive ordering, a tricky query window).
+- ✅ Positive: a state-machine reducer whose exact case/transition set is the decision → include it, labeled.
+- ❌ Negative: a standard CRUD handler or an obvious mapping → describe it; do not include literal code.
+- When unsure, include the code + label: a false-positive label costs a little review attention; a false-negative loses the design.
+- **Anchor:** when a brainstorm origin exists, a code-shape block anchors to the brainstorm's `## Locked Design` (interface, signatures, invariants, error modes). With no brainstorm, it anchors to the plan's own Proposed Solution / research findings.
 
 ---
 
@@ -532,7 +542,7 @@ Convention compliance: [N aligned, N overrides, N debt items]
 ## Important Guidelines
 
 - **Research before writing** — understand the codebase before proposing changes
-- **Exact file paths and code** — never use placeholders
+- **Exact file paths and decisions** — never use placeholders; literal code only under a `**Code-shape decision:**` label
 - **Separate automated and manual verification** — different audiences, different timing
 - **"What We're NOT Doing" at every level** — prevents scope creep
 - **Convention compliance is mandatory** — not optional, not skippable
