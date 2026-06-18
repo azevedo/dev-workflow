@@ -565,7 +565,7 @@ CURRENT_BODY=$(gh pr view --json body -q .body)
 
 Surface a one-line notice in 5d's output when the published body's preserved blocks differ from those shown at preview: `ℹ Preserved blocks updated between preview and publish — published body uses the latest remote read.` This keeps the user informed without recreating the rejected interactive recovery menu.
 
-**Write body to temp file** (always — no `--body "$(cat ...)"`, no stdin, no pipes):
+**Write body to temp file** (always — no stdin, no pipes). GitHub: use `--body-file "$BODY_FILE"`. GitLab: `glab` has no `--description-file`; use `--description "$(cat "$BODY_FILE")"` instead.
 
 ```bash
 BODY_FILE=$(mktemp "${TMPDIR:-/tmp}/ba-propose-body.XXXXXX")
@@ -591,13 +591,13 @@ gh pr edit "$OPEN_PR_URL" \
 # GitLab — create
 glab mr create \
   --title "<title>" \
-  --description-file "$BODY_FILE" \
+  --description "$(cat "$BODY_FILE")" \
   --target-branch "$DEFAULT_BRANCH"
 
 # GitLab — edit existing
 glab mr update "$OPEN_PR_URL" \
   --title "<title>" \
-  --description-file "$BODY_FILE"
+  --description "$(cat "$BODY_FILE")"
 ```
 
 **Post-push PR-create failure.** If push succeeded in 5c but the `gh pr create` / `glab mr create` call fails:
