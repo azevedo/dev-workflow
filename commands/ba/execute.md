@@ -134,11 +134,17 @@ Do **not** include files you "might also touch" — only files the slice's tasks
 
 ### 1.5b. Project LoC per file
 
+Classify each fenced block as **literal** or **pseudo-code** before counting (three cases):
+
+- **Fence under a `**Code-shape decision:**` label** → literal.
+- **Unlabeled fence, in a plan that has at least one `**Code-shape decision:**` label** → pseudo-code.
+- **Any fence, in a plan with no `**Code-shape decision:**` labels anywhere** (a pre-change plan) → literal.
+
 For each file in the list:
 
-- **Plan provides code in this slice's tasks**: count the lines of the provided code block.
-- **No code in plan, file exists**: estimate the diff size from the task description; reference similar implementations in the codebase if needed.
-- **New file, no code in plan**: estimate from the closest analogue (similar new files in this codebase).
+- **Plan provides a literal code block for this file** (fence under a `**Code-shape decision:**` label, or any fence in a pre-change plan with no labels at all): count the lines of that block.
+- **Decisions/pseudo-code only, file exists**: estimate the diff size from the task description; reference similar implementations in the codebase if needed.
+- **New file, decisions only**: estimate from the closest analogue (similar new files in this codebase).
 
 Sum the per-file estimates. Call this the **projection** (M).
 
@@ -206,9 +212,7 @@ For COMPREHENSIVE plans, also announce phase transitions: "**--- Phase [N]: [Pha
 
 ### 2b. Implement
 
-Read the plan's code for this task and implement it. Follow the plan exactly — it has already been reviewed and approved.
-
-If the plan provides actual code, use it. If the plan describes the change without full code, implement it following existing codebase patterns.
+Implement the plan's decisions for this task. Where the plan provides a literal code block — classified per Step 1.5b (a fence under a `**Code-shape decision:**` label, or any fence in a pre-change plan with no labels anywhere) — implement that code as specified; it captures a committed decision and is binding verbatim. Where the plan gives decisions, pseudo-code, or unlabeled fences (pseudo-code), implement to them following existing codebase patterns. Where a literal code block and prose both address the same file or function, the code block governs the structure; the prose is context.
 
 When rewriting an existing file, read the original first and carry over any WHY comments (non-obvious rationale, workarounds, invariant explanations) that are not reproduced in the plan's code block but are not explicitly removed by the plan. Plan code samples are structural references, not complete comment inventories.
 
@@ -440,7 +444,7 @@ Use **AskUserQuestion**:
 
 ## Important Guidelines
 
-- **The plan is the authority.** Follow it. Don't add features, refactor surrounding code, or "improve" things beyond what the plan specifies.
+- **The plan's decisions are the authority.** Literal code blocks are authoritative verbatim; implement everything else to the plan's decisions. Don't add features, refactor surrounding code, or invent build choices the plan deliberately left as decisions.
 - **Track progress in the plan file.** Every completed task gets `[x]`. This is how resume works.
 - **Test after every task — targeted, not full suite.** Run tests related to changed files. Defer full suite + lint to completion or CI.
 - **Report deviations immediately.** Don't silently work around plan/reality mismatches.

@@ -63,15 +63,15 @@ Read the `detail_level` field from YAML frontmatter. If missing, infer:
 
 Based on detail level, extract the task list and estimate LoC for each:
 
-- **MINIMAL**: Each acceptance criterion checkbox is a task. Estimate LoC from the "MVP" code section -- count lines in code fences, distribute across criteria proportionally.
-- **STANDARD**: Each `**File**:` block under "Changes Required" is a task. Count lines in each file block's code fence.
-- **COMPREHENSIVE**: Each `**File**:` block within a phase is a task. Count code fence lines per block. Respect phase boundaries -- never merge tasks across phases.
+- **MINIMAL**: Each acceptance criterion checkbox is a task. Estimate LoC from the "MVP" section by applying the LoC Counting Rules below to each fence, distributing across criteria proportionally.
+- **STANDARD**: Each `**File**:` block under "Changes Required" is a task. Apply the LoC Counting Rules below to each file block's fence.
+- **COMPREHENSIVE**: Each `**File**:` block within a phase is a task. Apply the LoC Counting Rules below to each block's fence. Respect phase boundaries -- never merge tasks across phases.
 
 ### LoC Counting Rules
 
-- Count only lines inside code fences (triple-backtick blocks)
+- Count only lines inside **literal** code fences. A fence counts as literal only when it is immediately preceded by a `**Code-shape decision:**` label; any unlabeled fence is pseudo-code — do not line-count it, fall through to the estimate rule below. **Backward-compat:** if the plan has no `**Code-shape decision:**` labels anywhere (a pre-change plan), treat every fenced block as literal and count it — otherwise old plans route all code to the estimate fallback and slice under-sizes MRs. <!-- Maintainer note: keep this routing identical to execute.md Step 1.5b; both are mirrors per the CLAUDE.md Code-shape decision sync convention. -->
 - Exclude test file changes (files matching: `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.*`, files under `tests/`, `__tests__/`, `test/`)
-- If a task has no code fence, estimate conservatively (~30-50 LoC per described file change) and mark as "est. approximate"
+- If a task has no literal code fence (pseudo-code/decisions only), estimate conservatively (~30-50 LoC per described file change) and mark as "est. approximate"
 - Track total estimated LoC across all tasks
 
 ### Single-Slice Check
