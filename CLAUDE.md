@@ -56,6 +56,10 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - `plan-iteration-gate` — Per-round plan-iteration discipline validation, dispatched by `/ba:review-plan` Step 5.5 (Read, Grep, Glob, LS)
 - `interface-design-generator` — Generates one alternative interface design under a named Ousterhout-flavored constraint, dispatched in parallel by `/ba:brainstorm` Phase 2 design-it-twice mode (Read, Grep, Glob, LS)
 
+## Hooks
+
+- `comment-guard` (`hooks/hooks.json` → `scripts/comment-guard.sh`) — `PostToolUse` hook on `Edit`/`Write`/`MultiEdit`. When an edit to a code file adds full-line comments, it injects a system reminder listing those lines and re-asserts the why-comments-only convention; silent otherwise. Enforces comment discipline at write time rather than as a deferrable `/ba:review` nit. Tunable via `COMMENT_GUARD_MIN_COMMENTS` (default 2). Scope: code files only — prose/config (`.md`, `.json`, `.yaml`) skipped. Fail-safe: exits silently without `jq` or on unexpected input.
+
 ## Artifact Paths
 
 | Artifact | Path |
@@ -82,3 +86,4 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 - Plan documents default to **decisions** (approach, exact file paths, patterns, pseudo-code for shape, test scenarios); a literal code block is permitted only under a `**Code-shape decision:** <why>` label. The label wording is mirrored across `commands/ba/plan.md` ("Key rules for all templates" trigger block **and** the three template placeholders), `commands/ba/execute.md` (Step 2b + Step 1.5b LoC projection), `commands/ba/slice.md` (LoC Counting Rules), and `README.md` (`/ba:plan` description) — keep them in sync. (This convention covers the *label* only; the `## Locked Design` anchor it references is owned by `commands/ba/brainstorm.md`.)
 - Update README.md whenever commands, agents, or artifact paths are added or changed
 - Git workflow commands (`ba:propose`) commit, push, and open PR/MR — they never modify source files outside the staged diff
+- Plugin hooks live in `hooks/hooks.json` (auto-discovered) and reference scripts under `scripts/` via `${CLAUDE_PLUGIN_ROOT}`; hook scripts must fail safe (exit 0 on missing deps or unexpected input) so they never disrupt an edit. Document new hooks in both `README.md` (Hooks section) and the CLAUDE.md Hooks section.

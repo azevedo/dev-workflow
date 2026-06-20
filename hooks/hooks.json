@@ -1,0 +1,18 @@
+{
+  "description": "Comment-style guard: after an Edit/Write/MultiEdit that adds code comments, re-assert the why-comments-only convention on the just-written diff.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/comment-guard.sh",
+            "timeout": 10,
+            "statusMessage": "Checking comment style..."
+          }
+        ]
+      }
+    ]
+  }
+}

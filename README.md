@@ -261,6 +261,20 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `plan-iteration-gate` | Validates each `/ba:review-plan` round against the planning-YAGNI / confidence-chasing ratchet — silent when iteration is clean, vocal on six trigger categories, advisory only |
 | `interface-design-generator` | Generates one alternative interface design under a named Ousterhout-flavored constraint (deepest-module / common-case / info-hiding); dispatched in parallel by `/ba:brainstorm` Phase 2 when the brainstorm proposes a new module or interface |
 
+## Hooks
+
+The plugin ships a `PostToolUse` hook (`hooks/hooks.json` → `scripts/comment-guard.sh`) that enforces comment discipline **at write time** instead of leaving it to a deferrable review nit.
+
+| Hook | Trigger | Behavior |
+|---|---|---|
+| `comment-guard` | After `Edit` / `Write` / `MultiEdit` on a code file | If the edit added full-line comments, injects a system reminder listing those exact lines and re-asserts the why-comments-only convention. Silent when no comments were added. |
+
+Why a hook rather than another memory-file instruction: a rule in `CLAUDE.md` loses salience deep in a long edit session, and an end-of-run reviewer flags verbose comments only as a `Low` nit that's easy to skip. The hook fires deterministically on the just-written diff — the one moment the reminder is both salient and cheap to act on. It does the mechanical half (which lines are comments) and hands the judgment half (why-comment vs. restating) back to Claude on a small, fresh diff.
+
+- **Scope:** code files only (`.js/.ts/.go/.py/.rb/.rs/.sh/...`). Prose and config (`.md`, `.json`, `.yaml`) are skipped. Block comments (`/* */`, `<!-- -->`) are out of scope.
+- **Tuning:** `COMMENT_GUARD_MIN_COMMENTS` (default `2`) — minimum added comment lines before the hook speaks up. Set to `1` for strictest enforcement.
+- **Fail-safe:** missing `jq` or unexpected input exits silently; the hook can never disrupt an edit.
+
 ## Knowledge Compounding
 
 The plugin includes a `docs/solutions/` knowledge base and the `/ba:compound` command to populate it. When you solve a problem, run `/ba:compound` (or let it auto-trigger) to document the solution. The `learnings-researcher` agent surfaces relevant learnings during future brainstorm and plan sessions, so the same mistakes aren't repeated.
