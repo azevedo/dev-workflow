@@ -874,8 +874,9 @@ modes (`Apply all fixes` / `Apply Critical + High + Med-conf-100`) skip any prio
 the same reason — a resurfaced finding is only re-applied through a deliberate per-finding choice.
 
 **After applying accepted dispositions (the guard).**
-Runs on every fix-local apply (`Apply all fixes`, `Apply Critical + High + Med-conf-100`, and per-finding
-Apply/Modify). If the accepted set is empty (all Skipped, or a filter that matched zero), apply nothing,
+Runs on any per-finding Apply/Modify or bulk apply disposition (`Apply all fixes`,
+`Apply Critical + High + Med-conf-100`), regardless of entry point (Fix locally sub-menu or direct
+"Walk one by one"). If the accepted set is empty (all Skipped, or a filter that matched zero), apply nothing,
 note "nothing applied," and return to the menu — no reconciliation, no test run.
 
 **1. Bidirectional reconciliation.** Map findings to edits by **target region** (file + line range),
@@ -974,15 +975,25 @@ Announce one line before the menu:
 **When `MR_AUTHORSHIP == mine`**, use **AskUserQuestion** — "How would you like to handle the findings?"
 1. **Fix locally** *(Recommended — it's your MR)* — Apply fixes to your local checkout
    (precondition-gated; see below). Leads to the fix-local resolution sub-menu.
-2. **Post inline comments** — Post all displayed (post-gate) findings as inline comments (e.g., notes
-   for later or for co-reviewers).
-3. **Post Critical + High + Med-conf-100** — Same posting flow, pre-filtered.
+2. **Walk one by one** — Step through each finding; per-finding choose Apply / Skip / Modify
+   (precondition-gated; see below). Skips the fix-local sub-menu and goes directly to the per-finding fix
+   walk (same walk as "Review one by one" in the sub-menu, lines 854–869). If zero post-gate findings exist,
+   display "No findings to walk." and return to this menu.
+3. **Fix Critical + High + Med-conf-100** — Apply the **Filter for `Apply Critical + High + Med-conf-100`**
+   (defined under **For local scopes**) and fix directly, without opening the sub-menu (precondition-gated;
+   see below). If 0 findings match, report "0 findings matched the filter (Critical + High + Med-conf-100)."
+   and return to this menu. Prior-revert-marked findings within the matched set are skipped; if all matches
+   are prior-revert-marked, surface "N findings matched the filter; all are prior-revert-marked and were
+   skipped." before returning to menu.
 4. **Done** — Acknowledge findings without further action.
 
-(The standalone "Review one by one for discussion" walk is **not** offered on your own MR — a discussion
-walk is thin with no second party. The one-by-one *fix* walk is reached via **Fix locally**. **AskUserQuestion
-allows at most 4 options — a harness limit, not a style choice** — so a fifth option can't be added without
-removing one.)
+Precondition failure for **Walk one by one** and **Fix Critical + High + Med-conf-100**: reuse the existing
+failure flow verbatim (see Fix locally — precondition check, below), including the one-Checkout limit. The
+"Post comment" fallback always posts all findings regardless of which option triggered the precondition check.
+
+(The discussion-only "Review one by one" walk is not offered on own-MR — thin with no second party.
+"Walk one by one" here is a direct-path shortcut to the per-finding fix walk; Fix locally reaches the same
+walk via its sub-menu. **AskUserQuestion allows at most 4 options — a harness limit, not a style choice.**)
 
 **When `MR_AUTHORSHIP == theirs` or `undetermined`**, use **AskUserQuestion** — today's posting-only menu,
 unchanged:
