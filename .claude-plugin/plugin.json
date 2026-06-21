@@ -1,7 +1,7 @@
 {
   "name": "dev-workflow",
-  "version": "0.24.3",
-  "description": "Research, brainstorm, plan, slice, execute, review, compound, and propose commands with triage, convention compliance, and knowledge compounding",
+  "version": "0.25.0",
+  "description": "Research, brainstorm, plan, execute, review, compound, and propose commands with triage, convention compliance, and knowledge compounding",
   "author": {
     "name": "Bruno Azevedo"
   },
@@ -10,7 +10,6 @@
     "research",
     "brainstorm",
     "planning",
-    "slice",
     "execute",
     "workflow",
     "conventions",

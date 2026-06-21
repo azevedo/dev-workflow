@@ -445,7 +445,7 @@ Pre-prefix the block with warnings if any:
 - `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
 - `⚠ <result.size_warning>` (printed verbatim when `result.size_warning is not None` — e.g. `⚠ Composed body is longer than typical for a change this size (target: ~one screen) — consider trimming`. The phrase names the target shape only; it never surfaces the tier label or the "Lynch's soft cap" source vocabulary.)
 
-**`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer commands `/ba:review --local` and `/ba:slice` follow the same rule.)
+**`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer command `/ba:review --local` follows the same rule.)
 
 For every other `ACTION`, ask via `AskUserQuestion`:
 

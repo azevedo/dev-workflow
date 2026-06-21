@@ -4,7 +4,7 @@ A Claude Code plugin that adds structured research, brainstorm, plan, and execut
 
 ## Why
 
-The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), decompose into MR-sized slices (`/ba:slice`), review before writing code (`/ba:review-plan`), then implement (`/ba:execute`). Post-implementation review (`/ba:review`) and knowledge compounding (`/ba:compound`) close the loop so the same mistakes aren't repeated.
+The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), review before writing code (`/ba:review-plan`), then implement (`/ba:execute`). Post-implementation review (`/ba:review`) and knowledge compounding (`/ba:compound`) close the loop so the same mistakes aren't repeated.
 
 The design synthesizes patterns from three production agent workflow systems ([compound-engineering](https://github.com/EveryInc/compound-engineering-plugin), [humanlayer](https://github.com/humanlayer/12-factor-agents), [superpowers](https://github.com/obra/superpowers)), taking the best ideas from each and closing gaps they all share.
 
@@ -12,7 +12,7 @@ The design synthesizes patterns from three production agent workflow systems ([c
 
 In Birgitta Böckeler's [framing of spec-driven development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html), SDD tools sit at one of three levels: **spec-first** (write the spec before the code), **spec-anchored** (keep the spec in sync with the code after shipping, and use it to drive evolution), and **spec-as-source** (the spec is the only thing humans edit; code is fully derived output).
 
-`dev-workflow` is firmly spec-first. Plans drive implementation, then flip to `status: completed` and stop driving anything — there is no regeneration step and no drift detection between plan and code. Durable knowledge survives via `/ba:compound` to `docs/solutions/` rather than by keeping old plans live. This is a deliberate cost trade-off: spec-anchored and spec-as-source tooling is heavy, and most of the maintenance value can be captured with named learnings surfaced by `learnings-researcher` in the next plan. The plugin's answer to Böckeler's main critique (review overload for small features) is the triage tiers in `/ba:brainstorm` and `/ba:plan` plus MR-sized decomposition in `/ba:slice` — not a spec-as-source escape hatch.
+`dev-workflow` is firmly spec-first. Plans drive implementation, then flip to `status: completed` and stop driving anything — there is no regeneration step and no drift detection between plan and code. Durable knowledge survives via `/ba:compound` to `docs/solutions/` rather than by keeping old plans live. This is a deliberate cost trade-off: spec-anchored and spec-as-source tooling is heavy, and most of the maintenance value can be captured with named learnings surfaced by `learnings-researcher` in the next plan. The plugin's answer to Böckeler's main critique (review overload for small features) is the triage tiers in `/ba:brainstorm` and `/ba:plan` — not a spec-as-source escape hatch.
 
 ## Facts vs. specs
 
@@ -45,10 +45,7 @@ Do you understand the codebase area well enough to start a design conversation?
         Same research will feed multiple features?       → /ba:research first
         Just need to explore an idea?                    → /ba:brainstorm (it'll guide you)
 
-After planning, choose your execution mode:
-    Plan is large (multiple MRs worth of work)?              → /ba:slice first
-    Otherwise?                                               → /ba:execute
-    Plan is sliced?                                          → /ba:execute --slice N
+After planning, implement with /ba:execute.
 ```
 
 `/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
@@ -109,18 +106,6 @@ Transforms feature descriptions into implementation plans with exact file paths 
 
 Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`.
 
-### `/ba:slice [plan]`
-
-Decomposes an approved plan into MR-sized slices for incremental delivery. Each slice targets <=150 LoC (excluding tests) and represents one merge request's worth of work.
-
-- **Auto-detects the latest plan** if no path is given; reads plan structure and estimates LoC per task
-- **Inline annotations** -- slices live as HTML comment markers in the plan file (one file, one source of truth)
-- **Three detail levels** -- handles MINIMAL, STANDARD, and COMPREHENSIVE plans; respects phase boundaries in COMPREHENSIVE
-- **Re-sliceable** -- run ba:slice again and choose "Re-slice from scratch" to re-decompose when estimates prove wrong
-- **Pipeline chaining** -- completion menu offers to start slice 1 immediately or with fresh context
-
-After slicing, execute one slice at a time with `/ba:execute --slice N`. Each slice gets its own branch and MR.
-
 ### `/ba:review-plan [path]`
 
 Runs discovery-based reviews against a plan before implementation. Automatically finds review agents and skills available in your environment (copy auditors, code reviewers, complexity assessors, test strategy reviewers) and offers to run them against the plan.
@@ -141,8 +126,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
 - **Resume across sessions** — updates plan checkboxes `[ ]` → `[x]` as tasks complete; detects and resumes from partial progress
 - **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
-- **Pre-slice scope check** — projects files-to-touch and LoC before coding; pauses via deviation handling when projection exceeds the slice's `Est. LoC` threshold.
-- **Slice-aware execution** — `--slice N` executes a single slice; auto-detects next incomplete slice on sliced plans; suggests fresh context between slices
+- **Pre-execution scope check** — projects files-to-touch and LoC before coding; pauses via deviation handling when the projection exceeds a fixed threshold (400 LoC)
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
 ### `/ba:review [ref range]`
@@ -193,7 +177,7 @@ Compacts the current conversation into a handoff document saved to your OS temp 
 
 - **Git-state aware** — records branch, dirty/clean, and pushed/unpushed so the next session knows where the code stands
 - **References, doesn't restate** — points at in-repo artifacts by path (`docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, `docs/reviews/`) instead of duplicating them
-- **Execution-aware** — if you're mid-`/ba:execute`, names the plan path and the slice number reached
+- **Execution-aware** — if you're mid-`/ba:execute`, names the plan path and the task progress reached
 - **Suggested next steps** — lists exact slash invocations for the next agent to run, not prose hints
 - **Verified facts only** — redacts secrets and never fabricates paths, IDs, or test results
 
@@ -258,7 +242,6 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
 | `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
 | `complexity-reviewer` | Reviews code changes for Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer) |
-| `plan-iteration-gate` | Validates each `/ba:review-plan` round against the planning-YAGNI / confidence-chasing ratchet — silent when iteration is clean, vocal on six trigger categories, advisory only |
 | `interface-design-generator` | Generates one alternative interface design under a named Ousterhout-flavored constraint (deepest-module / common-case / info-hiding); dispatched in parallel by `/ba:brainstorm` Phase 2 when the brainstorm proposes a new module or interface |
 
 ## Knowledge Compounding

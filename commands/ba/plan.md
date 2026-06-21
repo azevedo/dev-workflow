@@ -191,7 +191,6 @@ status: active
 date: YYYY-MM-DD
 origin: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md  # if originated from brainstorm, otherwise omit
 detail_level: minimal | standard | comprehensive
-iteration_count: 0
 tags: [feature, component-names]
 ---
 ```
@@ -500,16 +499,14 @@ Use **AskUserQuestion** to present next steps:
 
 **Options:**
 1. **Start implementation** — Begin executing this plan in the current session
-2. **Slice plan** — Decompose into MR-sized slices for incremental delivery (`/ba:slice`)
-3. **Fresh-context implementation** — Clear context and implement with only the plan loaded (saves tokens)
-4. **Review plan** — Run `/ba:review-plan` to review with available agents and skills (copy, complexity, tests, code review)
-5. **Review and refine** — Manually improve specific sections of the plan
-6. **Create issue** — Create issue in project tracker (GitHub/Linear)
-7. **Done for now** — Return later
+2. **Fresh-context implementation** — Clear context and implement with only the plan loaded (saves tokens)
+3. **Review plan** — Run `/ba:review-plan` to review with available agents and skills (copy, complexity, tests, code review)
+4. **Review and refine** — Manually improve specific sections of the plan
+5. **Create issue** — Create issue in project tracker (GitHub/Linear)
+6. **Done for now** — Return later
 
 **Based on selection:**
 - **Start implementation** → Begin implementing the plan directly in this session.
-- **Slice plan** → Invoke `/ba:slice docs/plans/[filename]` to decompose into MR-sized slices before executing.
 - **Fresh-context implementation** → Tell the user: "Run `/clear` then read the plan and implement it: `docs/plans/[filename]`". This gives a clean context window with only the plan, no brainstorm/research token overhead.
 - **Review plan** → Invoke `/ba:review-plan docs/plans/[filename]` to discover and run available review agents/skills against the plan.
 - **Review and refine** → Ask which section, make changes, return to options.

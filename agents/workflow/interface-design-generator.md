@@ -8,7 +8,7 @@ tools: Read, Grep, Glob, LS
 <examples>
 <example>
 Context: The /ba:brainstorm command is in Phase 2 and the brainstorm proposes a new agent file. The dispatching command fires three parallel calls — this one anchored to the deepest-module constraint.
-user: "Constraint: deepest-module. Brainstorm context: a new agents/workflow/ agent that watches /ba:execute slices for slice-creep — fires when slice scope grows mid-execution. Existing constraint set: agents/workflow/ has -checker, -gate, -analyzer suffixes. The agent dispatches read-only, surfaces violations only, never blocks. Dependencies: must read plan frontmatter; must compare slice diffs across rounds."
+user: "Constraint: deepest-module. Brainstorm context: a new agents/workflow/ agent that audits a plan's acceptance criteria for testability — fires when a plan reaches review. Existing constraint set: agents/workflow/ has -checker, -analyzer, -generator suffixes. The agent dispatches read-only, surfaces violations only, never blocks. Dependencies: must read plan frontmatter; must compare findings across rounds."
 assistant: "I'll generate an alternative interface design under the deepest-module constraint — smallest surface, 1-3 entry points max, most behavior hidden behind the seam — and produce the 5-part output."
 <commentary>The agent receives a constraint identifier and a brainstorm context summary. It produces exactly the 5-part output contract — no commentary, no recommendation, no comparison to other constraints. The dispatching command compares across the three returned designs.</commentary>
 </example>

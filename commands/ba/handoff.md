@@ -30,7 +30,7 @@ Name the branch, whether the tree is clean or dirty, and whether commits are pus
 
 **In-repo artifacts — reference, don't restate.** When a fact already lives in a file, point to it by path instead of copying its content. This includes dev-workflow artifacts: `docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, and `docs/reviews/`. The same applies to PRDs, ADRs, issues, commits, and diffs — cite them, don't duplicate them.
 
-**`/ba:execute` progress.** If the session was executing a plan, name the plan path and the slice number you reached (e.g. "mid-execute on `docs/plans/2026-06-04-feat-…-plan.md`, slice 3 of 5") so the next session resumes in the right place.
+**`/ba:execute` progress.** If the session was executing a plan, name the plan path and the task progress you reached (e.g. "mid-execute on `docs/plans/2026-06-04-feat-…-plan.md`, 3 of 5 tasks complete") so the next session resumes in the right place.
 
 **Suggested next steps.** Add a "Suggested next steps" section listing the *exact* slash invocations the next agent should run — not prose hints. For example:
 
