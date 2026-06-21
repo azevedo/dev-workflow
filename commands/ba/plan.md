@@ -204,8 +204,10 @@ tags: [feature, component-names]
 
 ## Acceptance Criteria
 
-- [ ] Core requirement 1
-- [ ] Core requirement 2
+Keyed `AC<N>` (monotonic from 1), plan-owned — minted here, not inherited from the origin ticket. Each item is a user-observable "done" statement. Add an indented "When X, Y" example under a criterion only when prose alone leaves an edge case ambiguous.
+
+- [ ] AC1: Core requirement 1
+- [ ] AC2: Core requirement 2
 
 ## What We're NOT Doing
 
@@ -249,6 +251,13 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 ## Current State
 
 [What exists, key discoveries with file:line references]
+
+## Acceptance Criteria
+
+Keyed `AC<N>` (monotonic from 1), plan-owned — minted here, not inherited from the origin ticket. Each item is a user-observable "done" statement. Add an indented "When X, Y" example under a criterion only when prose alone leaves an edge case ambiguous.
+
+- [ ] AC1: [user-observable success statement]
+- [ ] AC2: [another]
 
 ## What We're NOT Doing
 
@@ -319,6 +328,13 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 ## Current State
 
 [What exists, key discoveries with file:line references]
+
+## Acceptance Criteria
+
+Keyed `AC<N>` (monotonic from 1), plan-owned — minted here, not inherited from the origin ticket. Each item is a user-observable "done" statement. Add an indented "When X, Y" example under a criterion only when prose alone leaves an edge case ambiguous.
+
+- [ ] AC1: [user-observable success statement]
+- [ ] AC2: [another]
 
 ## What We're NOT Doing
 
