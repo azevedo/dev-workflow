@@ -651,17 +651,15 @@ Findings: <raw_count> raw → <displayed_count> after dedup
 ### Looks Good
 - <validated aspect>
 
-<details>
-<summary><strong>Suppressed (low confidence) — <K> findings</strong></summary>
+### Suppressed (low confidence) — <K> findings
 
 #### Critical *(suppressed)*
 - **<file>:<line>** *(confidence: <N>)* — <body>
 
 #### High *(suppressed)*
 - ...
-</details>
 
-(Heading levels: outer summary uses `<strong>` because GitHub does not render Markdown headings inside `<summary>`; the inner severity sub-headings use H4 / `####` so they nest one level deeper than the main `### Critical` / `### High` / etc. sections above.)
+(Heading levels: the suppressed bucket is an H3 / `###` peer of the main severity sections; its inner severity sub-headings use H4 / `####` so they nest one level deeper. Plain Markdown headings — no HTML — because this block renders inline in the Claude Code terminal, which prints raw `<details>`/`<summary>` tags as literal text instead of collapsing them.)
 
 ## Coverage
 

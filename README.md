@@ -162,7 +162,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Seven built-in reviewers** — architecture, security, simplification, error handling, test coverage, deep-module design, and complexity; always available out of the box
 - **Smart selection** — discovers external review agents and skills, then reads the diff and judges which reviewers have real work; presents the full roster as a **selection ledger** (selected + set aside, each with a one-line reason, overlaps named) for a one-step confirm or adjust. Nothing hidden, every reviewer reachable, no state persisted
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased analysis
-- **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that surfaces high-noise findings in a collapsed `Suppressed` section
+- **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that moves high-noise findings into a separate `Suppressed` section
 - **Fix application & own-MR resolution** — for local scopes and your **own** MR (authorship detected
   from `gh`/`glab`), apply fixes locally: apply-all, Critical + High + Med-conf-100, or a one-by-one walk
   where each finding leads with a recommended disposition (**Apply / Skip / Modify**). A precondition
