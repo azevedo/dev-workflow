@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plan→execute vs CE (ce-plan / ce-work) — capability comparison</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e222e; --ink:#e7e9ee; --muted:#9aa3b2;
+    --line:#2a2f3c; --dw:#4f8cff; --ce:#b07cff;
+    --hi:#ff5d6c; --med:#ffb454; --lo:#6b7585; --ok:#3ecf8e; --part:#ffb454; --no:#5a6273;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0c0e14,#0f1117);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 18px 80px}
+  .wrap{max-width:1040px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.3px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 0 26px}
+  .legend b{color:var(--ink)}
+  .chip{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .dw{color:var(--dw)} .ce{color:var(--ce)}
+  .pill{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+    padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .pill.dw{background:rgba(79,140,255,.16);color:#9cc0ff}
+  .pill.ce{background:rgba(176,124,255,.16);color:#cdb0ff}
+  .pri{font-size:10px;font-weight:800;letter-spacing:.5px;padding:2px 7px;border-radius:6px;text-transform:uppercase}
+  .pri.High{background:rgba(255,93,108,.18);color:#ff8a95}
+  .pri.Med{background:rgba(255,180,84,.16);color:#ffc885}
+  .pri.Low{background:rgba(107,117,133,.2);color:#aab3c2}
+
+  section{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 22px;margin:16px 0}
+  section h2{font-size:15px;margin:0 0 14px;display:flex;align-items:center;gap:9px;letter-spacing:.2px}
+  section h2 .n{font-size:11px;color:var(--muted);font-weight:600}
+  .tag{font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;letter-spacing:.4px}
+
+  /* verdict + scorecard */
+  .verdict{background:linear-gradient(135deg,rgba(79,140,255,.08),rgba(176,124,255,.08));
+    border-color:#2f3850}
+  .verdict p{margin:0 0 16px;font-size:14.5px}
+  .score{display:grid;grid-template-columns:130px 1fr 1fr;gap:9px 14px;align-items:center}
+  .score .hd{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+  .score .dim{color:var(--muted);font-size:13px}
+  .meter{display:flex;gap:4px;align-items:center}
+  .meter i{width:13px;height:13px;border-radius:50%;background:#2b3140;display:inline-block}
+  .meter.dw i.on{background:var(--dw)} .meter.ce i.on{background:var(--ce)}
+  .meter b{font-size:12px;color:var(--muted);margin-left:6px;font-weight:600}
+
+  /* takeaways */
+  .top{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .top .card{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--hi);
+    border-radius:10px;padding:13px 14px}
+  .top .card .k{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px}
+  .top .card .t{font-size:13.5px;font-weight:650;margin-top:5px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+  td.c{text-align:center;width:120px;font-weight:700}
+  .grp td{background:var(--panel2);font-weight:800;font-size:11px;letter-spacing:.6px;
+    text-transform:uppercase;color:#c5ccd9}
+  .y{color:var(--ok)} .pp{color:var(--part)} .x{color:var(--no)}
+  td.note{color:var(--muted);font-size:12px}
+
+  ul.f{list-style:none;margin:0;padding:0}
+  ul.f li{padding:10px 0;border-bottom:1px solid var(--line)}
+  ul.f li:last-child{border-bottom:0}
+  ul.f .nm{font-weight:680}
+  ul.f .what{color:var(--ink)}
+  ul.f .why{color:var(--muted);font-size:13px}
+  ul.f .why::before{content:"→ ";color:var(--ce)}
+  ul.f .src{color:var(--lo);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .row1{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:2px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:0 26px}
+  .stance li b.ce{color:var(--ce)} .stance li b.dw{color:var(--dw)}
+  .ahead li::marker{color:var(--dw)}
+  .ahead{padding-left:18px} .ahead li{padding:6px 0;border:0}
+  @media(max-width:760px){.top,.two{grid-template-columns:1fr}.score{grid-template-columns:110px 1fr;}.score .ceonly{grid-column:2}}
+  .foot{color:var(--lo);font-size:11px;text-align:center;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>plan→execute &nbsp;vs&nbsp; ce-plan / ce-work</h1>
+  <div class="sub">Capability comparison · <b>dev-workflow</b> (ours) vs <b>compound-engineering</b> (CE) · generated 2026-06-17</div>
+
+  <div class="legend">
+    <span class="chip"><span class="pill dw">dev-workflow</span> ours</span>
+    <span class="chip"><span class="pill ce">CE</span> theirs</span>
+    <span class="chip"><b class="y">✓</b> full</span>
+    <span class="chip"><b class="pp">◐</b> partial</span>
+    <span class="chip"><b class="x">✗</b> none</span>
+    <span class="chip"><span class="pri High">High</span><span class="pri Med">Med</span><span class="pri Low">Low</span> priority</span>
+  </div>
+
+  <!-- VERDICT -->
+  <section class="verdict">
+    <h2>⚖︎ Verdict</h2>
+    <p>Both are mature, decisions-first pipelines with near-identical philosophies (decisions-not-code,
+    research-before-structure, scope discipline). <b>CE is broader and more harness-portable</b> with deeper
+    review-<i>gating</i> machinery (residual gate, tiered escalation, confidence-deepening) and dual-format output;
+    <b>dev-workflow is tighter on execute + review-apply</b> (LoC tripwire, slice contract, code-shape label,
+    reconcile + verify-then-keep guard). Both <i>capture</i>
+    learnings (ours <code>/ba:compound</code>, CE <code>ce-compound</code>) and consume <code>docs/solutions/</code>.</p>
+    <div class="score">
+      <div class="hd">Dimension</div><div class="hd dw">dev-workflow</div><div class="hd ce">CE</div>
+      <div class="dim">Planning rigor</div>     <div class="meter dw" data-v="4"></div><div class="meter ce" data-v="5"></div>
+      <div class="dim">Execution discipline</div><div class="meter dw" data-v="5"></div><div class="meter ce" data-v="4"></div>
+      <div class="dim">Review-in-loop</div>     <div class="meter dw" data-v="4"></div><div class="meter ce" data-v="5"></div>
+      <div class="dim">Knowledge compounding</div><div class="meter dw" data-v="3"></div><div class="meter ce" data-v="3"></div>
+      <div class="dim">Output / rendering</div> <div class="meter dw" data-v="2"></div><div class="meter ce" data-v="5"></div>
+      <div class="dim">Traceability</div>       <div class="meter dw" data-v="4"></div><div class="meter ce" data-v="5"></div>
+    </div>
+  </section>
+
+  <!-- SESSION REALIZATIONS / ROADMAP SIGNAL -->
+  <section style="border-color:#3a4a55;background:linear-gradient(135deg,rgba(79,140,255,.06),rgba(62,207,142,.05))">
+    <h2>⟳ Session realizations → roadmap signal <span class="n">2026-06-17 · current view; supersedes stale calls below</span></h2>
+    <p style="margin:0 0 14px"><b>Spine — the one move most items hang off:</b> <b class="dw">decouple plan-state from the plan file</b> (stable U-IDs + code/git-derived progress + read-only plan). Fits “no committed artifacts” better than today’s checkbox-mutation model, unlocks the HTML bigger-play, and lets slice + the plan-LoC gate retire.</p>
+    <div class="top" style="grid-template-columns:1fr 1fr">
+      <div class="card" style="border-left-color:var(--hi)"><div class="k">RETIRE CANDIDATES</div><div class="t"><b>/ba:slice</b> + <b>plan-LoC iteration gate</b> — reactionary fixes for huge plans; slice unused, gate always no-ops. CE solves “big plan” via readability (collapsible unit cards) + altitude, not decomposition. <b>Convention gate</b> — reconsider too (↓).</div></div>
+      <div class="card" style="border-left-color:var(--med)"><div class="k">PRIORITY ADJUSTED</div><div class="t">Parallel worktree exec → <b>Low</b>. Non-software path → <b>dropped</b> (not relevant). HTML <i>export</i> cheap-win → <b>dropped</b>; wait for the bigger play once the foundation lands.</div></div>
+    </div>
+    <p style="margin:16px 0 6px"><b>Open questions (unresolved — for the roadmap):</b></p>
+    <ul class="f">
+      <li><span class="nm">review-plan upgrade — leaning clear.</span> Empirical input: externals are rarely/never picked in review-plan, the external population is <i>code-focused</i>, and plans are now code-light → manual discovery surfaces mostly-irrelevant reviewers. So drop the <b>manual discovery menu</b> here (it stays in <code>/ba:review</code>, where code externals are the point and the judged selection works well). The upgrade: <b>port /ba:review's judged ledger, judged against the plan's sections</b> (= CE's confidence-scored targeting) — auto-sets-aside code externals on a code-light plan with a reason, killing the friction while keeping a rare plan-relevant external reachable. Full-strip-to-built-ins is the simpler alternative. <b>Size-gate</b>: drop regardless. Fork still open: inline into /ba:plan vs keep a lean command.</li>
+      <li><span class="nm">Behaviors-to-Test vs Acceptance Criteria overlap.</span> CE splits it: origin holds Acceptance Examples (AE-IDs), plan units hold Test Scenarios that link back (<code>Covers AE&lt;N&gt;</code>). Ours stacks both in-plan. Keep the testable-behaviors list (QA-plan + agent-browser value); reconcile its altitude with AC.</li>
+    </ul>
+    <p style="margin:12px 0 0;font-size:12.5px;color:var(--muted)"><b>Correction:</b> <code>/ba:review</code> is <b>code</b> review (post-impl / others’ code), not plan review — the matrix’s “Review-in-loop” group conflates the two. CE’s residual-gate &amp; batched-apply map to <i>code</i> review (our /ba:review, already mature); plan deepening maps to review-plan. · <b>Shipped:</b> #30 merged to main (0.24.0).</p>
+  </section>
+
+  <!-- TOP TAKEAWAYS -->
+  <section>
+    <h2>★ Top 3 to steal from CE <span class="n">highest leverage</span></h2>
+    <div class="top">
+      <div class="card"><div class="k">1 · REVIEW LOOP</div><div class="t"><b>Residual-work gate</b> — force a disposition (file / accept-and-record / stop) on unfixed findings. We already <i>apply</i> fixes with a guard; this gate is the missing piece.</div></div>
+      <div class="card"><div class="k">2 · TRACEABILITY</div><div class="t">Adopt <b>stable U-IDs</b> so progress & commit links survive reorder/re-slice — decouple state from checkbox position.</div></div>
+      <div class="card"><div class="k">3 · REVIEW DEPTH</div><div class="t"><b>Tiered escalation + confidence-scored deepening</b> — deterministic rules for how deep review goes, targeting weak sections.</div></div>
+    </div>
+  </section>
+
+  <!-- FEATURE MATRIX -->
+  <section>
+    <h2>▤ Feature matrix</h2>
+    <p style="margin:-4px 0 14px;font-size:12.5px;color:#ffc885;background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.25);border-radius:8px;padding:9px 12px">
+      ⚠ <b>Scope caveat:</b> this compares only <b>ce-plan</b> + <b>ce-work</b>. CE ships ~40 skills — a <b>CE ✗</b> here means
+      “not in those two skills,” <i>not</i> “absent from CE.” Several cells almost certainly live in siblings:
+      capture → <code>ce-compound</code>, code review → <code>ce-code-review</code>, PR-feedback → <code>ce-resolve-pr-feedback</code>,
+      sessions → <code>ce-sessions</code>. Treat every CE-✗ and “we’re ahead” claim as provisional until those are read.</p>
+    <table>
+      <thead><tr><th>Capability</th><th class="c">dev-workflow</th><th class="c">CE</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="4">Planning</td></tr>
+        <tr><td>Decisions-over-code stance</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Both default prose+pseudo</td></tr>
+        <tr><td>Code-in-plan gate</td><td class="c y">✓</td><td class="c pp">◐</td><td class="note">Ours: explicit label; CE: prose rule</td></tr>
+        <tr><td>Detail tiers</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">minimal/std/comp vs light/std/deep</td></tr>
+        <tr><td>Brainstorm / requirements origin</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Both carry forward + cross-check</td></tr>
+        <tr><td>External-research decision</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Ours: rule-based risk triggers; CE: multi-agent</td></tr>
+        <tr><td>Flow / edge-case analysis</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">spec-flow-analyzer both</td></tr>
+        <tr><td>Stable unit IDs (U/R-IDs)</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">CE never renumbers; ours = checkboxes</td></tr>
+        <tr><td>Approach-altitude ("plan a plan")</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">ce-plan Phase 0.1a</td></tr>
+        <tr><td>Non-software planning path</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">universal-planning.md</td></tr>
+        <tr><td>Scope gate pre-research</td><td class="c pp">◐</td><td class="c y">✓</td><td class="note">Ours: convention-check; CE: scope call-outs</td></tr>
+
+        <tr class="grp"><td colspan="4">Execution</td></tr>
+        <tr><td>Resume from progress</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Checkboxes vs git-derived</td></tr>
+        <tr><td>Per-task targeted tests</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Both defer full suite/lint</td></tr>
+        <tr><td>System-wide self-check</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Near-identical 5 questions</td></tr>
+        <tr><td>Incremental commit discipline</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Same heuristic/table</td></tr>
+        <tr><td>Pre-slice LoC scope tripwire</td><td class="c y">✓</td><td class="c x">✗</td><td class="note">Ours only (T=2×Est)</td></tr>
+        <tr><td>Parallel subagent execution</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">CE: worktree-isolated batches</td></tr>
+        <tr><td>Deviation-handling protocol</td><td class="c y">✓</td><td class="c pp">◐</td><td class="note">Ours: explicit Expected/Found/Why</td></tr>
+
+        <tr class="grp"><td colspan="4">Review-in-loop</td></tr>
+        <tr><td>Tiered review escalation</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">Ours: relevance-based selection, not size-tiers</td></tr>
+        <tr><td>Review-findings followup (apply)</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Ours: apply + reconcile/verify guard; CE: batched subagents</td></tr>
+        <tr><td>Residual-work gate</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">CE: file/accept/stop on unfixed</td></tr>
+        <tr><td>Plan deepening pass</td><td class="c pp">◐</td><td class="c y">✓</td><td class="note">CE: confidence-scored targeting</td></tr>
+
+        <tr class="grp"><td colspan="4">Knowledge / compounding</td></tr>
+        <tr><td>Consume docs/solutions</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">learnings-researcher both</td></tr>
+        <tr><td>Capture solved problems</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Both: /ba:compound ↔ ce-compound (CE's namesake)</td></tr>
+
+        <tr class="grp"><td colspan="4">Output &amp; UX</td></tr>
+        <tr><td>HTML output mode</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">ce-plan output:html</td></tr>
+        <tr><td>Issue creation (GH/Linear)</td><td class="c y">✓</td><td class="c y">✓</td><td class="note">Both</td></tr>
+        <tr><td>Post-deploy monitoring section</td><td class="c x">✗</td><td class="c y">✓</td><td class="note">CE PR-mandatory</td></tr>
+
+        <tr class="grp"><td colspan="4">Traceability / handoff</td></tr>
+        <tr><td>Slice / MR decomposition</td><td class="c y">✓</td><td class="c x">✗</td><td class="note">Ours: /ba:slice (≤150 LoC)</td></tr>
+        <tr><td>Origin→plan ID traceability</td><td class="c pp">◐</td><td class="c y">✓</td><td class="note">CE: A/F/AE/R/U-ID chain</td></tr>
+        <tr><td>Cross-session handoff</td><td class="c y">✓</td><td class="c pp">◐</td><td class="note">Ours: /ba:handoff doc</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- THEY HAVE -> WE'D BENEFIT -->
+  <section>
+    <h2>⬇ They have → we'd benefit <span class="n">ordered by priority</span></h2>
+    <ul class="f">
+      <li><div class="row1"><span class="nm">Residual Work Gate</span><span class="pri High">High</span></div>
+        <div class="what">Unfixed actionable findings force file-ticket / accept-and-record / stop — nothing ships with known issues silently.</div>
+        <div class="why">our /ba:review ends at findings, with no enforced disposition of unfixed ones</div>
+        <div class="src">shipping-workflow.md:50-64</div></li>
+      <li><div class="row1"><span class="nm">Stable U-IDs / R-IDs</span><span class="pri High">High</span></div>
+        <div class="what">Units carry IDs that survive reorder/split/delete and anchor blocker + verification references across edits.</div>
+        <div class="why">our checkbox-state model breaks traceability when a plan is re-sliced or reordered</div>
+        <div class="src">ce-plan SKILL.md:470, 498-500</div></li>
+      <li><div class="row1"><span class="nm">Tiered review escalation criteria</span><span class="pri Med">Med</span></div>
+        <div class="what">Explicit triggers (sensitive surface, ≥400 lines + &gt;3 dirs, ≥1000 lines, plan asks) decide when to escalate review depth.</div>
+        <div class="why">we have no rule for "when is light review enough"</div>
+        <div class="src">shipping-workflow.md:41-48</div></li>
+      <li><div class="row1"><span class="nm">Confidence-scored deepening</span><span class="pri Med">Med</span></div>
+        <div class="what">Risk-weighted per-section checklist picks the top 2-5 weak sections and dispatches only the matching specialist agents.</div>
+        <div class="why">our review-plan is discovery-based but lacks this scored targeting</div>
+        <div class="src">deepening-workflow.md:8-95</div></li>
+      <li><div class="row1"><span class="nm">Parallel subagent execution (worktree-isolated)</span><span class="pri Low">Low</span></div>
+        <div class="what">Independent units dispatched concurrently with a file-overlap safety check and merge-conflict re-dispatch.</div>
+        <div class="why">our execute is serial — but low priority for a solo, small-feature workflow (complexity tax without payoff until big multi-unit plans)</div>
+        <div class="src">ce-work SKILL.md:130-191</div></li>
+      <li><div class="row1"><span class="nm">Batched parallel fix subagents</span><span class="pri Low">Low</span></div>
+        <div class="what">Groups review findings by file and dispatches concurrent fix subagents, then merges/tests/commits.</div>
+        <div class="why">we already apply with a reconcile + verify-then-keep guard — the gain is parallel scale, not the capability</div>
+        <div class="src">review-findings-followup.md:61-87</div></li>
+      <li><div class="row1"><span class="nm">Approach-altitude ("plan a plan")</span><span class="pri Low">Low</span></div>
+        <div class="what">For high-uncertainty / high-cost work, produce a checkpointed approach-plan before committing to the deliverable.</div>
+        <div class="why">we jump straight to the implementation plan</div>
+        <div class="src">approach-altitude.md:1-47</div></li>
+      <li><div class="row1"><span class="nm">Post-Deploy Monitoring section (PR-mandatory)</span><span class="pri Low">Low</span></div>
+        <div class="what">Every PR carries log queries, metrics, healthy/failure signals, rollback trigger, and owner.</div>
+        <div class="why">our /ba:propose body has no operational-validation requirement</div>
+        <div class="src">shipping-workflow.md:76-84</div></li>
+      <li style="opacity:.55"><div class="row1"><span class="nm">Non-software planning path</span><span class="pri Low" style="text-decoration:line-through">Drop</span></div>
+        <div class="what">ce-plan routes non-code tasks (study plans, research, runbooks) to a domain-agnostic workflow.</div>
+        <div class="why">dropped — not relevant to current work</div>
+        <div class="src">universal-planning.md:1-167</div></li>
+    </ul>
+  </section>
+
+  <div class="two">
+    <!-- THEY FIXED -->
+    <section>
+      <h2>✓ They've already fixed what we struggle with</h2>
+      <ul class="f">
+        <li><span class="nm">Unfixed findings have no disposition</span> — CE's Residual Work Gate forces file/accept/stop into a durable sink. <span class="src">shipping-workflow.md:50-64</span></li>
+        <li><span class="nm">Progress coupled to plan body</span> — CE derives "did it ship" from git; reorder/re-slice can't corrupt state. Our <code>[x]</code> drifts on re-slice. <span class="src">ce-work SKILL.md:61</span></li>
+        <li><span class="nm">Plan→commit traceability across edits</span> — CE's stable U-IDs anchor refs even after units move. <span class="src">ce-plan SKILL.md:498-500</span></li>
+        <li><span class="nm">One output shape only</span> — CE supports md OR html with a precedence stack; we're markdown-only. <span class="src">ce-plan SKILL.md:62-86</span></li>
+      </ul>
+    </section>
+
+    <!-- WE'RE AHEAD -->
+    <section>
+      <h2 class="dw">▲ Where we're ahead <span class="n">within plan→execute; not audited vs all ~40 CE skills</span></h2>
+      <ul class="f ahead">
+        <li><b>Pre-slice LoC scope tripwire</b> (T=2×Est, pause on M≥T) — CE has no quantitative scope-creep guard before code is written.</li>
+        <li><b>Slice / MR decomposition</b> — /ba:slice yields ≤150-LoC self-contained slices; CE has units but no MR-sizing lens.</li>
+        <li><b>Code-shape decision label</b> — explicit <code>**Code-shape decision:**</code> discriminator that slice + executor both consume; CE relies on prose framing.</li>
+        <li><b>Review apply-guard</b> — bidirectional reconciliation (under/over-application) + verify-then-keep with auto-revert of newly-red fixes; CE's followup has no test-gated revert.</li>
+        <li><b>Mandatory convention-compliance gate</b> — clears violations before a plan is written. <i>But not really "ahead":</i> we adapted this from CE's code-in-plans era; their current ce-plan dropped it (rationale not found). Reconsider — candidate to retire alongside slice + the LoC gate.</li>
+        <li><b>Explicit deviation protocol</b> — Expected/Found/Why + round-numbered <code>## Deviations</code> audit trail.</li>
+        <li><b>Backward-compat fence handling</b> — pre-change plans treat all fences as literal so old plans don't under-size.</li>
+        <li><b>Cross-session handoff doc</b> — /ba:handoff compacts git state + artifact paths + next steps. <i>(CE has <code>ce-sessions</code> — verify overlap.)</i></li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- FUTURE -->
+  <section>
+    <h2>➔ Future improvements <span class="n">synthesized · prioritized</span></h2>
+    <ul class="f">
+      <li><div class="row1"><span class="pri High">High</span><span class="what"><b>Residual-work gate</b> on /ba:review — force a disposition (file / accept-and-record / stop) on unfixed findings and durably record accepted residuals. <i>(Apply already exists.)</i></span></div></li>
+      <li><div class="row1"><span class="pri High">High</span><span class="what"><b>Stable U-IDs</b> in plans — /ba:execute + /ba:slice key on IDs (not checkbox position), decoupling progress from line order.</span></div></li>
+      <li><div class="row1"><span class="pri Med">Med</span><span class="what"><b>Tiered review escalation</b> — size/sensitivity triggers pick reviewer depth deterministically.</span></div></li>
+      <li><div class="row1"><span class="pri Med">Med</span><span class="what"><b>Confidence-scored section targeting</b> in /ba:review-plan — risk-weighted checklist → top-N weak sections → matched agents.</span></div></li>
+      <li><div class="row1"><span class="pri Med">Med</span><span class="what"><b>Parallel slice execution</b> with a file-overlap safety check for independent slices.</span></div></li>
+      <li><div class="row1"><span class="pri Low">Low</span><span class="what"><b>Post-Deploy Monitoring</b> section in /ba:propose by default (queries, signals, rollback trigger, owner).</span></div></li>
+      <li><div class="row1"><span class="pri Low">Low</span><span class="what"><b>Approach-altitude option</b> in /ba:plan for high-uncertainty work (checkpoint the approach first).</span></div></li>
+      <li><div class="row1"><span class="pri Low">Low</span><span class="what"><b>Optional HTML output mode</b> for plans meant as shareable review artifacts.</span></div></li>
+    </ul>
+  </section>
+
+  <!-- STANCE -->
+  <section>
+    <h2>◑ Design-stance differences <span class="n">philosophy, not features</span></h2>
+    <ul class="f stance">
+      <li><span class="nm">Plan's purpose</span> — <b class="ce">CE:</b> portable agent-agnostic decision artifact, progress derived from git · <b class="dw">ours:</b> executable checklist whose <code>[x]</code> state <i>is</i> the resume mechanism.</li>
+      <li><span class="nm">Code-in-plan control</span> — <b class="ce">CE:</b> prose discipline ("directional guidance") · <b class="dw">ours:</b> machine-parseable <code>**Code-shape decision:**</code> label tools consume.</li>
+      <li><span class="nm">Scope control</span> — <b class="ce">CE:</b> qualitative pre-research scope checkpoint · <b class="dw">ours:</b> quantitative pre-slice LoC tripwire + mandatory convention gate.</li>
+      <li><span class="nm">Delivery lens</span> — <b class="ce">CE:</b> units land as atomic commits, sized by judgment · <b class="dw">ours:</b> explicit ship-time slice layer (≤150-LoC MRs) separate from "how to build".</li>
+      <li><span class="nm">Breadth vs depth</span> — <b class="ce">CE:</b> domain-general, multi-harness (Claude/Codex/Gemini) · <b class="dw">ours:</b> code-only, Claude-Code-native, mechanically tighter within scope.</li>
+    </ul>
+  </section>
+
+  <div class="foot">Analysis by sub-agent over ce-plan (793 ln + 8 refs) & ce-work (382 ln + 4 refs) vs dev-workflow plan.md / slice.md / execute.md · scores are the analyst's 1-5 judgment, not a measured benchmark. · Corrected after verifying <code>commands/ba/review.md</code> (the sub-agent hadn't deep-read it): review-apply ◐→✓, external-research ◐→✓, tiered-escalation ◐→✗, Review-in-loop score 3→4. · Capture: CE ✗→✓ — <code>ce-compound</code> is CE's namesake; the comparison only read ce-plan/ce-work, so all CE-✗ cells are scoped to those two skills, not all ~40. · <b>2026-06-17 session:</b> added the roadmap-signal section (read it as the current view); convention-gate "ahead" claim corrected; <code>/ba:review</code> clarified as code-only; parallel-exec→Low, non-software dropped; report moved into the repo.</div>
+
+</div>
+<script>
+  // fill dot-meters from data-v
+  document.querySelectorAll('.meter').forEach(m=>{
+    const v=+m.dataset.v;let h='';
+    for(let i=1;i<=5;i++)h+=`<i class="${i<=v?'on':''}"></i>`;
+    m.innerHTML=h+`<b>${v}/5</b>`;
+  });
+</script>
+</body>
+</html>

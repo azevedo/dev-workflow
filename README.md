@@ -279,12 +279,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 
 ## Roadmap
 
-- `/ba:review` — post-implementation code review (built-in + discovered reviewers) ✅
-- `/ba:compound` — capture solved problems to `docs/solutions/` ✅
-- `/ba:slice` — plan decomposition into MR-sized slices for incremental delivery ✅
-- `/ba:handoff` — session continuity for multi-session work ✅
-- `/ba:execute` V3 — batch mode and subagent-driven execution
-- Plan size vs human-review tax — investigate splitting `/ba:plan` output into a short decision doc (human-reviewed, ~200 lines: scope, architecture, risks, phases, slice table) + per-slice mechanical briefs (types, code stubs, test lists) generated fresh at `/ba:execute` time. Motivation: plans routinely grow past human-reviewable size (1000+ LoC) because one artifact serves both human reviewers and implementation agents; fresh per-slice briefs also catch mechanical drift (stale imports, renamed types, hallucinated helpers) that a plan-time snapshot accumulates before execution. Open questions: does the decision doc stay coherent across slices if kept that thin; can brief generation stay deterministic enough that slice N doesn't contradict slice N-1.
+The roadmap lives in **GitHub issues**, hubbed by **[#29 — dev-workflow roadmap](https://github.com/azevedo/dev-workflow/issues/29)** — the "where do I start?" map (not the raw issue list). Items use a `[roadmap]` title prefix, `cluster:*` lanes (autonomy / polish / review-quality / infra) and `ready` / `deferred` / `declined` / `needs-brainstorm` states; deferred and declined items carry a documented revisit trigger. See [`.claude/agent_docs/roadmap-management.md`](.claude/agent_docs/roadmap-management.md) for the full convention.
 
 ## License
 
