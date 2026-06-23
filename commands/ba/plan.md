@@ -522,8 +522,8 @@ Use **AskUserQuestion** to present next steps:
 6. **Done for now** — Return later
 
 **Based on selection:**
-- **Start implementation** → Begin implementing the plan directly in this session.
-- **Fresh-context implementation** → Tell the user: "Run `/clear` then read the plan and implement it: `docs/plans/[filename]`". This gives a clean context window with only the plan, no brainstorm/research token overhead.
+- **Start implementation** → Invoke `/ba:execute docs/plans/[filename]` to implement the plan.
+- **Fresh-context implementation** → Tell the user: "Run `/clear`, then in the new session run `/ba:execute docs/plans/[filename]`". This gives a clean context window with only the plan loaded, no brainstorm/research token overhead.
 - **Review plan** → Invoke `/ba:review-plan docs/plans/[filename]` to discover and run available review agents/skills against the plan.
 - **Review and refine** → Ask which section, make changes, return to options.
 - **Create issue** → Detect tracker from CLAUDE.md and create:
