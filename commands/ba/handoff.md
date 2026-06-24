@@ -30,7 +30,11 @@ Name the branch, whether the tree is clean or dirty, and whether commits are pus
 
 **In-repo artifacts — reference, don't restate.** When a fact already lives in a file, point to it by path instead of copying its content. This includes dev-workflow artifacts: `docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, and `docs/reviews/`. The same applies to PRDs, ADRs, issues, commits, and diffs — cite them, don't duplicate them.
 
-**`/ba:execute` progress.** If the session was executing a plan, name the plan path and the task progress you reached (e.g. "mid-execute on `docs/plans/2026-06-04-feat-…-plan.md`, 3 of 5 tasks complete") so the next session resumes in the right place.
+**`/ba:execute` progress.** If the session was executing a plan (`plan_schema: 2`), name the plan path and narrate U-resolution via `derive-state(plan, git, run_verify: false)` — subject scan only, **never** run `Verify:` commands (handoff must be side-effect-free; this is the `run_verify: false` asymmetry owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`).
+
+For each unit, the verdict is either `done-via-subject` (its `U<n>` appears in a commit subject in `<base>..HEAD`) or `pending`. Handoff **cannot** observe `done-via-verify` — a unit that is implemented but uncommitted reads `pending` here. Narrate pending units as: "uncommitted, not yet durable — commit and run `/ba:propose` to make it durable." State this limitation explicitly so the receiving session knows the progress report reflects **git durability**, not worktree state.
+
+E.g. "mid-execute on `docs/plans/…-plan.md`: U1–U3 done-via-subject; U4–U5 pending (U4 may be implemented in working tree — verify before re-implementing)."
 
 **Suggested next steps.** Add a "Suggested next steps" section listing the *exact* slash invocations the next agent should run — not prose hints. For example:
 

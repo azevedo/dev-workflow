@@ -362,6 +362,7 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
 | 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
+| 13 | Deviations | small | `deviation_trailers` is non-empty (see below) | Roll up `Deviation (U<n>):` trailers from commit bodies over `DIFF_BASE..HEAD` (the **same `<base>..HEAD` window defined by the `## U-ID & Git-Derived State Convention` section in `execute.md`** — `DIFF_BASE` is that `<base>`; do not re-derive). Render as a `## Deviations` section. When `issue_context` is present, mirror the same content to the Linear ticket body. If zero trailers are found, **omit the section entirely** (no empty header). A near-match that doesn't fit the exact `Deviation (U<n>):` form (e.g. `Deviations:` or a missing U-ID) is skipped from rollup but **warned at preview** so the author can correct before the MR/PR opens. Note: local squashing before `/ba:propose` drops trailers in non-final commits (documented residual). |
 | 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 
 For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #14); preserved blocks splice into canonical positions (Step 3.4).
@@ -378,6 +379,8 @@ Cross-cutting omissions that apply regardless of which sections activate (Lynch'
 - **Short-term discussion and tooling artifacts stay out** — preview URLs, build links, "I'll address comments below."
 
 #### 3.3 Title rewriting
+
+**U-ID preservation:** `/ba:propose` must not author a commit that strips or masks execute's existing U-tagged subjects in `DIFF_BASE..HEAD`. The U-tagged commit subjects (grammar: `<type>(<scope>): U<n> <description>` — owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`) are the durable state record; rewriting them would break `derive-state` on resume. The title rewriting below applies to the **PR/MR title only**, which is U-ID-free by design. Step 5a–5b's commit (the `/ba:propose` summary commit, if authored) uses the composed PR/MR title — it does not carry a `U<n>` token.
 
 Draft a title from `diff.commit_log[0]` or the user's free-text hint if provided.
 
