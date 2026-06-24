@@ -58,14 +58,14 @@ Create multiple Task agents to research different aspects concurrently. Use spec
 
 **For codebase research:**
 
-- Use the **codebase-locator** agent to find WHERE files and components live
-- Use the **codebase-analyzer** agent to understand HOW specific code works
-- Use the **codebase-pattern-finder** agent to find examples of similar implementations
+- Use the **dev-workflow:codebase-locator** agent to find WHERE files and components live
+- Use the **dev-workflow:codebase-analyzer** agent to understand HOW specific code works
+- Use the **dev-workflow:codebase-pattern-finder** agent to find examples of similar implementations
 
 **For research docs:**
 
-- Use the **research-locator** agent to discover what documents exist in `docs/research/`
-- Use the **research-analyzer** agent to extract key insights from the most relevant documents
+- Use the **dev-workflow:research-locator** agent to discover what documents exist in `docs/research/`
+- Use the **dev-workflow:research-analyzer** agent to extract key insights from the most relevant documents
 
 Dispatch guidance:
 

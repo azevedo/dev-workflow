@@ -233,7 +233,7 @@ If the diff exceeds 2000 lines, warn: "Large diff detected ([N] lines). Review q
 
 ### 2a. Gather built-in reviewers
 
-List the seven built-in review agents from `agents/review/`:
+List the seven built-in review agents (all live flat in `agents/`):
 
 | Agent | Focus |
 |---|---|
@@ -408,6 +408,8 @@ Discovery (2b) is **not** re-run on Adjust or on any loop — the roster is fixe
 
 For each selected reviewer, dispatch a fresh subagent using the Agent tool — regardless of whether it is an agent or a skill. Every reviewer must run in its own isolated context.
 
+**Built-in vs external dispatch:** built-in plugin reviewers use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). The selection ledger shows bare display names for readability; the dispatch uses the fully-qualified ID — this does not affect ledger presence or the never-hide convention. Discovered **external** reviewers (e.g. `code-reviewer`, `dragon-test-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
+
 For **agent-based reviewers**, prompt the subagent directly:
 
 - Task <reviewer-agent>("Review these code changes for [dimension focus].
@@ -505,7 +507,7 @@ Before dispatching, **resolve the name** against known skills and agents:
 
 1. **Normalize:** strip any leading `/` from the typed name to get the bare name
 2. **Match against skills:** check if the bare name (or any prefix-qualified variant like `namespace:bare-name`) appears in the system-reminder skills list. Also check if a `/bare-name` skill exists. If matched → dispatch as a **skill-based reviewer** (same template as above)
-3. **Match against agent types:** check if the bare name is a registered agent type (from the Agent tool's available types). If matched → dispatch as an **agent-based reviewer** (same template as above)
+3. **Match against agent types:** check if the bare name matches the **suffix** of a registered `dev-workflow:<name>` ID (e.g., typing `security-reviewer` matches `dev-workflow:security-reviewer`). If matched → dispatch as an **agent-based reviewer** using the full `dev-workflow:<name>` ID (same template as above). If the bare name matches a non-`dev-workflow:` registered agent type exactly, dispatch by that name.
 4. **No match → custom review dimension:** dispatch as a `general-purpose` subagent — do NOT use the typed name as `subagent_type` since it won't be a registered agent type:
 
 - Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens.

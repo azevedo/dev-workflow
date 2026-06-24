@@ -68,7 +68,7 @@ At any point during brainstorming, escalate if:
 When triage result is FAST-TRACK:
 
 1. Run a brief codebase check to confirm the pattern exists and assumptions hold:
-   - Task repo-researcher("Quick check: confirm existing patterns for: <feature_description>")
+   - Task dev-workflow:repo-researcher("Quick check: confirm existing patterns for: <feature_description>")
 
 2. State your understanding in 2-3 sentences.
 
@@ -121,8 +121,8 @@ Announce: "Brainstorm captured. Proceeding to plan."
 
 #### 1.1 Research (run in parallel)
 
-- Task repo-researcher("Understand existing patterns and conventions related to: <feature_description>")
-- Task learnings-researcher("Search for learnings related to: <feature_description>")
+- Task dev-workflow:repo-researcher("Understand existing patterns and conventions related to: <feature_description>")
+- Task dev-workflow:learnings-researcher("Search for learnings related to: <feature_description>")
 
 Wait for both agents to return before proceeding.
 
@@ -182,9 +182,9 @@ When the trigger does **not** fire, run the default mode below silently. No anno
 
 Dispatch three `interface-design-generator` agents in parallel, one per constraint:
 
-- Task interface-design-generator("Constraint: deepest-module. Brainstorm context: <3-8 sentence summary of what's being designed, including proposed module purpose, where it lives, dependencies, and constraints established in Phase 1.2 dialogue>.")
-- Task interface-design-generator("Constraint: common-case. Brainstorm context: <same summary as above>.")
-- Task interface-design-generator("Constraint: info-hiding. Brainstorm context: <same summary as above>.")
+- Task dev-workflow:interface-design-generator("Constraint: deepest-module. Brainstorm context: <3-8 sentence summary of what's being designed, including proposed module purpose, where it lives, dependencies, and constraints established in Phase 1.2 dialogue>.")
+- Task dev-workflow:interface-design-generator("Constraint: common-case. Brainstorm context: <same summary as above>.")
+- Task dev-workflow:interface-design-generator("Constraint: info-hiding. Brainstorm context: <same summary as above>.")
 
 Wait for all three to return.
 
@@ -311,7 +311,7 @@ If the dispatch was skipped because `## Locked Design` already exists at this pa
 **MANDATORY.** Run before writing the final artifact to disk.
 
 1. Dispatch the convention-checker agent with the draft brainstorm content:
-   - Task convention-checker("Validate this brainstorm against project conventions: <draft content summary including approach, technology choices, architecture decisions>")
+   - Task dev-workflow:convention-checker("Validate this brainstorm against project conventions: <draft content summary including approach, technology choices, architecture decisions>")
 
 2. Review the agent's findings.
 

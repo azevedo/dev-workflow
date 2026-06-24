@@ -71,8 +71,8 @@ During refinement, gather signals for the research decision:
 
 Run these agents **in parallel** to gather local context:
 
-- Task repo-researcher("Research existing patterns, conventions, and CLAUDE.md guidance related to: <feature_description>")
-- Task learnings-researcher("Search for documented learnings related to: <feature_description>")
+- Task dev-workflow:repo-researcher("Research existing patterns, conventions, and CLAUDE.md guidance related to: <feature_description>")
+- Task dev-workflow:learnings-researcher("Search for documented learnings related to: <feature_description>")
 
 **What to extract:**
 - Existing patterns the implementation should follow
@@ -167,7 +167,7 @@ Sections: Everything in STANDARD plus phased implementation with per-phase `### 
 
 After structuring the plan, run the spec-flow analyzer to validate completeness:
 
-- Task spec-flow-analyzer("Analyze this feature for user flow completeness, edge cases, and gaps: <feature_description + key decisions from brainstorm/research>")
+- Task dev-workflow:spec-flow-analyzer("Analyze this feature for user flow completeness, edge cases, and gaps: <feature_description + key decisions from brainstorm/research>")
 
 **After receiving results:**
 - Review identified gaps and edge cases
@@ -449,7 +449,7 @@ Purely visual or manual checks belong in `Test scenarios:`, never in `Verify:`. 
 **MANDATORY.** Run before writing the plan to disk.
 
 1. Dispatch the convention-checker agent:
-   - Task convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
+   - Task dev-workflow:convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
 
 2. Review the agent's findings. Also check each `Verify:` line in the plan: flag any that appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with side effects).
 

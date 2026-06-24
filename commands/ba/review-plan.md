@@ -35,7 +35,7 @@ Search for review agents and skills available in the current environment. Look f
 
 ### 1a. Built-in reviewers
 
-Always include these seven built-in reviewers — they live in `agents/review/` and are always available:
+Always include these seven built-in reviewers — they live flat in `agents/` and are always available:
 
 | Agent | Focus |
 |---|---|
@@ -126,6 +126,8 @@ If no external reviewers were found after running the Globs, say so explicitly a
 ## Step 3: Run Selected Reviewers
 
 Run the selected reviewers **in parallel** where possible. Every reviewer runs in its own isolated subagent context via the Agent tool — regardless of whether it is an agent or a skill.
+
+**Built-in vs external dispatch:** when dispatching a built-in reviewer via the Agent tool, use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). Discovered **external** reviewers (e.g. `code-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
 
 For **skill-based reviewers**, instruct the subagent to invoke the skill (e.g., "Use the `[skill-name]` skill to review this plan.") and pass the plan content as context.
 

@@ -67,7 +67,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 ## Conventions
 
 - Command namespace: `ba:` comes from the `commands/ba/` directory — every command invokes as `/ba:<name>` (full form `/dev-workflow:ba:<name>`). This namespace is command-only; plugin skills (if any are ever added) are namespaced by the plugin name (`/dev-workflow:<skill>`), not `ba:`
-- Agent names: lowercase-with-hyphens; suffix names the role (`-reviewer` for `agents/review/`; `-checker`, `-analyzer`, `-generator` for `agents/workflow/`)
+- Agent names: lowercase-with-hyphens; suffix names the role — `-reviewer` for review agents; `-checker`, `-analyzer`, `-generator` for workflow agents; `-researcher`, `-locator`, `-finder` for research agents. All agents live flat in `agents/`; the research/review/workflow grouping is conceptual only.
 - All artifacts require YAML frontmatter
 - Bump `version` in `.claude-plugin/plugin.json` for every release
 - Planning commands (brainstorm, plan, review-plan) must never write code — only research and document
