@@ -436,7 +436,11 @@ Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file
 - **(a) Code-matchable**: a grep-able symbol/path, a file-existence claim (`test -f path/to/file`), or a runnable read-only command.
 - **(b) Read-only**: no state mutation — so `/ba:handoff` (which calls `derive-state` with `run_verify: false`) stays side-effect-free, and `/ba:execute` resume doesn't corrupt state.
 - **(c) Source state, not build output**: prefer a repo symbol (`grep -q 'FunctionName' src/`)  over a dist artifact (`dist/bundle.js`) so the check stays stable across clean builds.
+- **(d) Wiring, not presence**: when a unit adds a *consumer* that depends on a newly introduced input (a struct field, gather step, config key, template variable), the `Verify:` must assert the input is **produced and connected** — not merely that the consumer's string exists. A presence-only grep (`grep 'consumerName'`) is a false-green: it passes the moment the consumer is typed, even if nothing produces its input. Assert every link as a conjunction (declaration **AND** producer **AND** consumer), or expect ≥2 hits for an input that is both produced and read — a single hit means a dangling endpoint.
+
 Purely visual or manual checks belong in `Test scenarios:`, never in `Verify:`. A unit with no code-matchable `Verify:` is **commit-tag-only**: it skips the `Verify:` tier during resume and stays `pending` until its `U<n>` appears in a commit subject (documented in the convention).
+
+**Falsifiability test for every `Verify:`**: ask "what broken-but-plausible state would still pass this check?" If a half-wired feature (consumer present, producer absent) passes, the check is too weak — tighten it until that state fails. A precise, wiring-level check is *more* falsifiable than a presence grep, and surfaces gaps the looser check launders through as green.
 
 ---
 
