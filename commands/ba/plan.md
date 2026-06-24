@@ -545,7 +545,7 @@ Convention compliance: [N aligned, N overrides, N debt items]
 
 - **Research before writing** — understand the codebase before proposing changes
 - **Exact file paths and decisions** — never use placeholders; literal code only under a `**Code-shape decision:**` label (when unsure, include the label)
-- **Separate automated and manual verification** — different audiences, different timing
+- **Each unit carries `Test scenarios:` + one `Verify:`** — the `Verify:` line is the automated, code-matchable, read-only check; visual or manual checks belong in `Test scenarios:`, never in `Verify:`
 - **"What We're NOT Doing" at every level** — prevents scope creep
 - **Convention compliance is mandatory** — not optional, not skippable
 - **Brainstorm decisions are binding** — carry them forward, don't silently drop them

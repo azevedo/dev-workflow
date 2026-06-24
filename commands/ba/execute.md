@@ -35,8 +35,8 @@ Read the plan file thoroughly.
 
 **Validate `plan_schema`** (read from YAML frontmatter only; a file with no `---` block is the absent case):
 - **Absent** — stop and say: "This plan predates the git-derived execution model. Re-plan with `/ba:plan` to regenerate it under `plan_schema: 2`." Point at the `origin:` brainstorm path when present. Optional preflight: if the file has neither `plan_schema` nor any recognizable plan structure (no `## Acceptance Criteria`, no `### U<n>`), say "this doesn't look like a plan file" instead.
-- **Present but value ≠ 2** — stop and say: "This plan has `plan_schema: <value>`. Expected `plan_schema: 2`. Check that your dev-workflow plugin version matches the plan's schema (upgrade or downgrade as needed)."
-- **Present but unparseable** — stop and say: "Frontmatter malformed near `plan_schema`. Fix the YAML and retry."
+- **Present, an integer ≠ 2** (e.g. `plan_schema: 1`) — stop and say: "This plan has `plan_schema: <value>`. Expected `plan_schema: 2`. Check that your dev-workflow plugin version matches the plan's schema (upgrade or downgrade as needed)."
+- **Present but not an integer** (a quoted string like `"two"`, a list, a map) **or unparseable YAML** — stop and say: "Frontmatter malformed near `plan_schema` (expected the integer `2`). Fix the YAML and retry." A wrong *type* is a malformed-frontmatter case, not a version mismatch.
 
 Extract:
 
@@ -85,39 +85,61 @@ Iterates the **plan's** current unit set (a U-ID in git history but absent from
 the plan is ignored — struck units are inert). For each plan unit, resolve in
 order:
   a. **done-via-subject** — its `U<n>` token appears in a commit subject in
-     `<base>..HEAD`. Match on **subjects only** and on **word boundaries**:
-     `git log --format=%s <base>..HEAD --invert-grep --grep='^Revert'` piped to
-     a token match where `U<n>` is immediately preceded by `: ` and followed by
-     a space or end-of-line (e.g. `grep -E ': U<n>( |$)'`) — so neither `U11`
-     nor `U3done` matches `U3`. Subjects-only is deliberate: `Deviation (U<n>):`
-     trailers put other U-IDs in bodies; reverts are excluded so a reverted unit
-     re-reads pending until re-tagged.
+     `<base>..HEAD`. Match on **subjects only** and on **word boundaries**.
+     Print subjects, then exclude reverts and match the token **on the printed
+     subject** (do NOT use `git log --grep`/`--invert-grep` for the revert
+     exclusion — those match the full commit message, not the subject `%s`, so a
+     commit whose *body* starts with `Revert` would be wrongly dropped):
+     `git log --format=%s <base>..HEAD | grep -v '^Revert' | grep -E ': U<n>( |$)'`
+     where `U<n>` is immediately preceded by `: ` and followed by a space or
+     end-of-line — so neither `U11` nor `U3done` matches `U3`. Subjects-only is
+     deliberate: `Deviation (U<n>):` trailers put other U-IDs in bodies. Revert
+     exclusion matches only the default `git revert` subject form (`^Revert`,
+     capital-R, no colon); reverts authored with an alternate subject
+     (`revert:`, `chore(revert):`) are **not** excluded and must be manually
+     re-tagged — a documented residual. A reverted unit re-reads pending until
+     re-tagged. (Residual: a description that coincidentally contains `: U<n>`
+     mid-subject is a false-positive match — acceptable under the one-in-flight-
+     plan-per-branch assumption.)
   b. else, **only when `run_verify` is true**, **done-via-verify** — the unit's
      `Verify:` passes against the working tree. **"Passes"** = the command exits
      0, or the named symbol/path is present in the working tree. A unit with no
      code-matchable `Verify:` line is **commit-tag-only**: it skips this tier and
-     stays `pending` until its U-ID appears in a subject. A `Verify:` that exits
-     non-zero for an **environmental** reason (command not found, permission
-     denied) must surface a warning — never silently read `pending`.
+     stays `pending` until its U-ID appears in a subject. **Distinguish two
+     non-zero outcomes** (both exit non-zero, but they mean opposite things): an
+     **environmental failure** — the command could not be *invoked* (exit 127,
+     or stderr names `command not found` / `permission denied` / `No such file`)
+     — must surface a warning and **never** silently read `pending`, because the
+     check never actually ran. A **legitimate failure** — a runnable command
+     that returns non-zero because the thing it checks is genuinely absent (e.g.
+     `grep -q 'FunctionName' src/` returning 1 because the symbol isn't there) —
+     resolves the unit to `pending` with no warning; that is the `Verify:` tier
+     working as intended.
   c. else **pending**.
 Resume at the first `pending` unit. With `run_verify: false` (handoff) the
 operation runs the subject scan only and is **guaranteed side-effect-free** — it
 never executes a `Verify:` command, so it returns only `done-via-subject` or
 `pending` and cannot observe `done-via-verify`. With `run_verify: true` (execute
 resume) `Verify:` commands run and must be read-only per the `Verify:` minting
-rules in `plan.md` (Phase 2 / U9).
+rules in `commands/ba/plan.md` ("Key rules for all templates").
 
-**`<base>` definition** (owned here, mirrors `propose.md`; `/ba:propose` cites
-this for both its diff range and its deviation-trailer rollup window):
+**`<base>` definition** (owned here; `/ba:propose` cites this for both its diff
+range and its deviation-trailer rollup window). `propose.md`'s Step 2a computes
+`DIFF_BASE` with the same `merge-base` call against the same default-branch
+detection ladder — it is the same algorithm, not a separate definition; `propose.md`
+relies on its own Step 1 routing (detached-HEAD / default-branch guard) to ensure a
+remote is present by the time Step 2a runs, rather than the degrade steps below:
 `git fetch --no-tags origin <default-branch>` then
 `<base> = git merge-base HEAD origin/<default-branch>`, using the same
 default-branch detection ladder as `propose.md`. Degrade order: no
 upstream/remote (fresh local branch) → merge-base against the local default
 branch; that absent too → treat the subject-scan window as **empty** and rely on
-the `Verify:` tier. Distinct from degrade: if a `git` invocation itself returns
-non-zero (a repo with no commits yet, `fetch` failing offline such that
-`merge-base` can't run), surface the git error and **abort** — do not silently
-treat the window as empty.
+the `Verify:` tier. Distinct from degrade: if **either** `git fetch` **or**
+`git merge-base` returns non-zero for any reason (a repo with no commits yet, an
+orphan branch with no common ancestor, `fetch` failing offline) — including a
+`fetch` that succeeds followed by a `merge-base` that fails — surface the git
+error and **abort**. Do not silently treat the window as empty, and do not read a
+clean `fetch` as license to degrade through a subsequent `merge-base` failure.
 
 ---
 
@@ -269,7 +291,7 @@ When implementation diverges from the plan (different file path, changed API, mi
 
 3. **Record** the deviation via an optional `Deviation (U<n>):` trailer in the commit body for the affected unit (see `## U-ID & Git-Derived State Convention`). `/ba:propose` rolls these trailers up into the MR/PR body and the Linear ticket when linked.
 
-   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. Fire a reminder: "Run `/ba:propose` to persist deviation(s) to the MR/ticket; they are not durable until then."
+   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. If that commit **fails** (pre-commit hook rejection, disk full, pre-push policy), do **not** silently pause — surface the commit error verbatim and ask the user to resolve it (fix the hook, free space, etc.) so the deviation is recorded before pausing; never drop to the pause with the trailer unpersisted, and never `--no-verify` around a hook to force it through. Once committed, fire a reminder: "Run `/ba:propose` to persist deviation(s) to the MR/ticket; they are not durable until then."
 
 ---
 

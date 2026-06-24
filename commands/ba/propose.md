@@ -262,6 +262,22 @@ If "Use existing evidence", prompt for the markdown to splice. Accept whatever t
 
 If no user-observable files changed, skip this prompt — `evidence = ()`.
 
+### 2f. Deviation trailers (`/ba:execute` rollup)
+
+Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a (this is the `<base>..HEAD` window owned by the `## U-ID & Git-Derived State Convention` section in `execute.md` — `DIFF_BASE` *is* that `<base>`; do not re-derive it):
+
+```bash
+git log "$DIFF_BASE..HEAD" --format=%B | grep -E '^Deviation \(U[0-9]+\):'
+```
+
+For each matched line, capture `(u_id, text)` where `u_id` is the `U<n>` token and `text` is the trailer content after the colon:
+
+- `deviation_trailers = ((u_id="U4", text="<what diverged and why>"), ...)` or `()`.
+
+**Near-matches**: a line that almost fits the trailer form but doesn't match the exact `Deviation (U<n>):` grammar (e.g. `Deviations:`, a missing `U<n>`, lowercase `deviation`) is **skipped** from `deviation_trailers` but recorded in orchestrator-side state as a near-match so Step 4's preview can warn the author to correct it before the MR/PR opens. Near-match warnings are orchestrator-side only — they never flow into `CompositionInputs`.
+
+If no trailers (and no near-matches) are found, set `deviation_trailers = ()` silently. Note: local squashing before `/ba:propose` drops trailers in non-final commits (documented residual).
+
 ## Step 3: Compose body (the seam)
 
 This is the composition spec — Claude executes it to produce `title` and `body` from the inputs gathered in Step 2. It is pure: it reads from `CompositionInputs` only, performs no I/O, makes no MCP calls, runs no git commands. If you find yourself needing a fact that isn't in `CompositionInputs`, that's a gather-side bug — go back to Step 2.
@@ -278,6 +294,7 @@ CompositionInputs:
   solutions          # tuple of accepted entries, possibly empty
   preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
   evidence           # tuple of (kind, raw), possibly empty
+  deviation_trailers # tuple of (u_id, text), possibly empty
 ```
 
 **Outputs**:
@@ -362,10 +379,10 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
 | 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
-| 13 | Deviations | small | `deviation_trailers` is non-empty (see below) | Roll up `Deviation (U<n>):` trailers from commit bodies over `DIFF_BASE..HEAD` (the **same `<base>..HEAD` window defined by the `## U-ID & Git-Derived State Convention` section in `execute.md`** — `DIFF_BASE` is that `<base>`; do not re-derive). Render as a `## Deviations` section. When `issue_context` is present, mirror the same content to the Linear ticket body. If zero trailers are found, **omit the section entirely** (no empty header). A near-match that doesn't fit the exact `Deviation (U<n>):` form (e.g. `Deviations:` or a missing U-ID) is skipped from rollup but **warned at preview** so the author can correct before the MR/PR opens. Note: local squashing before `/ba:propose` drops trailers in non-final commits (documented residual). |
+| 13 | Deviations | small | `deviation_trailers` is non-empty (gathered in Step 2f) | Render `deviation_trailers` (already rolled up in Step 2f from `Deviation (U<n>):` trailers over the `DIFF_BASE..HEAD` window) as a `## Deviations` section, one bullet per `(u_id, text)`. When `issue_context` is present, mirror the same content to the Linear ticket body. If `deviation_trailers` is empty, **omit the section entirely** (no empty header) — the row's required-input rule already drops it. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
 | 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 
-For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #14); preserved blocks splice into canonical positions (Step 3.4).
+For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #13 → #14); preserved blocks splice into canonical positions (Step 3.4).
 
 > **Note on `perf` as a tier-modifier**: a perf-typed change can be small *or* large by line count. The table treats `perf` as a flag that activates row #3 and row #14 regardless of size threshold; size-derived threshold rules still apply to other rows. This avoids the "first-match-wins" gotcha where a tiny perf change would otherwise classify as `typo` and drop row #14's before/after table.
 
