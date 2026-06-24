@@ -12,7 +12,7 @@ The design synthesizes patterns from three production agent workflow systems ([c
 
 In Birgitta Böckeler's [framing of spec-driven development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html), SDD tools sit at one of three levels: **spec-first** (write the spec before the code), **spec-anchored** (keep the spec in sync with the code after shipping, and use it to drive evolution), and **spec-as-source** (the spec is the only thing humans edit; code is fully derived output).
 
-`dev-workflow` is firmly spec-first. Plans drive implementation, then flip to `status: completed` and stop driving anything — there is no regeneration step and no drift detection between plan and code. Durable knowledge survives via `/ba:compound` to `docs/solutions/` rather than by keeping old plans live. This is a deliberate cost trade-off: spec-anchored and spec-as-source tooling is heavy, and most of the maintenance value can be captured with named learnings surfaced by `learnings-researcher` in the next plan. The plugin's answer to Böckeler's main critique (review overload for small features) is the triage tiers in `/ba:brainstorm` and `/ba:plan` — not a spec-as-source escape hatch.
+`dev-workflow` is firmly spec-first. Plans drive implementation and are read-only at execute time — progress is git-derived (U-tagged commit subjects + per-unit `Verify:` checks), not tracked by mutating the plan file. There is no regeneration step and no drift detection between plan and code. Durable knowledge survives via `/ba:compound` to `docs/solutions/` rather than by keeping old plans live. This is a deliberate cost trade-off: spec-anchored and spec-as-source tooling is heavy, and most of the maintenance value can be captured with named learnings surfaced by `learnings-researcher` in the next plan. The plugin's answer to Böckeler's main critique (review overload for small features) is the triage tiers in `/ba:brainstorm` and `/ba:plan` — not a spec-as-source escape hatch.
 
 ## Facts vs. specs
 
@@ -121,12 +121,11 @@ This catches issues at plan time — where fixing things is cheap — instead of
 
 Implements an approved plan systematically: code changes, targeted testing, progress tracking, deviation reporting, and atomic commits.
 
-- **Auto-detects the latest actionable plan** if no path is given; skips `status: completed` plans
-- **Three plan detail levels** — MINIMAL (per acceptance criterion), STANDARD (per file block), COMPREHENSIVE (per phase with phase gates)
+- **Auto-detects the latest `plan_schema: 2` plan** if no path is given; refuses plans without the schema discriminator with re-plan guidance
+- **Three plan detail levels** — MINIMAL (per unit), STANDARD (per unit), COMPREHENSIVE (per phase with automated checkpoints)
 - **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
-- **Resume across sessions** — updates plan checkboxes `[ ]` → `[x]` as tasks complete; detects and resumes from partial progress
-- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding, persists deviations in the plan file
-- **Pre-execution scope check** — projects files-to-touch and LoC before coding; pauses via deviation handling when the projection exceeds a fixed threshold (400 LoC)
+- **Resume across sessions via git** — U-ID commit subjects + per-unit `Verify:` against code; no plan-file mutations
+- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding; deviations surface in the MR/PR body and Linear ticket via `Deviation (U<n>):` commit trailers rolled up by `/ba:propose`, never the plan file
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
 ### `/ba:review [ref range]`
@@ -164,6 +163,8 @@ Commit, push, and open a PR/MR with a composed title and body.
 - Pure-function body composition: orchestrator gathers inputs (diff, branch, Linear, docs/solutions, preserved blocks, evidence) → composition reads value objects and returns title + body
 - Host-detected dispatch: GitHub `gh`, GitLab `glab`, graceful fallback for unknown hosts (compose + push only)
 - Body composition selects from Michael Lynch's 16-section menu, sized to the diff — the size-tier vocabulary is hidden behind the composition seam (no flag, no preview surface)
+- **U-ID preservation** — never strips or rewrites `/ba:execute`'s U-tagged commit subjects (`U<n>` per the convention in `execute.md`); PR/MR title is U-ID-free by design
+- **Deviation rollup** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and renders them as a `## Deviations` section in the MR/PR body (and Linear ticket when linked); omits the section when no trailers found; warns on near-matches at preview
 - Linear MCP optional with diff-derived fallback; clear preview warning when MCP is unavailable
 - `docs/solutions/` auto-detection on current-branch-touched entries; per-entry confirm to splice as "What I learned"
 - Cursor BugBot block and existing `## Demo` / `## Screenshots` preserved byte-identical
@@ -177,7 +178,7 @@ Compacts the current conversation into a handoff document saved to your OS temp 
 
 - **Git-state aware** — records branch, dirty/clean, and pushed/unpushed so the next session knows where the code stands
 - **References, doesn't restate** — points at in-repo artifacts by path (`docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, `docs/reviews/`) instead of duplicating them
-- **Execution-aware** — if you're mid-`/ba:execute`, names the plan path and the task progress reached
+- **Execution-aware** — if you're mid-`/ba:execute`, names the plan path and narrates U-resolution via `derive-state` (subject scan only, no `Verify:` side effects): units are `done-via-subject` (committed) or `pending`
 - **Suggested next steps** — lists exact slash invocations for the next agent to run, not prose hints
 - **Verified facts only** — redacts secrets and never fabricates paths, IDs, or test results
 
@@ -221,6 +222,10 @@ The `convention-checker` agent reads your CLAUDE.md and project conventions, com
 Violations are presented to you with options: comply, justify the override, or flag as known debt.
 
 Research docs (`docs/research/`) are exempt from compliance checks — they are pre-convention ephemeral artifacts.
+
+### U-ID & git-derived state convention
+
+The **U-ID & Git-Derived State Convention** (owned by the `## U-ID & Git-Derived State Convention` section in `commands/ba/execute.md`) is the single source of the implementation-unit anchor grammar, commit-subject grammar, and `derive-state` operation. Citation sites: `commands/ba/plan.md` mints `### U<n>` anchors, `commands/ba/execute.md` Step 2e applies the grammar, `commands/ba/propose.md` preserves U-tagged subjects + rolls up `Deviation (U<n>):` trailers, `commands/ba/handoff.md` calls `derive-state` with `run_verify: false`.
 
 ## Agents
 

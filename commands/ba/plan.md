@@ -159,7 +159,7 @@ Sections: Everything in MINIMAL plus overview, proposed solution, technical cons
 
 **Best for:** Major features, architectural changes, complex integrations. 10+ files.
 
-Sections: Everything in STANDARD plus phased implementation with per-phase success criteria (automated + manual), alternatives considered, risk analysis, API surface parity, integration test scenarios, documentation plan.
+Sections: Everything in STANDARD plus phased implementation with per-phase `### U<n>` units (each with `Test scenarios:` + `Verify:`), automated phase checkpoints, alternatives considered, risk analysis, API surface parity, integration test scenarios, documentation plan.
 
 ---
 
@@ -187,7 +187,8 @@ Write the plan using the chosen detail level template.
 ---
 title: [Descriptive Title]
 type: feat | fix | refactor
-status: active
+plan_schema: 2
+status: active  # human-authored only — /ba:execute ignores this for control flow (including status: completed); progress is git-derived
 date: YYYY-MM-DD
 origin: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md  # if originated from brainstorm, otherwise omit
 detail_level: minimal | standard | comprehensive
@@ -206,19 +207,12 @@ tags: [feature, component-names]
 
 Keyed `AC<N>` (monotonic from 1), plan-owned — minted here, not inherited from the origin ticket. Each item is a user-observable "done" statement. Add an indented "When X, Y" example under a criterion only when prose alone leaves an edge case ambiguous.
 
-- [ ] AC1: Core requirement 1
-- [ ] AC2: Core requirement 2
+- AC1: Core requirement 1
+- AC2: Core requirement 2
 
 ## What We're NOT Doing
 
 [Explicit scope boundaries — prevents scope creep]
-
-## Behaviors to Test *(optional)*
-
-A Kent C. Dodds-style checklist of user-observable behaviors this plan must satisfy. Authored once at planning time, this list serves three audiences: scope (what's in vs. out), review (does the implementation cover every claim), and test-coverage guarantee (each line is a candidate test case). Each item should be concrete enough to write a single test for — what the code does for the user, not how.
-
-- [ ] [Testable behavior derived from acceptance criteria]
-- [ ] [Another testable behavior]
 
 ## Context
 
@@ -226,12 +220,16 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 
 ## MVP
 
-### [filename.ext]
+### U1 — [unit title]
 
-```language
-[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
-Add a literal code block only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
-```
+[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape.
+Literal code only under a **Code-shape decision:** <why> label — see "Key rules".]
+
+Test scenarios:
+- [user-observable behavior] (Covers AC1)
+- [another]
+
+Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file-existence claim, or a read-only command]
 
 ## Sources
 
@@ -256,20 +254,12 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 
 Keyed `AC<N>` (monotonic from 1), plan-owned — minted here, not inherited from the origin ticket. Each item is a user-observable "done" statement. Add an indented "When X, Y" example under a criterion only when prose alone leaves an edge case ambiguous.
 
-- [ ] AC1: [user-observable success statement]
-- [ ] AC2: [another]
+- AC1: [user-observable success statement]
+- AC2: [another]
 
 ## What We're NOT Doing
 
 [Explicit scope boundaries]
-
-## Behaviors to Test *(optional)*
-
-A Kent C. Dodds-style checklist of user-observable behaviors this plan must satisfy. Authored once at planning time, this list serves three audiences: scope (what's in vs. out), review (does the implementation cover every claim), and test-coverage guarantee (each line is a candidate test case). Each item should be concrete enough to write a single test for — what the code does for the user, not how.
-
-- [ ] [Testable behavior 1 — what the code should do, not how]
-- [ ] [Testable behavior 2]
-- [ ] [Testable behavior 3]
 
 ## Proposed Solution
 
@@ -292,18 +282,17 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 ### Changes Required
 
 **File**: `exact/path/to/file.ext`
-```language
-[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
-Add a literal code block only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
-```
 
-### Success Criteria
+#### U1 — [unit title]
 
-#### Automated:
-- [ ] `command to run` — expected result
+[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape.
+Literal code only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
 
-#### Manual:
-- [ ] [Human verification step]
+Test scenarios:
+- [user-observable behavior] (Covers AC1)
+- [another]
+
+Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file-existence claim, or a read-only command]
 
 ## Dependencies & Risks
 
@@ -333,20 +322,12 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 
 Keyed `AC<N>` (monotonic from 1), plan-owned — minted here, not inherited from the origin ticket. Each item is a user-observable "done" statement. Add an indented "When X, Y" example under a criterion only when prose alone leaves an edge case ambiguous.
 
-- [ ] AC1: [user-observable success statement]
-- [ ] AC2: [another]
+- AC1: [user-observable success statement]
+- AC2: [another]
 
 ## What We're NOT Doing
 
 [Explicit scope boundaries]
-
-## Behaviors to Test *(optional)*
-
-A Kent C. Dodds-style checklist of user-observable behaviors this plan must satisfy. Authored once at planning time, this list serves three audiences: scope (what's in vs. out), review (does the implementation cover every claim), and test-coverage guarantee (each line is a candidate test case). Each item should be concrete enough to write a single test for — what the code does for the user, not how.
-
-- [ ] [Testable behavior 1 — what the code should do, not how]
-- [ ] [Testable behavior 2]
-- [ ] [Testable behavior 3]
 
 ## Proposed Solution
 
@@ -367,19 +348,21 @@ A Kent C. Dodds-style checklist of user-observable behaviors this plan must sati
 ### Phase 1: [Foundation]
 
 #### Changes Required
+
 **File**: `exact/path/to/file.ext`
-```language
-[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape, test scenarios.
-Add a literal code block only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
-```
 
-#### Success Criteria
-##### Automated:
-- [ ] `command to run` — expected result
-##### Manual:
-- [ ] [Human verification step]
+##### U1 — [unit title]
 
-> **Phase gate:** Automated verification must pass. Pause for manual verification before proceeding to Phase 2.
+[Decisions: approach, exact paths, patterns to follow, pseudo-code for shape.
+Literal code only under a **Code-shape decision:** <why the shape is non-obvious> label — see "Key rules".]
+
+Test scenarios:
+- [user-observable behavior] (Covers AC1)
+- [another]
+
+Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file-existence claim, or a read-only command]
+
+> **Phase gate:** All units in this phase reach `done` via `Verify:` or a U-tagged commit → automated checkpoint proceeds automatically. No manual pause.
 
 ---
 
@@ -439,8 +422,8 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 **Key rules for all templates:**
 - Include **exact file paths** — never placeholders
 - **Default to decisions, not code** — approach, exact file paths, patterns to follow, pseudo-code for shape, and test scenarios. Include a literal code block ONLY under a `**Code-shape decision:** <why the shape is non-obvious>` label.
-- Separate success criteria into **Automated** and **Manual**
-- Phase gates in COMPREHENSIVE: automated passes first, then pause for manual verification
+- Each implementation unit is a `### U<n> — <title>` heading (monotonic, strike-don't-renumber); every unit carries `Test scenarios:` bullets and exactly one `Verify:` line
+- Phase gates in COMPREHENSIVE: an automated checkpoint — all units `done` → proceed; no manual pause
 - Always include "What We're NOT Doing"
 
 **Code-shape decision rule:** Add a literal code block + label only when re-deriving the shape from a prose decision would plausibly produce a *different, wrong* structure (a specific reducer state machine, a concurrency-sensitive ordering, a tricky query window).
@@ -448,6 +431,16 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 - ❌ Negative: a standard CRUD handler or an obvious mapping → describe it; do not include literal code.
 - When unsure, include the code + label: a false-positive label costs a little review attention; a false-negative loses the design.
 - **Anchor:** when a brainstorm origin exists, a code-shape block anchors to the brainstorm's `## Locked Design` (interface, signatures, invariants, error modes). With no brainstorm, it anchors to the plan's own Proposed Solution / research findings.
+
+**`Verify:` minting rules** (the authoring half of the contract the `execute.md` convention's `Verify:` tier reads; cite `## U-ID & Git-Derived State Convention` in `execute.md` for the resolution rules). Every minted `Verify:` must be:
+- **(a) Code-matchable**: a grep-able symbol/path, a file-existence claim (`test -f path/to/file`), or a runnable read-only command.
+- **(b) Read-only**: no state mutation — so `/ba:handoff` (which calls `derive-state` with `run_verify: false`) stays side-effect-free, and `/ba:execute` resume doesn't corrupt state.
+- **(c) Source state, not build output**: prefer a repo symbol (`grep -q 'FunctionName' src/`)  over a dist artifact (`dist/bundle.js`) so the check stays stable across clean builds.
+- **(d) Wiring, not presence**: when a unit adds a *consumer* that depends on a newly introduced input (a struct field, gather step, config key, template variable), the `Verify:` must assert the input is **produced and connected** — not merely that the consumer's string exists. A presence-only grep (`grep 'consumerName'`) is a false-green: it passes the moment the consumer is typed, even if nothing produces its input. Assert every link as a conjunction (declaration **AND** producer **AND** consumer), or expect ≥2 hits for an input that is both produced and read — a single hit means a dangling endpoint.
+
+Purely visual or manual checks belong in `Test scenarios:`, never in `Verify:`. A unit with no code-matchable `Verify:` is **commit-tag-only**: it skips the `Verify:` tier during resume and stays `pending` until its `U<n>` appears in a commit subject (documented in the convention).
+
+**Falsifiability test for every `Verify:`**: ask "what broken-but-plausible state would still pass this check?" If a half-wired feature (consumer present, producer absent) passes, the check is too weak — tighten it until that state fails. A precise, wiring-level check is *more* falsifiable than a presence grep, and surfaces gaps the looser check launders through as green.
 
 ---
 
@@ -458,7 +451,7 @@ Add a literal code block only under a **Code-shape decision:** <why the shape is
 1. Dispatch the convention-checker agent:
    - Task convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
 
-2. Review the agent's findings.
+2. Review the agent's findings. Also check each `Verify:` line in the plan: flag any that appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with side effects).
 
 3. **For each VIOLATION**, use **AskUserQuestion** to present it:
    - "Convention X says Y, but the plan does Z. How should we handle this?"
@@ -556,7 +549,7 @@ Convention compliance: [N aligned, N overrides, N debt items]
 
 - **Research before writing** — understand the codebase before proposing changes
 - **Exact file paths and decisions** — never use placeholders; literal code only under a `**Code-shape decision:**` label (when unsure, include the label)
-- **Separate automated and manual verification** — different audiences, different timing
+- **Each unit carries `Test scenarios:` + one `Verify:`** — the `Verify:` line is the automated, code-matchable, read-only check; visual or manual checks belong in `Test scenarios:`, never in `Verify:`
 - **"What We're NOT Doing" at every level** — prevents scope creep
 - **Convention compliance is mandatory** — not optional, not skippable
 - **Brainstorm decisions are binding** — carry them forward, don't silently drop them

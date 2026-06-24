@@ -6,7 +6,7 @@ argument-hint: "[path to plan file]"
 
 # Execute an Implementation Plan
 
-Take a plan produced by `/ba:plan` and implement it systematically: make code changes, run tests, track progress via plan checkboxes, handle deviations, and commit at logical boundaries.
+Take a plan produced by `/ba:plan` and implement it systematically: make code changes, run tests, track progress via git-derived state, handle deviations, and commit at logical boundaries.
 
 ## Plan File
 
@@ -24,30 +24,122 @@ Treat `#$ARGUMENTS` as the plan file path.
 ls -t docs/plans/*.md 2>/dev/null | head -5
 ```
 
-From the results, read each plan's YAML frontmatter. Prefer plans with `status: active` or `status: in-progress`. Skip plans with `status: completed`.
+From the results, read each plan's YAML frontmatter. Select the most recent file with `plan_schema: 2`. Skip files without `plan_schema: 2`.
 
 If found, announce: "Found plan: `[filename]`. Executing this one."
 If not found, ask the user: "No actionable plans found in `docs/plans/`. Which file should I execute? Or run `/ba:plan` to create one."
 
 ### Read & Validate the Plan
 
-Read the plan file thoroughly. Extract:
+Read the plan file thoroughly.
+
+**Validate `plan_schema`** (read from YAML frontmatter only; a file with no `---` block is the absent case):
+- **Absent** — stop and say: "This plan predates the git-derived execution model. Re-plan with `/ba:plan` to regenerate it under `plan_schema: 2`." Point at the `origin:` brainstorm path when present. Optional preflight: if the file has neither `plan_schema` nor any recognizable plan structure (no `## Acceptance Criteria`, no `### U<n>`), say "this doesn't look like a plan file" instead.
+- **Present, an integer ≠ 2** (e.g. `plan_schema: 1`) — stop and say: "This plan has `plan_schema: <value>`. Expected `plan_schema: 2`. Check that your dev-workflow plugin version matches the plan's schema (upgrade or downgrade as needed)."
+- **Present but not an integer** (a quoted string like `"two"`, a list, a map) **or unparseable YAML** — stop and say: "Frontmatter malformed near `plan_schema` (expected the integer `2`). Fix the YAML and retry." A wrong *type* is a malformed-frontmatter case, not a version mismatch.
+
+Extract:
 
 1. **Detail level** from YAML frontmatter `detail_level` field. If missing, infer:
    - Has "Implementation Phases" sections → COMPREHENSIVE
    - Has "Changes Required" sections → STANDARD
    - Otherwise → MINIMAL
 
-2. **Resume state**: Scan for existing `[x]` marks in implementation sections (acceptance criteria, changes required, phase tasks). If found, this is a resume.
+2. **Resume state**: Run `derive-state(plan, git, run_verify: true)` (see `## U-ID & Git-Derived State Convention`). Count units with verdict `done` vs `pending`. If any are `done`, this is a resume.
 
 3. **Task list**: Extract the discrete executable tasks based on detail level:
-   - **MINIMAL**: Each acceptance criterion checkbox is a task. The "MVP" code section is the implementation reference.
-   - **STANDARD**: Each file block under "Changes Required" is a task. Success criteria are validated after all file changes in a section complete.
-   - **COMPREHENSIVE**: Each file block within a phase is a task. Phase gates occur at phase boundaries.
+   - **MINIMAL**: Each `### U<n> — <title>` unit is a task.
+   - **STANDARD**: Each `### U<n> — <title>` unit is a task.
+   - **COMPREHENSIVE**: Each `### U<n> — <title>` unit within a phase is a task. Phase gates occur at phase boundaries.
 
-4. **Already complete**: If ALL checkboxes are `[x]`, announce "This plan is already fully complete." Use **AskUserQuestion** with options: Re-verify (run tests to confirm), Review changes (`git diff` against base), Done.
+4. **Already complete**: If every unit is `done` (via either path), announce "This plan is already complete — no pending units." For a fully-merged/squashed plan whose units all read `done-via-verify`, announce "already complete (verified against code); no pending units" and use **AskUserQuestion** with options: Re-verify (run `Verify:` checks to confirm), Review changes (`git diff` against base), Done.
 
 **Legacy slice artifacts**: Some older plans carry `sliced: true`, a `## Slices` table, or `<!-- slice:N -->` markers from the retired `/ba:slice` command. Ignore them — execute the full plan as a single run. Do not branch on, refuse, or warn about these inert artifacts.
+
+---
+
+## U-ID & Git-Derived State Convention
+
+This section is the single owner of the U-ID grammar and the derive-state read.
+`/ba:plan` mints anchors per (1); `/ba:execute` writes (2) and runs (3) with
+`run_verify: true`; `/ba:propose` and `/ba:handoff` cite this section, and
+`/ba:handoff` calls (3) with `run_verify: false`.
+
+**(1) U-ID anchor** (minted by `/ba:plan`): each implementation unit is a
+`### U<n> — <title>` heading. `<n>` is a positive integer, monotonic,
+strike-don't-renumber (a struck unit's `<n>` is never reused). U-IDs attach to
+implementation units only — never to `AC<N>` or `Test scenarios:`. U-IDs are
+**plan-scoped, not globally unique**: the subject scan assumes one in-flight
+plan per branch.
+
+**(2) Commit-subject grammar** (the only durable write during execution):
+`<type>(<scope>): U<n> <description>`, exactly one U-ID per commit. Scope: this
+grammar governs **execution-time per-unit commits only** — it does NOT govern
+the single summary commit `/ba:propose` may author from its composed body. An
+optional transient `Deviation (U<n>): …` trailer may appear in the commit body.
+
+**(3) `derive-state(plan, git, run_verify) → per-unit verdict`** — the only read.
+Returns, for each unit, one of `done-via-subject` / `done-via-verify` /
+`pending` (a caller needing only a boolean reads `done = via-subject | via-verify`).
+Iterates the **plan's** current unit set (a U-ID in git history but absent from
+the plan is ignored — struck units are inert). For each plan unit, resolve in
+order:
+  a. **done-via-subject** — its `U<n>` token appears in a commit subject in
+     `<base>..HEAD`. Match on **subjects only** and on **word boundaries**.
+     Print subjects, then exclude reverts and match the token **on the printed
+     subject** (do NOT use `git log --grep`/`--invert-grep` for the revert
+     exclusion — those match the full commit message, not the subject `%s`, so a
+     commit whose *body* starts with `Revert` would be wrongly dropped):
+     `git log --format=%s <base>..HEAD | grep -v '^Revert' | grep -E ': U<n>( |$)'`
+     where `U<n>` is immediately preceded by `: ` and followed by a space or
+     end-of-line — so neither `U11` nor `U3done` matches `U3`. Subjects-only is
+     deliberate: `Deviation (U<n>):` trailers put other U-IDs in bodies. Revert
+     exclusion matches only the default `git revert` subject form (`^Revert`,
+     capital-R, no colon); reverts authored with an alternate subject
+     (`revert:`, `chore(revert):`) are **not** excluded and must be manually
+     re-tagged — a documented residual. A reverted unit re-reads pending until
+     re-tagged. (Residual: a description that coincidentally contains `: U<n>`
+     mid-subject is a false-positive match — acceptable under the one-in-flight-
+     plan-per-branch assumption.)
+  b. else, **only when `run_verify` is true**, **done-via-verify** — the unit's
+     `Verify:` passes against the working tree. **"Passes"** = the command exits
+     0, or the named symbol/path is present in the working tree. A unit with no
+     code-matchable `Verify:` line is **commit-tag-only**: it skips this tier and
+     stays `pending` until its U-ID appears in a subject. **Distinguish two
+     non-zero outcomes** (both exit non-zero, but they mean opposite things): an
+     **environmental failure** — the command could not be *invoked* (exit 127,
+     or stderr names `command not found` / `permission denied` / `No such file`)
+     — must surface a warning and **never** silently read `pending`, because the
+     check never actually ran. A **legitimate failure** — a runnable command
+     that returns non-zero because the thing it checks is genuinely absent (e.g.
+     `grep -q 'FunctionName' src/` returning 1 because the symbol isn't there) —
+     resolves the unit to `pending` with no warning; that is the `Verify:` tier
+     working as intended.
+  c. else **pending**.
+Resume at the first `pending` unit. With `run_verify: false` (handoff) the
+operation runs the subject scan only and is **guaranteed side-effect-free** — it
+never executes a `Verify:` command, so it returns only `done-via-subject` or
+`pending` and cannot observe `done-via-verify`. With `run_verify: true` (execute
+resume) `Verify:` commands run and must be read-only per the `Verify:` minting
+rules in `commands/ba/plan.md` ("Key rules for all templates").
+
+**`<base>` definition** (owned here; `/ba:propose` cites this for both its diff
+range and its deviation-trailer rollup window). `propose.md`'s Step 2a computes
+`DIFF_BASE` with the same `merge-base` call against the same default-branch
+detection ladder — it is the same algorithm, not a separate definition; `propose.md`
+relies on its own Step 1 routing (detached-HEAD / default-branch guard) to ensure a
+remote is present by the time Step 2a runs, rather than the degrade steps below:
+`git fetch --no-tags origin <default-branch>` then
+`<base> = git merge-base HEAD origin/<default-branch>`, using the same
+default-branch detection ladder as `propose.md`. Degrade order: no
+upstream/remote (fresh local branch) → merge-base against the local default
+branch; that absent too → treat the subject-scan window as **empty** and rely on
+the `Verify:` tier. Distinct from degrade: if **either** `git fetch` **or**
+`git merge-base` returns non-zero for any reason (a repo with no commits yet, an
+orphan branch with no common ancestor, `fetch` failing offline) — including a
+`fetch` that succeeds followed by a `merge-base` that fails — surface the git
+error and **abort**. Do not silently treat the window as empty, and do not read a
+clean `fetch` as license to degrade through a subsequent `merge-base` failure.
 
 ---
 
@@ -67,16 +159,13 @@ git branch --show-current
 
 ### Resume Detection
 
-**If resuming (existing `[x]` marks found)**:
-1. Announce: "Resuming execution. [N] of [M] tasks already completed."
-2. Check for uncommitted changes in the working tree. If found, ask the user whether to commit them, stash them, or continue with them.
-3. Run the test suite once to verify the codebase is in a passing state.
-4. If tests pass: proceed to first unchecked task.
-5. If tests fail: report failures and ask the user whether to (a) fix the failures first, (b) proceed anyway, or (c) abort.
+**If resuming (`derive-state` found any `done` units)**:
+1. Announce: "Resuming at U<k> (<d>/<m> done)." where `k` is the first `pending` unit, `d` is done count, `m` is total.
+2. **Dirty-tree guard**: before re-implementing the first `pending` unit, check for uncommitted changes (`git status --short`). If dirty, surface: "U<k> reads pending, but the working tree is dirty — inspect / commit / discard before I re-implement?" Offer: Inspect (show `git diff`), Commit now, Discard changes, Proceed anyway.
+3. A `Verify:` that exits non-zero for an environmental reason (command not found, permission denied) surfaces the warning from the convention — never silently re-implements.
 
-**If fresh start**:
-1. Update plan YAML frontmatter: `status: in-progress`
-2. Announce: "Starting execution. [M] tasks to complete."
+**If fresh start (all units `pending`)**:
+1. Announce: "Starting execution. [M] tasks to complete."
 
 ### Test Discovery
 
@@ -96,90 +185,6 @@ Also discover a lint command using the same approach. If found, lint runs alongs
 
 ---
 
-## Step 1.5: Pre-Execution Scope Check
-
-Before any code is written for this run, project the size of what you're about to do and compare it against a fixed threshold. This catches scope creep — when the plan implicitly covers more surface than its decisions suggest — before it lands as code.
-
-**When this fires:**
-- Once per run, after Step 1 has fully completed (Branch Check, Resume Detection including any resume-test prompt, Test Discovery).
-- **Fresh start fires; mid-run resume skips.** If no `[x]` marks exist in the plan's tasks, fire. If any `[x]` exists, skip — you're resuming partial work, not starting fresh.
-- **Once Step 1.5 passes, it does not re-fire within this run** — not after Step 2c's test-failure escape hatch, not when the files-to-touch list grows mid-implementation.
-
-### 1.5a. Build the files-to-touch list
-
-List every file you would create or modify to satisfy the plan's tasks. Include:
-
-- Files named in the plan's "Changes Required" / phase blocks.
-- Files implied by those changes (imports, type definitions, fixtures, snapshot updates).
-- New files you would need to create.
-
-Do **not** include files you "might also touch" — only files the plan's tasks plainly require.
-
-### 1.5b. Project LoC per file
-
-Classify each fenced block as **literal** or **pseudo-code** before counting (three cases):
-
-- **Fence under a `**Code-shape decision:**` label** → literal.
-- **Unlabeled fence, in a plan that has at least one `**Code-shape decision:**` label** → pseudo-code.
-- **Any fence, in a plan with no `**Code-shape decision:**` labels anywhere** (a pre-change plan) → literal.
-
-For each file in the list:
-
-- **Plan provides a literal code block for this file** (fence under a `**Code-shape decision:**` label, or any fence in a pre-change plan with no labels at all): count the lines of that block.
-- **Decisions/pseudo-code only, file exists**: estimate the diff size from the task description; reference similar implementations in the codebase if needed.
-- **New file, decisions only**: estimate from the closest analogue (similar new files in this codebase).
-
-Sum the per-file estimates. Call this the **projection** (M).
-
-### 1.5c. The threshold (T)
-
-Set **T = 400** LoC (≈ 2× a typical plan's LoC — the fallback threshold carried over from the retired slice model). This is a deliberately loose ceiling: it flags a run that would write substantially more code than a typical plan, prompting a check that the plan isn't over-scoped for a single execution pass.
-
-### 1.5d. Compare and act
-
-- **If M < T**: announce a one-line summary ("Pre-execution scope check: projected ~[M] LoC (threshold [T]). Proceeding.") and continue to Step 2.
-- **If M ≥ T**: pause via Step 4 Deviation Handling using the protocol below.
-
-### 1.5e. Pause flow
-
-Surface the projection via the standard Expected/Found/Why block:
-
-```
-**Deviation detected:**
-- **Expected**: ≤ ~[T] LoC for a single execution run.
-- **Found**: Projected ~[M] LoC across [file count] files: [short list].
-- **Why**: Scope: projected M ≥ threshold (~400 LoC). Confirm the plan is correctly scoped for one execution pass before writing code — don't silently implement a larger surface than the plan intends.
-```
-
-Then use **AskUserQuestion** with three options:
-
-1. **Accept and continue** — Proceed with the projected scope, record the override.
-2. **Update the plan** — Modify the plan to narrow scope, then re-project (see 1.5f).
-3. **Pause execution** — Stop here.
-
-**Record** each fire in the plan's `## Deviations` section (create the section if missing). Write the entry **before** the Pause returns control:
-
-```markdown
-### Scope tripwire: projected M ≥ threshold
-- **Expected**: ≤ ~[T] LoC for one run
-- **Found**: ~[M] LoC projected across [file count] files
-- **Why**: [reason]
-- **Resolution**: [accepted / plan updated / paused]
-```
-
-If the projection triggers again after an Update (re-projection did not clear), append `(round 2)`, `(round 3)`, etc. to the heading so each round is visible in the audit trail.
-
-### 1.5f. Re-projection after "Update the plan"
-
-When the user picks "Update the plan", surface an explicit sync gate via **AskUserQuestion** ("Let me know when the edit is done — pick **Re-project** once the plan reflects the new scope") with two options: **Re-project** and **Pause execution**. Once the user picks Re-project:
-
-1. Re-build the files-to-touch list and re-project M.
-2. Re-evaluate against T = 400.
-3. If M < T: announce "Re-projection clears the threshold. Proceeding." and continue to Step 2.
-4. If M ≥ T: re-enter the pause flow (1.5e). Each round writes its own subsection under `## Deviations` with `(round 2)`, `(round 3)`, etc. appended to the heading, so the audit trail shows the spiral, not just the final state.
-
----
-
 ## Step 2: Execution Loop
 
 For each unchecked task in order:
@@ -192,7 +197,7 @@ For COMPREHENSIVE plans, also announce phase transitions: "**--- Phase [N]: [Pha
 
 ### 2b. Implement
 
-Implement the plan's decisions for this task. Where the plan provides a literal code block — classified per Step 1.5b (a fence under a `**Code-shape decision:**` label, or any fence in a pre-change plan with no labels anywhere) — implement that code as specified; it captures a committed decision and is binding verbatim. Where the plan gives decisions, pseudo-code, or unlabeled fences (pseudo-code), implement to them following existing codebase patterns. Where a literal code block and prose both address the same file or function, the code block governs the structure; the prose is context.
+Implement the plan's decisions for this task. Classify each fenced block before using it: a fence under a `**Code-shape decision:**` label is **literal**; an unlabeled fence in a plan that has at least one such label is **pseudo-code**; any fence in a plan with no `**Code-shape decision:**` labels anywhere is **literal**. Where the plan provides a literal code block, implement that code as specified — it captures a committed decision and is binding verbatim. Where the plan gives decisions, pseudo-code, or unlabeled fences (pseudo-code), implement to them following existing codebase patterns. Where a literal code block and prose both address the same file or function, the code block governs the structure; the prose is context.
 
 When rewriting an existing file, read the original first and carry over any WHY comments (non-obvious rationale, workarounds, invariant explanations) that are not reproduced in the plan's code block but are not explicitly removed by the plan. Plan code samples are structural references, not complete comment inventories.
 
@@ -226,43 +231,29 @@ Silently review these 5 questions after each task:
 
 If a concern is found: surface it as a brief note to the user. Do NOT block execution unless the concern is critical (e.g., data loss risk).
 
-### 2e. Update Checkpoint
+### 2e. Commit (MANDATORY)
 
-Update the plan file: change the completed task's `[ ]` to `[x]` using the Edit tool.
+**Commit after every completed unit. Do NOT defer commits to the end.**
 
-### 2f. Commit Check (MANDATORY)
+Use the grammar from the `## U-ID & Git-Derived State Convention`:
 
-**You MUST commit at logical boundaries. Do NOT defer all commits to the end.**
-
-Evaluate after each task using this table:
-
-| Commit when... | Don't commit when... |
-|----------------|---------------------|
-| Logical unit complete (types, function, component, test file) | Small part of a larger unit |
-| Tests pass + meaningful progress | Tests failing |
-| About to switch contexts (data layer → UI layer) | Purely scaffolding with no behavior |
-| >3 files changed since last commit | Would need a "WIP" commit message |
-| About to start risky or experimental changes | |
-
-**Heuristic:** "Can I write a commit message that describes a complete, valuable change? If yes, commit now. If the message would be 'WIP' or 'partial X', wait — but no longer than 3 files."
-
-**Detail-level boundaries:**
-- **MINIMAL**: Single commit after all acceptance criteria pass.
-- **STANDARD**: One commit per "Changes Required" section or logical group. Typically 3-6 commits per plan.
-- **COMPREHENSIVE**: One commit per completed phase (before the phase gate).
-
-**Commit workflow:**
 ```bash
-# 1. Stage only files related to this logical unit (NOT `git add .`)
-git add <files related to this logical unit>
+# Stage only files changed for this unit (NOT `git add .`)
+git add <files changed for this unit>
 
-# 2. Commit with conventional message referencing the plan
-git commit -m "<type>(<scope>): <description>
-
-Plan: docs/plans/<filename>"
+# Commit with U-ID in the subject
+git commit -m "<type>(<scope>): U<n> <description>"
 ```
 
-Where `<type>` matches the plan's type (feat, fix, refactor). The scope is the primary affected area.
+When a deviation was accepted for this unit, include an optional trailer in the body:
+
+```bash
+git commit -m "<type>(<scope>): U<n> <description>
+
+Deviation (U<n>): <what diverged and why>"
+```
+
+**All detail levels commit one U-ID per unit.** At MINIMAL/STANDARD this is every unit. At COMPREHENSIVE this is every unit in the phase — the phase boundary is a checkpoint, not a commit batch.
 
 **IMPORTANT**: If you realize you have >3 files changed without a commit, STOP implementing and commit immediately before continuing.
 
@@ -270,18 +261,11 @@ Where `<type>` matches the plan's type (feat, fix, refactor). The scope is the p
 
 ## Step 3: Phase Gates (COMPREHENSIVE Plans Only)
 
-At each phase boundary:
+A phase boundary is reached **only when every unit in the phase is `done`** (a partly-passing phase keeps execute in the Step 2 unit loop). At the boundary:
 
-1. Run all **automated** success criteria for the completed phase. Report results.
-2. If automated criteria pass, present the **manual** verification items to the user via **AskUserQuestion**:
-   - "Phase [N] automated checks passed. Please verify these manual items:"
-   - List each manual criterion
-   - Options:
-     1. **All verified, continue** — Proceed to next phase
-     2. **Issue found** — Describe the issue, pause execution
-     3. **Skip manual checks** — Proceed without manual verification
-
-3. Only proceed to the next phase after user confirmation.
+1. Confirm all of the phase's units are `done` via `derive-state`. A unit still `pending` stays in the Step 2 loop — do not advance to the next phase.
+2. Run the phase's `Verify:` checks (already satisfied by definition since all units are `done`). Report results.
+3. Proceed to the next phase automatically — no interactive manual-verification prompt.
 
 ---
 
@@ -305,17 +289,9 @@ When implementation diverges from the plan (different file path, changed API, mi
      2. **Update the plan** — Modify the plan to match reality, then continue
      3. **Pause execution** — Stop and let the user decide
 
-3. **Record** the deviation in the plan file. Append to a `## Deviations` section at the bottom of the plan (create the section if it doesn't exist):
+3. **Record** the deviation via an optional `Deviation (U<n>):` trailer in the commit body for the affected unit (see `## U-ID & Git-Derived State Convention`). `/ba:propose` rolls these trailers up into the MR/PR body and the Linear ticket when linked.
 
-   ```markdown
-   ## Deviations
-
-   ### Task [N]: [description]
-   - **Expected**: [what the plan said]
-   - **Found**: [what actually happened]
-   - **Why**: [reason]
-   - **Resolution**: [accepted / plan updated / ...]
-   ```
+   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. If that commit **fails** (pre-commit hook rejection, disk full, pre-push policy), do **not** silently pause — surface the commit error verbatim and ask the user to resolve it (fix the hook, free space, etc.) so the deviation is recorded before pausing; never drop to the pause with the trailer unpersisted, and never `--no-verify` around a hook to force it through. Once committed, fire a reminder: "Run `/ba:propose` to persist deviation(s) to the MR/ticket; they are not durable until then."
 
 ---
 
@@ -325,7 +301,7 @@ When all tasks are done:
 
 ### Fresh Verification
 
-1. Confirm all plan checkboxes are `[x]`.
+1. Confirm every unit is `done` via `derive-state(plan, git, run_verify: true)`.
 2. Run targeted tests for all changed files.
 3. Use **AskUserQuestion** to ask about full verification:
    - "All tasks complete. How should I verify?"
@@ -337,9 +313,7 @@ When all tasks are done:
 
 If verification fails, report and let the user decide before claiming completion.
 
-### Update Plan Status
-
-Update the plan YAML frontmatter: `status: completed`
+**Deviation-trailer reminder** (fire on any exit path — clean completion, "Pause execution", or early exit — when any `Deviation (U<n>):` trailer was written during this run): "Run `/ba:propose` to persist N deviation(s) to the MR/ticket; they are not durable until then. **Do not squash these commits before `/ba:propose` — squashing buries the `Deviation (U<n>):` trailers before propose can roll them up.**"
 
 ### Summary
 
@@ -351,7 +325,7 @@ Execution complete!
 Plan: docs/plans/[filename]
 Tasks: [N]/[M] completed
 Commits: [N] commits made
-Deviations: [N] recorded
+Deviation trailers: [N] (run /ba:propose to persist)
 Test suite: passing ✓
 
 Commits made:
@@ -384,12 +358,10 @@ Use **AskUserQuestion**:
 ## Important Guidelines
 
 - **The plan's decisions are the authority.** Literal code blocks are authoritative verbatim; implement everything else to the plan's decisions. Don't add features, refactor surrounding code, or invent build choices the plan deliberately left as decisions.
-- **Track progress in the plan file.** Every completed task gets `[x]`. This is how resume works.
+- **Track progress via git.** Each completed unit gets a `U<n>`-tagged commit. Resume is derived from `derive-state` — no plan-file writes for progress.
 - **Test after every task — targeted, not full suite.** Run tests related to changed files. Defer full suite + lint to completion or CI.
 - **Report deviations immediately.** Don't silently work around plan/reality mismatches.
-- **Pre-execution scope check is mandatory** (Step 1.5) — always run it. The LoC projection is the scope-creep signal; when the run projects ≥ the threshold, surface it before writing code (the user decides whether to proceed).
 - **Commit at logical boundaries — this is mandatory, not optional.** Each commit should pass tests and represent a coherent unit of work. Never reach completion with zero incremental commits on a STANDARD or COMPREHENSIVE plan.
 - **Evidence-based completion.** Never claim "done" without showing passing tests.
 - **No convention-checker during execution.** Tests and linting are the quality gates for code.
-- **Respect phase gates.** For COMPREHENSIVE plans, never skip manual verification between phases without user consent.
 - **TDD follows the plan.** No TDD machinery baked into the command. If the plan specifies test-first steps, follow them. If not, implement and test normally. The plan is the authority on testing approach.
