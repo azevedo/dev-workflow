@@ -502,6 +502,33 @@ Use the Write tool to save the plan to `docs/plans/YYYY-MM-DD-<type>-<descriptiv
 
 Confirm: "Plan written to `docs/plans/[filename]`"
 
+### Auto-score pass (self-suppressing)
+
+After the disk-write and **before** the handoff menu, run `/ba:review-plan`'s **section-scoring pass** in
+**auto mode** against the just-written plan by invoking `/ba:review-plan <plan-path> --auto` (the `--auto`
+token is how review-plan detects the auto path). See the **Auto-invoke contract** in
+`commands/ba/review-plan.md` for the full judge/pipeline state machine — it is the authority; this step
+only reads the verdict sentinel and branches. review-plan **owns** every widget on the auto path (its
+ledger and ask-before-dispatch confirm); this step never presents them itself. The state machine:
+
+1. Write plan to disk (above).
+2. Invoke `/ba:review-plan <plan-path> --auto`; read the verdict from its sentinel line
+   (`[AUTO-SCORE: clean]`, `[AUTO-SCORE: weak — <reviewer list>]`, or `[AUTO-SCORE: error — <reason>]`).
+3. **Clean (`[AUTO-SCORE: clean]`)** — **do NOT ask.** Print a one-line "**no weak sections** — plan looks
+   solid" status (no AskUserQuestion widget; a courtesy "proceed?" confirm here would violate the
+   zero-widget guarantee) → proceed to the handoff menu.
+4. **Weak (`[AUTO-SCORE: weak — …]`)** — review-plan surfaces its own selection ledger and ask-before-
+   dispatch confirm; this step waits.
+   - **User declines / cancels** → proceed to the handoff menu.
+   - **User dispatches** → review-plan runs its pipeline + resolution (apply fixes per its Step 5; that
+     step's caller-context-aware exit returns control **here**) → proceed to the handoff menu.
+5. **Error or no/malformed sentinel (`[AUTO-SCORE: error — …]`, or no parseable sentinel line)** — treat
+   identically to `clean`: proceed to the handoff menu. Never wait on a missing line.
+
+Every branch converges on the handoff menu below — never strand the user without it. The embedded
+resolution edits **only the plan `.md`** (consistent with plan.md's "never write code" rule — editing a
+planning artifact, not code).
+
 Use **AskUserQuestion** to present next steps:
 
 **Question:** "Plan ready at `docs/plans/[filename]`. What would you like to do next?"
@@ -509,7 +536,7 @@ Use **AskUserQuestion** to present next steps:
 **Options:**
 1. **Start implementation** — Begin executing this plan in the current session
 2. **Fresh-context implementation** — Clear context and implement with only the plan loaded (saves tokens)
-3. **Review plan** — Run `/ba:review-plan` to review with available agents and skills (copy, complexity, tests, code review)
+3. **Re-review plan (full pass)** — Run a full `/ba:review-plan` pass over the built-in reviewers. An auto-score pass already ran above, so this is the deliberate manual re-loop (e.g. after applying fixes), not a redundant first review.
 4. **Review and refine** — Manually improve specific sections of the plan
 5. **Create issue** — Create issue in project tracker (GitHub/Linear)
 6. **Done for now** — Return later
@@ -517,7 +544,7 @@ Use **AskUserQuestion** to present next steps:
 **Based on selection:**
 - **Start implementation** → Invoke `/ba:execute docs/plans/[filename]` to implement the plan.
 - **Fresh-context implementation** → Tell the user: "Run `/clear`, then in the new session run `/ba:execute docs/plans/[filename]`". This gives a clean context window with only the plan loaded, no brainstorm/research token overhead.
-- **Review plan** → Invoke `/ba:review-plan docs/plans/[filename]` to discover and run available review agents/skills against the plan.
+- **Re-review plan (full pass)** → Invoke `/ba:review-plan docs/plans/[filename]` to run a full judged-ledger pass over the built-in reviewers against the plan.
 - **Review and refine** → Ask which section, make changes, return to options.
 - **Create issue** → Detect tracker from CLAUDE.md and create:
   - GitHub: `gh issue create --title "<type>: <title>" --body-file <plan_path>`

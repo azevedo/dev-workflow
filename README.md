@@ -108,14 +108,16 @@ Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`.
 
 ### `/ba:review-plan [path]`
 
-Runs discovery-based reviews against a plan before implementation. Automatically finds review agents and skills available in your environment (copy auditors, code reviewers, complexity assessors, test strategy reviewers) and offers to run them against the plan.
+Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery.
 
 This catches issues at plan time — where fixing things is cheap — instead of after code is written.
 
 - **Auto-detects the latest plan** if no path is given
-- **Discovery-based** — works with whatever review tools are installed (personal agents in `~/.claude/agents/`, project agents, plugin skills)
+- **Judged selection ledger** — scores the plan against the 7 built-in reviewers and presents the full roster (selected + set aside, each with a one-line reason citing the weak section); every reviewer reachable via Adjust (including an "Other" free-text external), nothing hidden, no state persisted
+- **Confidence soft gate** — per-finding confidence with cross-reviewer dedup and per-tier floors (Must-Address ≥ 50, Consider ≥ 75); below-floor findings move to a separate `Suppressed` section, not lost
+- **Plan-anchored findings** — each finding anchors to a plan **section heading**, a `### U<n>` unit, or a keyed `AC<n>`; anchors that don't resolve in the plan are dropped and counted
 - **Plan-aware framing** — tells each reviewer it's evaluating a proposal, not finished code
-- **Consolidated findings** — presents results as Must Address / Consider / Looks Good (the older two-bucket vocabulary; `/ba:review` uses the four-level ladder described below)
+- **Auto-runs in `/ba:plan`** — at the end of planning, a self-suppressing section-scoring pass runs automatically: on a clean plan it stays silent (no widgets, "no weak sections"); on weak sections it surfaces the ledger and asks before dispatching
 
 ### `/ba:execute [plan]`
 
