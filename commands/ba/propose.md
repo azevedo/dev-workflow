@@ -270,9 +270,9 @@ Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a
 git log "$DIFF_BASE..HEAD" --format=%B | grep -E '^Deviation \(U[0-9]+\):'
 ```
 
-For each matched line, capture `(u_id, text)` where `u_id` is the `U<n>` token and `text` is the trailer content after the colon:
+For each matched line, capture the trailer **text only** — the content after the `Deviation (U<n>):` label. The `U<n>` token is read to match the line but is **not** carried forward: it is plan-scoped state a reviewer cannot decode (the plan lives outside the pushed repo), so it is noise in reviewer-facing output. Strip the leading label here, at gather time — this is render-side only and never rewrites the commit body, so `derive-state`'s subjects-only scan is unaffected. Dedup on **exact text** so a single deviation that recurred across multiple units (each unit emitting its own trailer) collapses to one entry rather than one bullet per unit:
 
-- `deviation_trailers = ((u_id="U4", text="<what diverged and why>"), ...)` or `()`.
+- `deviation_trailers = ("<what diverged and why>", ...)` or `()` — a tuple of unique trailer texts.
 
 **Near-matches**: a line that almost fits the trailer form but doesn't match the exact `Deviation (U<n>):` grammar (e.g. `Deviations:`, a missing `U<n>`, lowercase `deviation`) is **skipped** from `deviation_trailers` but recorded in orchestrator-side state as a near-match so Step 4's preview can warn the author to correct it before the MR/PR opens. Near-match warnings are orchestrator-side only — they never flow into `CompositionInputs`.
 
@@ -294,7 +294,7 @@ CompositionInputs:
   solutions          # tuple of accepted entries, possibly empty
   preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
   evidence           # tuple of (kind, raw), possibly empty
-  deviation_trailers # tuple of (u_id, text), possibly empty
+  deviation_trailers # tuple of (text,) — unique trailer texts, label stripped, possibly empty
 ```
 
 **Outputs**:
@@ -379,7 +379,7 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
 | 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
-| 13 | Deviations | small | `deviation_trailers` is non-empty (gathered in Step 2f) | Render `deviation_trailers` (already rolled up in Step 2f from `Deviation (U<n>):` trailers over the `DIFF_BASE..HEAD` window) as a `## Deviations` section, one bullet per `(u_id, text)`. When `issue_context` is present, mirror the same content to the Linear ticket body. If `deviation_trailers` is empty, **omit the section entirely** (no empty header) — the row's required-input rule already drops it. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
+| 13 | Deviations | small | `deviation_trailers` is non-empty (gathered in Step 2f) | Render `deviation_trailers` (already gathered and deduped in Step 2f from `Deviation (U<n>):` trailers over the `DIFF_BASE..HEAD` window) as a `## Deviations` section: **one bullet per unique trailer text, with the `U<n>` label stripped** — the reviewer never sees a U-ID. When `issue_context` is present, mirror the same content to the Linear ticket body. If `deviation_trailers` is empty, **omit the section entirely** (no empty header) — the row's required-input rule already drops it. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
 | 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 
 For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #13 → #14); preserved blocks splice into canonical positions (Step 3.4).
