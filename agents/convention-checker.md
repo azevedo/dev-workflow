@@ -115,6 +115,29 @@ For each relevant convention, assign one classification:
 - [Convention X] — not relevant to this artifact's scope
 ```
 
+## HTML Artifact Equivalence
+
+HTML artifacts (`.html` brainstorm or plan files) carry their structured metadata as a
+**visible-text header block** instead of a YAML `---` frontmatter block. This is an explicit
+convention: an `.html` artifact without a YAML block is **not** a violation of the structured-
+metadata requirement.
+
+When checking an `.html` artifact:
+- The absence of a `---` YAML block is **NOT** a violation — do not flag "missing frontmatter".
+- Instead, check that a visible-text header block is present (a `<section id="header">` or
+  equivalent metadata region at the top of `<body>` rendering title, type, schema version,
+  date, and other mandatory fields as readable text).
+- The mandatory fields for each artifact type are listed in `references/plan-sections.md` and
+  `references/brainstorm-sections.md`.
+
+When checking a `.md` artifact:
+- The YAML frontmatter (`---` block with `plan_schema: 2` etc.) is still required as before.
+- A missing `---` block on a `.md` artifact remains a violation.
+
+This equivalence rule is stated explicitly here because the convention-checker reads `CLAUDE.md`
+at runtime and the amended structured-metadata convention names both forms. This rule makes the
+equivalence robust against markdown-shaped examples in the checker's own output format.
+
 ## Important Rules
 
 - **Only check verifiable conventions.** "Write clean code" is not checkable. "Use singular model names" is.
