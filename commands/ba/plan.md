@@ -18,6 +18,43 @@ Do not proceed until you have a clear feature description from the user.
 
 ---
 
+## Step 0.0: Resolve Output Format
+
+Determine the output format for this plan artifact. The result is either `md` (default) or
+`html`. This is decided **once, here** — the format controls what is written in Step 7.
+
+**Precedence stack (highest wins):**
+
+1. **In-prompt `output:` token** — scan `$ARGUMENTS` and the user's message for the token
+   `output:html` or `output:md`. Plain-language equivalents also count: "make this an HTML
+   file", "output as html", "I want this in HTML". **Format-vs-subject heuristic:** a
+   subject-matter mention of HTML (e.g., "plan the HTML export feature") is *not* a format
+   request — only an explicit `output:` token or plain-language format request triggers this
+   tier. An unknown `output:` value (e.g., `output:pdf`) is **dropped with a one-line note**
+   and falls through to the next tier.
+
+2. **In-session/memory preference** — if the user stated a format preference earlier in this
+   conversation (e.g., "always use HTML for plans"), or if a memory slug records a preference,
+   use it.
+
+3. **Default** — `md`.
+
+**Exclusive-mode enforcement (checked at Step 7, before write):**
+Before writing, check for a same-stem twin of the *other* extension in `docs/plans/`. If
+`docs/plans/<stem>.md` exists and you are about to write `<stem>.html` (or vice versa), **refuse
+and ask the user** which to keep — do not delete either file (protected-artifacts guard). Never
+write both formats.
+
+**Resume format continuity:**
+If resuming an in-flight plan (a plan file already exists on disk), preserve the existing
+artifact's format. A mid-run `output:` switch to a different format is refused — git-committed
+`U<n>` subjects are anchored to the original artifact's stem. A fresh `/ba:plan` run is required
+to emit the plan in a different format.
+
+Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) for use in Step 7.
+
+---
+
 ## Step 0: Detect Prior Work
 
 **Check for brainstorm output first.**
@@ -181,7 +218,9 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 Write the plan using the chosen detail level template.
 
-### YAML Frontmatter (all levels)
+### Structured Metadata (all levels) — YAML frontmatter for markdown, visible-text header for HTML
+
+For **markdown** artifacts, render as a YAML frontmatter block:
 
 ```yaml
 ---
@@ -195,6 +234,10 @@ detail_level: minimal | standard | comprehensive
 tags: [feature, component-names]
 ---
 ```
+
+For **HTML** artifacts, render as a visible-text header block per `references/plan-sections.md`
+(the `<section id="header">` with a `<dl class="metadata-strip">`) — no YAML, no `---` block.
+See `references/html-rendering.md` Section Anatomy for the exact element shape.
 
 ### MINIMAL Template
 
@@ -422,7 +465,7 @@ Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file
 **Key rules for all templates:**
 - Include **exact file paths** — never placeholders
 - **Default to decisions, not code** — approach, exact file paths, patterns to follow, pseudo-code for shape, and test scenarios. Include a literal code block ONLY under a `**Code-shape decision:** <why the shape is non-obvious>` label.
-- Each implementation unit is a `### U<n> — <title>` heading (monotonic, strike-don't-renumber); every unit carries `Test scenarios:` bullets and exactly one `Verify:` line
+- Each implementation unit anchor is format-neutral (per the `## U-ID & Git-Derived State Convention` owner in `commands/ba/execute.md`): a `### U<n> — <title>` heading in markdown; an `<h3 id="u<n>">U<n> — <title></h3>` element in HTML. Both must carry the visible U-ID text alongside the unit title. Every unit carries `Test scenarios:` bullets and exactly one `Verify:` line.
 - Phase gates in COMPREHENSIVE: an automated checkpoint — all units `done` → proceed; no manual pause
 - Always include "What We're NOT Doing"
 
@@ -498,7 +541,24 @@ If anything was dropped, add it back before writing.
 mkdir -p docs/plans/
 ```
 
-Use the Write tool to save the plan to `docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md`.
+**Check for same-stem twin (exclusive-mode enforcement from Step 0.0):**
+Before writing, check whether a file with the same stem but the *other* extension already exists
+in `docs/plans/`. If so, ask the user which to keep before proceeding — never write both.
+
+**Write based on `OUTPUT_FORMAT` (resolved in Step 0.0):**
+
+- **`md`:** Use the Write tool to save the plan to
+  `docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md`.
+
+- **`html`:** Follow the **canonical load-site pattern** from `references/html-rendering.md`:
+  Read `references/html-rendering.md` at compose time (before emitting any HTML), then load
+  `references/plan-sections.md`. Produce a single self-contained `.html` file at
+  `docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.html` with:
+  - A visible-text header block (frontmatter equivalent) per `references/plan-sections.md`.
+  - Every U-ID and AC-ID rendered as both `id=""` and visible text per the rendering reference.
+  - A composition-signal `<footer>` with compose timestamp and source path.
+  - All other rendering invariants from `references/html-rendering.md`.
+  - Run the post-compose audit from `references/html-rendering.md` before returning.
 
 Confirm: "Plan written to `docs/plans/[filename]`"
 
@@ -526,8 +586,8 @@ ledger and ask-before-dispatch confirm); this step never presents them itself. T
    identically to `clean`: proceed to the handoff menu. Never wait on a missing line.
 
 Every branch converges on the handoff menu below — never strand the user without it. The embedded
-resolution edits **only the plan `.md`** (consistent with plan.md's "never write code" rule — editing a
-planning artifact, not code).
+resolution edits **only the plan artifact** (consistent with plan.md's "never write code" rule — editing a
+planning artifact, not code; format-neutral: `.md` or `.html` depending on `OUTPUT_FORMAT`).
 
 Use **AskUserQuestion** to present next steps:
 
