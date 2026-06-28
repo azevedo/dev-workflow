@@ -91,7 +91,9 @@ Explores requirements and approaches through collaborative dialogue before plann
 
 Triage level escalates automatically if complexity is discovered mid-conversation. Security, payments, and external API topics always trigger FULL.
 
-Brainstorm docs are saved to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`.
+Brainstorm docs are saved to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md` (default) or `.html`.
+
+**HTML output:** pass `output:html` in the brainstorm request to produce a self-contained HTML5 file instead. For UI-shaped requirements, the HTML path adds a wireframe affordance (low-fidelity gray-box layout with a mandatory "directional, not the spec" caption). See "Choosing `md` vs `html`" below.
 
 ### `/ba:plan [feature]`
 
@@ -104,7 +106,27 @@ Transforms feature descriptions into implementation plans with exact file paths 
 - **SpecFlow analysis** — agent maps all user flows, identifies edge cases and gaps before plan is finalized
 - **"What We're NOT Doing"** — every plan includes explicit scope boundaries
 
-Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`.
+Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` (default) or `.html`.
+
+**HTML output:** pass `output:html` in the plan request to produce a self-contained HTML5 file. HTML plans render implementation units as collapsible `<details>` cards — useful for large plans with many units. See "Choosing `md` vs `html`" below.
+
+#### Choosing `md` vs `html`
+
+The deciding axis is **how humans touch the artifact** — agents read either format equally (the design intent).
+
+Prefer **`md`** (and keep it the default) when:
+- The artifact is reviewed in a git diff or PR — HTML diffs are noise.
+- The artifact will be hand-edited inline.
+- The plan is small/linear (a few units, no need for collapsible cards).
+- Running in automation or default paths.
+
+Prefer **`html`** when:
+- The plan is large and read-mostly — collapsible unit cards + navigation solve the wall-of-text problem.
+- A brainstorm has UI-shaped requirements (wireframes are an HTML-only affordance).
+- The plan includes diagrams worth inline SVG.
+- The audience is primarily browser-reading humans.
+
+**The mode is exclusive:** `md` and `html` are mutually exclusive per artifact — never both. The format is locked on first write and preserved on resume. HTML *fixes reading* but *worsens git review* — choose per artifact.
 
 ### `/ba:review-plan [path]`
 
@@ -227,7 +249,7 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 
 ### U-ID & git-derived state convention
 
-The **U-ID & Git-Derived State Convention** (owned by the `## U-ID & Git-Derived State Convention` section in `commands/ba/execute.md`) is the single source of the implementation-unit anchor grammar, commit-subject grammar, and `derive-state` operation. Citation sites: `commands/ba/plan.md` mints `### U<n>` anchors, `commands/ba/execute.md` Step 2e applies the grammar, `commands/ba/propose.md` preserves U-tagged subjects + rolls up `Deviation (U<n>):` trailers, `commands/ba/handoff.md` calls `derive-state` with `run_verify: false`.
+The **U-ID & Git-Derived State Convention** (owned by the `## U-ID & Git-Derived State Convention` section in `commands/ba/execute.md`) is the single source of the implementation-unit anchor grammar, commit-subject grammar, and `derive-state` operation. The grammar is **format-neutral**: a unit anchor is a `### U<n> — <title>` heading in markdown or an HTML `U<n>` visible-text heading with a matching `id=""` attribute. All five citation sites must be updated together when the convention changes: `commands/ba/plan.md` (mints unit anchors), `commands/ba/execute.md` Step 2e (applies the grammar), `commands/ba/propose.md` (preserves U-tagged subjects + rolls up `Deviation (U<n>):` trailers), `commands/ba/handoff.md` (calls `derive-state` with `run_verify: false`), `commands/ba/review-plan.md` (anchors findings to U-IDs and keyed `AC<n>`).
 
 ## Agents
 
@@ -262,10 +284,11 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 | Artifact | Path |
 |---|---|
 | Research docs | `docs/research/YYYY-MM-DD-<description>-research.md` |
-| Brainstorm docs | `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md` |
-| Plan docs | `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` |
+| Brainstorm docs | `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md` or `.html` |
+| Plan docs | `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` or `.html` |
 | Learnings | `docs/solutions/<category>/<filename>.md` |
 | Review run artifacts (opt-in via `--persist`; not auto-ignored — user-managed) | `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` |
+| Format-rendering references + per-command section contracts | `references/` |
 
 ## Roadmap
 
