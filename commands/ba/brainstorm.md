@@ -18,6 +18,39 @@ Do not proceed until you have a feature description from the user.
 
 ---
 
+## Phase 0.0: Resolve Output Format
+
+Determine the output format for this brainstorm artifact. The resolution is **identical** to
+`/ba:plan`'s Step 0.0 — same precedence stack, same heuristics:
+
+1. **In-prompt `output:` token** — scan `$ARGUMENTS` and the user's message for `output:html`
+   or `output:md`. Plain-language equivalents count ("make this an HTML file"). **Format-vs-
+   subject heuristic:** a subject-matter mention of HTML is *not* a format request. An unknown
+   `output:` value (e.g., `output:pdf`) is dropped with a one-line note and falls through.
+
+2. **In-session/memory preference** — a format preference stated earlier in this conversation
+   or recorded in memory.
+
+3. **Default** — `md`.
+
+**Exclusive-mode enforcement (checked at Phase 3, before write):**
+Before writing, check for a same-stem twin of the *other* extension in `docs/brainstorms/`.
+If one exists, refuse and ask the user which to keep — never write both.
+
+**Resume format continuity:**
+If a brainstorm file already exists on disk for this topic, preserve its format. A mid-run
+format switch is refused.
+
+**Wireframe affordance (HTML path only):**
+Because brainstorm is a requirements-only artifact, the HTML path may include a low-fidelity
+wireframe for UI-shaped requirements. See `references/html-rendering.md` "Wireframe Mockups"
+for rules and the mandatory directional caption requirement. This affordance is absent from the
+markdown path.
+
+Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) for use in Phase 3.
+
+---
+
 ## Phase 0: Triage
 
 Evaluate the request and classify into one of three levels. Follow this decision flowchart:
@@ -84,7 +117,13 @@ Even for FAST-TRACK, write a minimal brainstorm doc so the plan command can find
 mkdir -p docs/brainstorms/
 ```
 
-Write to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`:
+**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0):** before writing,
+check whether a file with the same stem but the other extension already exists in
+`docs/brainstorms/`. If so, ask the user which to keep.
+
+**Write based on `OUTPUT_FORMAT` (resolved in Phase 0.0):**
+
+For **`md`**, write to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`:
 
 ```markdown
 ---
@@ -106,6 +145,14 @@ tags: [component-names]
 ## Acceptance Criteria
 - [Testable criteria extracted from the feature description]
 ```
+
+For **`html`**, follow the **canonical load-site pattern** from `references/html-rendering.md`:
+Read `references/html-rendering.md` at compose time, then load
+`references/brainstorm-sections.md`. Write `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html`
+as a single self-contained HTML5 file with a visible-text header block, composition-signal
+footer, and all rendering invariants from the reference. Run the post-compose audit before
+returning. For a UI-shaped requirement, a wireframe with the mandatory directional caption is
+permitted.
 
 ### FAST-TRACK Auto-Chain
 
@@ -217,11 +264,24 @@ Use **AskUserQuestion** to ask which approach the user prefers (or if they want 
 
 ### Phase 3: Capture the Design
 
-Write a brainstorm document to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`.
-
 Ensure `docs/brainstorms/` directory exists before writing.
 
-**Document template:**
+**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0):** before writing,
+check whether a file with the same stem but the other extension already exists in
+`docs/brainstorms/`. If so, refuse and ask the user which to keep.
+
+**Write based on `OUTPUT_FORMAT` (resolved in Phase 0.0):**
+
+For **`md`**, write `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`. For **`html`**, follow
+the **canonical load-site pattern**: Read `references/html-rendering.md` at compose time,
+then load `references/brainstorm-sections.md`. Write
+`docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html` as a single self-contained HTML5 file
+with a visible-text header block (structured metadata — no YAML), composition-signal footer,
+and all rendering invariants from `references/html-rendering.md`. For a UI-shaped requirement,
+a wireframe with the mandatory directional caption is permitted. Run the post-compose audit
+from `references/html-rendering.md` before returning.
+
+**Markdown document template:**
 
 ```markdown
 ---
