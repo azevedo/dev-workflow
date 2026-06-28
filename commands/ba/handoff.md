@@ -30,7 +30,25 @@ Name the branch, whether the tree is clean or dirty, and whether commits are pus
 
 **In-repo artifacts — reference, don't restate.** When a fact already lives in a file, point to it by path instead of copying its content. This includes dev-workflow artifacts: `docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, and `docs/reviews/`. The same applies to PRDs, ADRs, issues, commits, and diffs — cite them, don't duplicate them.
 
-**`/ba:execute` progress.** If the session was executing a plan (`plan_schema: 2`), name the plan path and narrate U-resolution via `derive-state(plan, git, run_verify: false)` — subject scan only, **never** run `Verify:` commands (handoff must be side-effect-free; this is the `run_verify: false` asymmetry owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`).
+**`/ba:execute` progress.** If the session was executing a plan, detect the in-flight plan
+**with extension-first routing**:
+
+- Glob `docs/plans/*.{md,html}` to find candidate plan files in the working directory.
+- **`.md` plans:** recognized via `plan_schema: 2` in YAML frontmatter (unchanged).
+- **`.html` plans:** recognized by applying the **named HTML conformance preflight** from
+  `references/html-rendering.md` (three-signal check: visible-text header block + ≥1 `U<n>`
+  visible-text heading with `id=""` + composition footer). A conforming `.html` is treated as
+  a valid `plan_schema: 2`-equivalent in-flight plan; a non-conforming `.html` is **not**
+  mistaken for an in-flight plan. For a conforming `.html`, read the visible-text header block
+  as the frontmatter equivalent — a `.html` with no YAML block is recognized and its progress
+  section **is narrated**, never silently dropped.
+
+Name the plan path and narrate U-resolution via `derive-state(plan, git, run_verify: false)`
+— subject scan only, **never** run `Verify:` commands (handoff must be side-effect-free; this
+is the `run_verify: false` asymmetry owned by the `## U-ID & Git-Derived State Convention`
+section in `execute.md`). `derive-state` is format-blind on the git side; the only
+format-specific step is locating the plan's current unit set (markdown `### U<n>` or HTML
+`U<n>` visible-text + `id=""`).
 
 For each unit, the verdict is either `done-via-subject` (its `U<n>` appears in a commit subject in `<base>..HEAD`) or `pending`. Handoff **cannot** observe `done-via-verify` — a unit that is implemented but uncommitted reads `pending` here. Narrate pending units as: "uncommitted, not yet durable — commit and run `/ba:propose` to make it durable." State this limitation explicitly so the receiving session knows the progress report reflects **git durability**, not worktree state.
 

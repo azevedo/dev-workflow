@@ -264,7 +264,7 @@ If no user-observable files changed, skip this prompt — `evidence = ()`.
 
 ### 2f. Deviation trailers (`/ba:execute` rollup)
 
-Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a (this is the `<base>..HEAD` window owned by the `## U-ID & Git-Derived State Convention` section in `execute.md` — `DIFF_BASE` *is* that `<base>`; do not re-derive it):
+Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a (this is the `<base>..HEAD` window owned by the `## U-ID & Git-Derived State Convention` section in `execute.md` — `DIFF_BASE` *is* that `<base>`; do not re-derive it). The plan being preserved may be `.md` or `.html` — this step reads only git commit bodies, never the plan file, so the format is irrelevant here:
 
 ```bash
 git log "$DIFF_BASE..HEAD" --format=%B | grep -E '^Deviation \(U[0-9]+\):'
@@ -397,7 +397,7 @@ Cross-cutting omissions that apply regardless of which sections activate (Lynch'
 
 #### 3.3 Title rewriting
 
-**U-ID preservation:** `/ba:propose` must not author a commit that strips or masks execute's existing U-tagged subjects in `DIFF_BASE..HEAD`. The U-tagged commit subjects (grammar: `<type>(<scope>): U<n> <description>` — owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`) are the durable state record; rewriting them would break `derive-state` on resume. The title rewriting below applies to the **PR/MR title only**, which is U-ID-free by design. Step 5a–5b's commit (the `/ba:propose` summary commit, if authored) uses the composed PR/MR title — it does not carry a `U<n>` token.
+**U-ID preservation:** `/ba:propose` must not author a commit that strips or masks execute's existing U-tagged subjects in `DIFF_BASE..HEAD`. The U-tagged commit subjects (grammar: `<type>(<scope>): U<n> <description>` — owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`) are the durable state record; rewriting them would break `derive-state` on resume. The plan whose U-IDs are being preserved may be `.md` or `.html` — propose reads only git subjects, never the plan file, so the format is irrelevant. The title rewriting below applies to the **PR/MR title only**, which is U-ID-free by design. Step 5a–5b's commit (the `/ba:propose` summary commit, if authored) uses the composed PR/MR title — it does not carry a `U<n>` token.
 
 Draft a title from `diff.commit_log[0]` or the user's free-text hint if provided.
 

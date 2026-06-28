@@ -27,8 +27,13 @@ behavior (Auto-invoke contract) — there is no other way to detect auto mode, s
 **If no path was provided**, auto-detect the most recent plan:
 
 ```bash
-ls -t docs/plans/*.md 2>/dev/null | head -1
+ls -t docs/plans/*.{md,html} 2>/dev/null | head -1
 ```
+
+For `.html` files, apply the **named HTML conformance preflight** (from
+`references/html-rendering.md`) before proceeding — the same three-signal check as
+`/ba:execute`. A non-conforming `.html` is rejected as "doesn't look like a plan file";
+do not enumerate it as zero units.
 
 If found, announce: "Found latest plan: `[filename]`. Reviewing this one."
 If not found, ask the user: "No plans found in `docs/plans/`. Which file should I review?"
@@ -194,11 +199,16 @@ token at the head of the bullet:
 | Namespace | Anchor token | Example | Owned by |
 |---|---|---|---|
 | **Section heading** | the normalized heading text | `**Overview**`, `**Technical Approach**` | the plan's section structure |
-| `### U<n>` implementation unit | the `U<n>` key | `**U3**` | `commands/ba/execute.md` (consumed here) |
+| implementation unit | the `U<n>` key | `**U3**` | `commands/ba/execute.md` (consumed here) |
 | keyed acceptance criterion | the `AC<n>` key | `**AC2**` | `commands/ba/plan.md` (consumed here) |
 
-review-plan **consumes** the `### U<n>` grammar (owned by `execute.md`) and the keyed-`AC<n>` grammar
+review-plan **consumes** the U-ID grammar (owned by `execute.md`) and the keyed-`AC<n>` grammar
 (owned by `plan.md`). It does **not** mint or redefine either.
+
+**HTML anchor token shape.** For `.html` plans, a finding resolves against the **normalized
+`<hN>` inner text or the `id=""` value** — either, normalized (case-insensitive, whitespace
+collapsed). A struck HTML unit (marked with `<del>` or `(superseded)` per the rendering
+reference) is treated as struck — it does not resolve, exactly as a struck markdown heading.
 
 **Literal bullet format** (reviewers must emit exactly this):
 
@@ -209,9 +219,11 @@ review-plan **consumes** the `### U<n>` grammar (owned by `execute.md`) and the 
 where `<anchor>` is a section-heading text, a `U<n>` key, or an `AC<n>` key, and `N ∈ {0, 25, 50, 75, 100}`.
 
 **Matching rule.** An anchor resolves against the plan by **case-insensitive exact** match on the
-normalized heading text / key string (collapse internal whitespace, trim, drop surrounding markdown). A
-struck (`strike-don't-renumber`) `U<n>` does **not** resolve. A non-resolving anchor is **dropped** by
-consolidation (Step 4) and counted in the surfaced **`dropped_off_plan`** counter.
+normalized heading text / key string (collapse internal whitespace, trim, drop surrounding
+markdown formatting; for HTML drop surrounding tags). A struck (`strike-don't-renumber`) `U<n>`
+does **not** resolve — in HTML, "struck" means the unit carries the visible `<del>` marker or
+`(superseded)` text per `references/html-rendering.md`. A non-resolving anchor is **dropped**
+by consolidation (Step 4) and counted in the surfaced **`dropped_off_plan`** counter.
 
 The drop reason must distinguish:
 - **not-found** — "anchor names no heading / U-ID / AC-key in the plan"
@@ -480,9 +492,20 @@ For single-reviewer findings, pass through without attribution: `- **<anchor>** 
 
 ## Step 5: Apply Fixes
 
-This is the plan-native resolution menu. It edits **only the plan `.md`** — it does **not** drag in
-`/ba:review`'s auto-revert / bidirectional-reconciliation / baseline-test harness (there are no tests to
-run on a plan `.md`).
+This is the plan-native resolution menu. It edits **only the plan artifact** (`.md` or `.html`
+depending on the artifact's extension) — it does **not** drag in `/ba:review`'s auto-revert /
+bidirectional-reconciliation / baseline-test harness (there are no tests to run on a plan).
+
+**HTML-specific apply rules:**
+- Prose fixes edit visible text in place using the Edit tool, guided by
+  `references/html-rendering.md`.
+- **Structural fixes** (add/reorder/strike a unit) get the same caution as risky markdown fixes,
+  plus an **HTML-specific post-apply re-validation**: after the edit, re-run the
+  `references/html-rendering.md` post-compose audit, asserting the `id=""`/visible-text pairing
+  stays in sync and the footer is present. The no-duplicate-metadata invariant guarantees a fix
+  never lands in two places.
+- Do **not** apply a fix that would create hidden metadata or break the conformance preflight
+  three-signal conjunction.
 
 Use **AskUserQuestion**:
 

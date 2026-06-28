@@ -21,36 +21,61 @@ Treat `#$ARGUMENTS` as the plan file path.
 **If no path was provided**, auto-detect the most recent actionable plan:
 
 ```bash
-ls -t docs/plans/*.md 2>/dev/null | head -5
+ls -t docs/plans/*.{md,html} 2>/dev/null | head -5
 ```
 
-From the results, read each plan's YAML frontmatter. Select the most recent file with `plan_schema: 2`. Skip files without `plan_schema: 2`.
+From the results, **branch on extension**:
 
-If found, announce: "Found plan: `[filename]`. Executing this one."
+- **`.md`** files: read YAML frontmatter. Select the most recent with `plan_schema: 2`. Skip
+  files without `plan_schema: 2`.
+- **`.html`** files: apply the **named HTML conformance preflight** (see
+  `references/html-rendering.md` "Named HTML Conformance Preflight") — all three signals must
+  be present (visible-text header block + ≥1 `U<n>` visible-text heading with `id=""` +
+  composition footer). A non-conforming `.html` is **not** a plan file — reject it with "doesn't
+  look like a plan file" (not "predates the git-derived execution model", which is the
+  `.md`-absent case only). A conforming `.html` is treated as `plan_schema: 2`-equivalent.
+
+Select the most recent conforming file across both extensions. If found, announce: "Found plan: `[filename]`. Executing this one."
 If not found, ask the user: "No actionable plans found in `docs/plans/`. Which file should I execute? Or run `/ba:plan` to create one."
 
 ### Read & Validate the Plan
 
-Read the plan file thoroughly.
+Read the plan file thoroughly. **Branch on extension** for validation:
+
+#### `.md` plans
 
 **Validate `plan_schema`** (read from YAML frontmatter only; a file with no `---` block is the absent case):
 - **Absent** — stop and say: "This plan predates the git-derived execution model. Re-plan with `/ba:plan` to regenerate it under `plan_schema: 2`." Point at the `origin:` brainstorm path when present. Optional preflight: if the file has neither `plan_schema` nor any recognizable plan structure (no `## Acceptance Criteria`, no `### U<n>`), say "this doesn't look like a plan file" instead.
 - **Present, an integer ≠ 2** (e.g. `plan_schema: 1`) — stop and say: "This plan has `plan_schema: <value>`. Expected `plan_schema: 2`. Check that your dev-workflow plugin version matches the plan's schema (upgrade or downgrade as needed)."
 - **Present but not an integer** (a quoted string like `"two"`, a list, a map) **or unparseable YAML** — stop and say: "Frontmatter malformed near `plan_schema` (expected the integer `2`). Fix the YAML and retry." A wrong *type* is a malformed-frontmatter case, not a version mismatch.
 
+#### `.html` plans
+
+Apply the **named HTML conformance preflight** (from `references/html-rendering.md`) — all
+three signals must be present (visible-text header block + ≥1 `U<n>` visible-text heading with
+`id=""` + composition footer). Do not re-derive the signal list here; cite it by name.
+
+A non-conforming `.html` — including legacy HTML files in `docs/plans/` that pre-date this
+convention (e.g. `docs/plans/2026-05-19-feat-add-ba-propose-command-plan.html`) — is rejected
+with "doesn't look like a plan file (missing: <list failing signals>)" and **not** executed. It is **not** refused as "predates
+the git-derived execution model" (that message is the `.md`-absent case only). A conforming
+`.html` is treated as `plan_schema: 2`-equivalent; read the visible-text header block for
+`detail_level`.
+
 Extract:
 
-1. **Detail level** from YAML frontmatter `detail_level` field. If missing, infer:
+1. **Detail level** — from YAML frontmatter `detail_level` field (`.md`) or the visible-text
+   header block's `Detail level` field (`.html`). If missing, infer:
    - Has "Implementation Phases" sections → COMPREHENSIVE
    - Has "Changes Required" sections → STANDARD
    - Otherwise → MINIMAL
 
 2. **Resume state**: Run `derive-state(plan, git, run_verify: true)` (see `## U-ID & Git-Derived State Convention`). Count units with verdict `done` vs `pending`. If any are `done`, this is a resume.
 
-3. **Task list**: Extract the discrete executable tasks based on detail level:
-   - **MINIMAL**: Each `### U<n> — <title>` unit is a task.
-   - **STANDARD**: Each `### U<n> — <title>` unit is a task.
-   - **COMPREHENSIVE**: Each `### U<n> — <title>` unit within a phase is a task. Phase gates occur at phase boundaries.
+3. **Task list**: Extract the discrete executable tasks based on detail level — **format-neutral**:
+   - **MINIMAL**: Each implementation unit anchor (markdown `### U<n> — <title>` heading, or HTML `U<n>` visible-text heading with `id=""`) is a task.
+   - **STANDARD**: Each implementation unit anchor is a task.
+   - **COMPREHENSIVE**: Each implementation unit anchor within a phase is a task. Phase gates occur at phase boundaries.
 
 4. **Already complete**: If every unit is `done` (via either path), announce "This plan is already complete — no pending units." For a fully-merged/squashed plan whose units all read `done-via-verify`, announce "already complete (verified against code); no pending units" and use **AskUserQuestion** with options: Re-verify (run `Verify:` checks to confirm), Review changes (`git diff` against base), Done.
 
@@ -62,11 +87,18 @@ Extract:
 
 This section is the single owner of the U-ID grammar and the derive-state read.
 `/ba:plan` mints anchors per (1); `/ba:execute` writes (2) and runs (3) with
-`run_verify: true`; `/ba:propose` and `/ba:handoff` cite this section, and
-`/ba:handoff` calls (3) with `run_verify: false`.
+`run_verify: true`; `/ba:propose`, `/ba:handoff`, and `/ba:review-plan` cite this
+section; `/ba:handoff` calls (3) with `run_verify: false`.
 
-**(1) U-ID anchor** (minted by `/ba:plan`): each implementation unit is a
-`### U<n> — <title>` heading. `<n>` is a positive integer, monotonic,
+The grammar and derive-state operation are **format-neutral**: they apply identically to
+markdown plans (`.md`) and HTML plans (`.html`).
+
+**(1) U-ID anchor** (minted by `/ba:plan`): each implementation unit has a
+format-neutral anchor — a `### U<n> — <title>` heading in markdown **or** an HTML
+`U<n>` unit element carrying a matching `id="u<n>"` attribute with the visible
+`U<n>` text inside it (e.g.
+`<article id="u<n>"><header><span class="id-chip">U<n></span><h3><title></h3></header>…</article>`
+— the `id` sits on the unit container, **not** the heading tag). `<n>` is a positive integer, monotonic,
 strike-don't-renumber (a struck unit's `<n>` is never reused). U-IDs attach to
 implementation units only — never to `AC<N>` or `Test scenarios:`. U-IDs are
 **plan-scoped, not globally unique**: the subject scan assumes one in-flight
@@ -82,7 +114,11 @@ optional transient `Deviation (U<n>): …` trailer may appear in the commit body
 Returns, for each unit, one of `done-via-subject` / `done-via-verify` /
 `pending` (a caller needing only a boolean reads `done = via-subject | via-verify`).
 Iterates the **plan's** current unit set (a U-ID in git history but absent from
-the plan is ignored — struck units are inert). For each plan unit, resolve in
+the plan is ignored — struck units are inert). **Locating the unit set is
+format-neutral:** for a markdown plan, scan `### U<n>` headings; for an HTML plan,
+scan the `id="u<n>"` attributes on unit elements (each co-located with its visible
+`U<n>` chip) — **not** a heading tag, since the `id` sits on the `<article>` container. The
+git side (subject scan, merge-base, `Verify:`) is unchanged and format-blind. For each plan unit, resolve in
 order:
   a. **done-via-subject** — its `U<n>` token appears in a commit subject in
      `<base>..HEAD`. Match on **subjects only** and on **word boundaries**.
