@@ -36,7 +36,9 @@ of these is non-conforming.
      no spaces).
    - The visible text of the ID inside the element: "U1", "AC2", "R3".
 
-   Example: `<h3 id="u1"><span class="id-chip">U1</span> — Unit Title</h3>`
+   Example: `<article id="u1"><header><span class="id-chip">U1</span><h3>Unit Title</h3></header>…</article>`
+   — the `id="u1"` sits on the unit container (the `<article>`), with the visible `U1` chip inside it;
+   an `<li id="ac2">` follows the same pattern for AC-IDs. The `id` is **not** placed on the heading tag.
 
    Downstream agents find the ID in source the same way they find it in markdown — there is no
    extraction path that differs between a human reader and an agent reader.
@@ -72,10 +74,11 @@ signals 1 and 3 only).
 1. **Visible-text header block** — a structured metadata region at the top of the document
    (inside `<body>`) rendering the artifact's title, type, schema version, date, and other
    mandatory fields as readable text (not YAML, not hidden attributes).
-2. **At least one `U<n>` visible-text heading with a matching `id=""`** — e.g.
-   `<h3 id="u1">…U1…</h3>` — confirming the artifact has implementation units readable by
-   agents. (Plan-only signal — brainstorm HTML artifacts do not have U-IDs and are not
-   validated by this preflight.)
+2. **At least one `U<n>` unit element with a matching `id="u<n>"` and visible `U<n>` text** — e.g.
+   `<article id="u1">…<span class="id-chip">U1</span>…</article>` (id on the unit container, visible
+   chip inside — see Section Anatomy; the scan targets the `id="u<n>"` attribute, **not** a heading tag) —
+   confirming the artifact has implementation units readable by agents. (Plan-only signal — brainstorm
+   HTML artifacts do not have U-IDs and are not validated by this preflight.)
 3. **Composition-signal footer** — a `<footer>` with visible compose-timestamp text (Hard
    Invariant 4 above).
 

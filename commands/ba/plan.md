@@ -470,7 +470,7 @@ Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file
 **Key rules for all templates:**
 - Include **exact file paths** — never placeholders
 - **Default to decisions, not code** — approach, exact file paths, patterns to follow, pseudo-code for shape, and test scenarios. Include a literal code block ONLY under a `**Code-shape decision:** <why the shape is non-obvious>` label.
-- Each implementation unit anchor is format-neutral (per the `## U-ID & Git-Derived State Convention` owner in `commands/ba/execute.md`): a `### U<n> — <title>` heading in markdown; an `<h3 id="u<n>">U<n> — <title></h3>` element in HTML. Both must carry the visible U-ID text alongside the unit title. Every unit carries `Test scenarios:` bullets and exactly one `Verify:` line.
+- Each implementation unit anchor is format-neutral (per the `## U-ID & Git-Derived State Convention` owner in `commands/ba/execute.md`): a `### U<n> — <title>` heading in markdown; an `<article id="u<n>">` unit card carrying a visible `U<n>` chip in HTML (id on the container, **not** the heading tag). Both must carry the visible U-ID text alongside the unit title. Every unit carries `Test scenarios:` bullets and exactly one `Verify:` line.
 - Phase gates in COMPREHENSIVE: an automated checkpoint — all units `done` → proceed; no manual pause
 - Always include "What We're NOT Doing"
 

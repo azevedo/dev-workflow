@@ -95,8 +95,10 @@ markdown plans (`.md`) and HTML plans (`.html`).
 
 **(1) U-ID anchor** (minted by `/ba:plan`): each implementation unit has a
 format-neutral anchor — a `### U<n> — <title>` heading in markdown **or** an HTML
-`U<n>` visible-text heading with a matching `id=""` attribute (e.g.
-`<h3 id="u<n>">U<n> — <title></h3>`). `<n>` is a positive integer, monotonic,
+`U<n>` unit element carrying a matching `id="u<n>"` attribute with the visible
+`U<n>` text inside it (e.g.
+`<article id="u<n>"><header><span class="id-chip">U<n></span><h3><title></h3></header>…</article>`
+— the `id` sits on the unit container, **not** the heading tag). `<n>` is a positive integer, monotonic,
 strike-don't-renumber (a struck unit's `<n>` is never reused). U-IDs attach to
 implementation units only — never to `AC<N>` or `Test scenarios:`. U-IDs are
 **plan-scoped, not globally unique**: the subject scan assumes one in-flight
@@ -114,7 +116,8 @@ Returns, for each unit, one of `done-via-subject` / `done-via-verify` /
 Iterates the **plan's** current unit set (a U-ID in git history but absent from
 the plan is ignored — struck units are inert). **Locating the unit set is
 format-neutral:** for a markdown plan, scan `### U<n>` headings; for an HTML plan,
-scan visible-text `U<n>` headings alongside matching `id="u<n>"` attributes. The
+scan the `id="u<n>"` attributes on unit elements (each co-located with its visible
+`U<n>` chip) — **not** a heading tag, since the `id` sits on the `<article>` container. The
 git side (subject scan, merge-base, `Verify:`) is unchanged and format-blind. For each plan unit, resolve in
 order:
   a. **done-via-subject** — its `U<n>` token appears in a commit subject in

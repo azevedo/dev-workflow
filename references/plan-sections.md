@@ -94,7 +94,7 @@ silent extraction failure.
 
 - **Format:** `U<n>` where `<n>` is a positive integer, monotonic from 1.
 - **Grammar owner:** `commands/ba/execute.md` — `## U-ID & Git-Derived State Convention`.
-- **Minting:** each `### U<n> — <title>` heading in markdown; each `<h3 id="u<n>">U<n> — <title></h3>` in HTML.
+- **Minting:** each `### U<n> — <title>` heading in markdown; each `<article id="u<n>">` unit card with a visible `U<n>` chip in HTML (id on the container, **not** the heading — see `references/html-rendering.md` Section Anatomy).
 - **Rules:** monotonic; strike-don't-renumber (a struck unit's `<n>` is never reused); plan-scoped not globally unique; attach to implementation units only — never to `AC<N>` or `Test scenarios:`.
 - **HTML rendering:** `<article id="u<n>" class="unit-card">` with a visible `<span class="id-chip">U<n></span>` (see `references/html-rendering.md` Section Anatomy).
 - **Struck units:** a struck unit receives a visible `<del>` marker or `(superseded)` text — never hidden.
