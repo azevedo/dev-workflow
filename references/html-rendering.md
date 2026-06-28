@@ -6,7 +6,8 @@ contract** (e.g. `references/plan-sections.md`, `references/brainstorm-sections.
 describes *what* the artifact contains. This file owns the *how*.
 
 **Canonical load-site pattern:** Read this file at compose time, before emitting any HTML.
-A command that omits this load step still runs but produces non-conforming HTML. Cite this
+A command that omits this load step produces non-conforming HTML and fails the post-compose
+audit. Cite this
 named pattern — "follow the canonical load-site pattern" — rather than inventing a per-command
 load instruction.
 
@@ -60,24 +61,28 @@ of these is non-conforming.
 ## Named HTML Conformance Preflight
 
 **Single source — cited by `/ba:execute`, `/ba:review-plan`, and `/ba:handoff`. Do not
-re-derive this signal list in any consumer; cite it by name here.**
+re-derive this signal list in any consumer; cite it by name here. Do not rename this heading
+— consumers cite it by this exact title.**
 
-An `.html` file is a **conforming plan/brainstorm** if and only if it satisfies all three
-signals as a conjunction:
+An `.html` file is a **conforming plan** if and only if it satisfies all three signals as a
+conjunction. **This preflight is plan-specific** — brainstorm HTML artifacts are not subject
+to it (brainstorms have no U-IDs; a future brainstorm validator would use a two-signal check:
+signals 1 and 3 only).
 
 1. **Visible-text header block** — a structured metadata region at the top of the document
    (inside `<body>`) rendering the artifact's title, type, schema version, date, and other
    mandatory fields as readable text (not YAML, not hidden attributes).
 2. **At least one `U<n>` visible-text heading with a matching `id=""`** — e.g.
    `<h3 id="u1">…U1…</h3>` — confirming the artifact has implementation units readable by
-   agents.
+   agents. (Plan-only signal — brainstorm HTML artifacts do not have U-IDs and are not
+   validated by this preflight.)
 3. **Composition-signal footer** — a `<footer>` with visible compose-timestamp text (Hard
    Invariant 4 above).
 
-A file missing any one of these three signals is **not a conforming artifact** and must be
-rejected (with the "doesn't look like a plan/brainstorm file" message) rather than silently
-enumerated as zero units. A non-conforming legacy `.html` (e.g. an arbitrary HTML file in
-`docs/plans/`) is rejected uniformly by all three consumers citing this preflight.
+A file missing any one of these three signals is **not a conforming plan artifact** and must be
+rejected (with the "doesn't look like a plan file" message) rather than silently enumerated as
+zero units. A non-conforming legacy `.html` (e.g. an arbitrary HTML file in `docs/plans/`) is
+rejected uniformly by all three consumers citing this preflight.
 
 ---
 
@@ -306,3 +311,5 @@ agent checks its own output. A single failed item means the artifact is non-conf
 | 8 | Section headings match contract | Every section heading text matches the paired section contract's vocabulary |
 | 9 | No invented URLs | Every `href` is either a data URI, a fragment (`#anchor`), or a URL derived from `git remote get-url origin` |
 | 10 | Conformance preflight | File satisfies all three signals: visible-text header + ≥1 `U<n>` heading with `id=""` + composition footer |
+
+**On any failed check:** correct the artifact inline, re-run the failed check to confirm it passes, then continue. Do not return a non-conforming artifact.

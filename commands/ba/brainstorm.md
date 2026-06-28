@@ -20,18 +20,14 @@ Do not proceed until you have a feature description from the user.
 
 ## Phase 0.0: Resolve Output Format
 
-Determine the output format for this brainstorm artifact. The resolution is **identical** to
-`/ba:plan`'s Step 0.0 — same precedence stack, same heuristics:
+The resolution uses the same precedence stack as `/ba:plan` Step 0.0 — see that step for
+the full enumeration (in-prompt `output:` token → session/memory preference → default `md`).
 
-1. **In-prompt `output:` token** — scan `$ARGUMENTS` and the user's message for `output:html`
-   or `output:md`. Plain-language equivalents count ("make this an HTML file"). **Format-vs-
-   subject heuristic:** a subject-matter mention of HTML is *not* a format request. An unknown
-   `output:` value (e.g., `output:pdf`) is dropped with a one-line note and falls through.
-
-2. **In-session/memory preference** — a format preference stated earlier in this conversation
-   or recorded in memory.
-
-3. **Default** — `md`.
+**Brainstorm-specific addition — wireframe affordance (HTML path only):**
+Because brainstorm is a requirements-only artifact, the HTML path may include a low-fidelity
+wireframe for UI-shaped requirements. See `references/html-rendering.md` "Wireframe Mockups"
+for rules and the mandatory directional caption requirement. This affordance is absent from the
+markdown path and from implementation plan HTML artifacts.
 
 **Exclusive-mode enforcement (checked at Phase 3, before write):**
 Before writing, check for a same-stem twin of the *other* extension in `docs/brainstorms/`.
@@ -40,12 +36,6 @@ If one exists, refuse and ask the user which to keep — never write both.
 **Resume format continuity:**
 If a brainstorm file already exists on disk for this topic, preserve its format. A mid-run
 format switch is refused.
-
-**Wireframe affordance (HTML path only):**
-Because brainstorm is a requirements-only artifact, the HTML path may include a low-fidelity
-wireframe for UI-shaped requirements. See `references/html-rendering.md` "Wireframe Mockups"
-for rules and the mandatory directional caption requirement. This affordance is absent from the
-markdown path.
 
 Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) for use in Phase 3.
 
@@ -117,9 +107,7 @@ Even for FAST-TRACK, write a minimal brainstorm doc so the plan command can find
 mkdir -p docs/brainstorms/
 ```
 
-**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0):** before writing,
-check whether a file with the same stem but the other extension already exists in
-`docs/brainstorms/`. If so, ask the user which to keep.
+**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0).**
 
 **Write based on `OUTPUT_FORMAT` (resolved in Phase 0.0):**
 
@@ -266,9 +254,7 @@ Use **AskUserQuestion** to ask which approach the user prefers (or if they want 
 
 Ensure `docs/brainstorms/` directory exists before writing.
 
-**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0):** before writing,
-check whether a file with the same stem but the other extension already exists in
-`docs/brainstorms/`. If so, refuse and ask the user which to keep.
+**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0).**
 
 **Write based on `OUTPUT_FORMAT` (resolved in Phase 0.0):**
 
@@ -404,7 +390,7 @@ Use **AskUserQuestion** to present next steps:
 - **Fresh-context planning** → Tell the user the exact command to copy-paste after clearing:
   ```
   Run `/clear`, then paste this:
-  /ba:plan — read docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md and plan that feature
+  /ba:plan — read docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.[md|html] and plan that feature
   ```
   Use the **actual filename** of the brainstorm just written — not a placeholder.
 - **Review and refine** → Ask which section to improve, make changes, return to Phase 4
@@ -418,7 +404,7 @@ When complete, display:
 ```
 Brainstorm complete!
 
-Document: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md
+Document: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.[md|html]
 Triage level: [FAST-TRACK | STANDARD | FULL]
 
 Key decisions:

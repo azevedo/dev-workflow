@@ -52,6 +52,7 @@ silent extraction failure.
 |---|---|
 | `Context` | `context` |
 | `MVP` | `mvp` |
+| `Sources` | `sources` |
 
 ### STANDARD additional sections
 
@@ -60,9 +61,11 @@ silent extraction failure.
 | `Overview` | `overview` |
 | `Current State` | `current-state` |
 | `Proposed Solution` | `proposed-solution` |
-| `Technical Approach` | `technical-approach` |
-| `Testing Strategy` | `testing-strategy` |
-| `Implementation` | `implementation` |
+| `Technical Considerations` | `technical-considerations` |
+| `System-Wide Impact` | `system-wide-impact` |
+| `Implementation Approach` | `implementation-approach` |
+| `Dependencies & Risks` | `dependencies-risks` |
+| `Sources & References` | `sources-references` |
 
 ### COMPREHENSIVE additional sections
 

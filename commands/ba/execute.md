@@ -38,9 +38,6 @@ From the results, **branch on extension**:
 Select the most recent conforming file across both extensions. If found, announce: "Found plan: `[filename]`. Executing this one."
 If not found, ask the user: "No actionable plans found in `docs/plans/`. Which file should I execute? Or run `/ba:plan` to create one."
 
-If found, announce: "Found plan: `[filename]`. Executing this one."
-If not found, ask the user: "No actionable plans found in `docs/plans/`. Which file should I execute? Or run `/ba:plan` to create one."
-
 ### Read & Validate the Plan
 
 Read the plan file thoroughly. **Branch on extension** for validation:
@@ -54,15 +51,13 @@ Read the plan file thoroughly. **Branch on extension** for validation:
 
 #### `.html` plans
 
-Apply the **named HTML conformance preflight** (from `references/html-rendering.md`). All three
-signals required:
-1. Visible-text header block present.
-2. At least one `U<n>` visible-text heading with a matching `id=""`.
-3. Composition-signal footer present.
+Apply the **named HTML conformance preflight** (from `references/html-rendering.md`) — all
+three signals must be present (visible-text header block + ≥1 `U<n>` visible-text heading with
+`id=""` + composition footer). Do not re-derive the signal list here; cite it by name.
 
 A non-conforming `.html` — including legacy HTML files in `docs/plans/` that pre-date this
 convention (e.g. `docs/plans/2026-05-19-feat-add-ba-propose-command-plan.html`) — is rejected
-with "doesn't look like a plan file" and **not** executed. It is **not** refused as "predates
+with "doesn't look like a plan file (missing: <list failing signals>)" and **not** executed. It is **not** refused as "predates
 the git-derived execution model" (that message is the `.md`-absent case only). A conforming
 `.html` is treated as `plan_schema: 2`-equivalent; read the visible-text header block for
 `detail_level`.

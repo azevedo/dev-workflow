@@ -26,8 +26,9 @@ Determine the output format for this plan artifact. The result is either `md` (d
 **Precedence stack (highest wins):**
 
 1. **In-prompt `output:` token** — scan `$ARGUMENTS` and the user's message for the token
-   `output:html` or `output:md`. Plain-language equivalents also count: "make this an HTML
-   file", "output as html", "I want this in HTML". **Format-vs-subject heuristic:** a
+   `output:html` or `output:md` (optional whitespace after the colon: `output: html` is
+   treated identically to `output:html`). Plain-language equivalents also count: "make this
+   an HTML file", "output as html", "I want this in HTML". **Format-vs-subject heuristic:** a
    subject-matter mention of HTML (e.g., "plan the HTML export feature") is *not* a format
    request — only an explicit `output:` token or plain-language format request triggers this
    tier. An unknown `output:` value (e.g., `output:pdf`) is **dropped with a one-line note**
@@ -42,8 +43,8 @@ Determine the output format for this plan artifact. The result is either `md` (d
 **Exclusive-mode enforcement (checked at Step 7, before write):**
 Before writing, check for a same-stem twin of the *other* extension in `docs/plans/`. If
 `docs/plans/<stem>.md` exists and you are about to write `<stem>.html` (or vice versa), **refuse
-and ask the user** which to keep — do not delete either file (protected-artifacts guard). Never
-write both formats.
+and ask the user** which format to use for this write — the existing file is not deleted
+(protected-artifacts guard). Never write both formats in parallel.
 
 **Resume format continuity:**
 If resuming an in-flight plan (a plan file already exists on disk), preserve the existing
@@ -62,11 +63,15 @@ Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) for use in Step 7.
 Search for recent brainstorm documents that match this feature:
 
 ```bash
-ls -la docs/brainstorms/*.md 2>/dev/null | head -10
+ls -la docs/brainstorms/*.{md,html} 2>/dev/null | head -10
 ```
 
+**Branch on extension when reading a candidate:**
+- **`.md`**: read YAML frontmatter to extract `date`, `topic`, and `status`.
+- **`.html`**: read the visible-text header block (the `<section id="header">` metadata region) to extract the same fields — no YAML block will be present.
+
 **Relevance criteria:** A brainstorm is relevant if:
-- The topic (from filename or YAML frontmatter) semantically matches the feature description
+- The topic (from filename or header) semantically matches the feature description
 - Created within the last 14 days
 - If multiple candidates match, use the most recent one
 
@@ -619,7 +624,7 @@ When complete, display:
 ```
 Plan complete!
 
-Document: docs/plans/YYYY-MM-DD-<type>-<name>-plan.md
+Document: docs/plans/YYYY-MM-DD-<type>-<name>-plan.[md|html]
 Detail level: [MINIMAL | STANDARD | COMPREHENSIVE]
 Origin: [brainstorm path or "standalone"]
 
