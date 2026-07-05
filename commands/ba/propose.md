@@ -139,6 +139,7 @@ git fetch --no-tags origin "$DEFAULT_BRANCH"
 DIFF_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH")
 git diff --stat "$DIFF_BASE..HEAD"
 git diff --numstat "$DIFF_BASE..HEAD"
+git diff --name-status "$DIFF_BASE..HEAD"
 git log --pretty=oneline "$DIFF_BASE..HEAD"
 git rev-parse --abbrev-ref HEAD
 ```
@@ -147,6 +148,7 @@ Capture into the orchestrator's local state:
 
 - `diff.range = "$DIFF_BASE..HEAD"`
 - `diff.file_stats = <output of --numstat>`
+- `diff.file_status = <output of --name-status>` — per-path add/modify/delete status. `--numstat` gives line-count deltas only, so it can't distinguish a deleted test file from a modified one; Proof detection (Step 2e) reads `diff.file_status` to exclude deletions.
 - `diff.commit_log = <output of --pretty=oneline>`
 - `branch.name = <current branch>`
 - `branch.base_ref = "origin/$DEFAULT_BRANCH"`
@@ -257,20 +259,16 @@ Step 5d re-fetches the body immediately before write and re-extracts these block
 
 If `ACTION` is one of `commit_push_create` / `describe_only` and no open PR/MR exists for the branch, set `preserved_blocks = ()`. The `commit_push_edit` and `edit_only` cases imply an open PR/MR by Step 0b's resolution, so this branch isn't reached for those actions.
 
-### 2e. Evidence (user-supplied URLs only)
+### 2e. Proof detection (non-blocking — no question asked)
 
-If the diff suggests user-observable behavior — UI files changed, e.g. files matching `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.css`, `templates/`, `views/`, etc. — ask:
+Scan `diff.file_stats` + `diff.file_status` (both captured in 2a) and derive `proof` deterministically. No prompt — this replaces the earlier blocking evidence question:
 
-> "This change appears user-visible. Include evidence?"
->
-> 1. **Use existing evidence** — paste URL(s) or markdown embed → splice as `## Demo`
-> 2. **Skip** — no evidence section
+- **Automated** — one or more test files with `A`/`M` status in `diff.file_status` (deletions excluded, since a deleted test file proves nothing) → `proof = ("automated", "<first test file path>")`. Test-file globs: a path matching `*_test.*`, `*.test.*`, `*_spec.*`, `*.spec.*`, `test_*.*`, or under a `test/`, `tests/`, `spec/`, or `__tests__/` segment. Presence only — quality is not asserted (a weakening diff still trips this).
+- **Visual** — `preserved_blocks` contains `demo`/`screenshots` → `proof = ("visual", <pointer to the Screenshots/Demo section>)`. A pointer, not an embed.
+- **n/a** — no runtime surface: every changed path is docs (`*.md`, `docs/`) or config-only → `proof = ("na", None)`.
+- **pending** — otherwise → `proof = ("pending", None)`.
 
-If "Use existing evidence", prompt for the markdown to splice. Accept whatever the user pastes verbatim (URL validation is out of scope — preview catches obvious issues).
-
-`evidence = ((kind="markdown", raw=<text>),)` or `()`.
-
-If no user-observable files changed, skip this prompt — `evidence = ()`.
+`Manual` (repro/QA notes) is **non-materializing**: no gather step ever sets `proof.kind = manual`. It exists only as help/prose vocabulary describing what a human may add by hand via the `--review` Edit-body path (Step 4) — it is not a code-representable `proof` value, and no registry branch renders it.
 
 ### 2f. Deviation trailers (`/ba:execute` rollup)
 
@@ -303,7 +301,7 @@ CompositionInputs:
   issue_context      # opaque Mapping or None
   solutions          # tuple of accepted entries, possibly empty
   preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
-  evidence           # tuple of (kind, raw), possibly empty
+  proof              # (kind, pointer) — kind ∈ {automated, visual, na, pending}
   deviation_trailers # tuple of (text,) — unique trailer texts, label stripped, possibly empty
 ```
 
@@ -390,7 +388,8 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
 | 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
 | 13 | Deviations | small | `deviation_trailers` is non-empty (gathered in Step 2f) | Render `deviation_trailers` (already gathered and deduped in Step 2f from `Deviation (U<n>):` trailers over the `DIFF_BASE..HEAD` window) as a `## Deviations` section: **one bullet per unique trailer text, with the `U<n>` label stripped** — the reviewer never sees a U-ID. When `issue_context` is present, mirror the same content to the Linear ticket body. If `deviation_trailers` is empty, **omit the section entirely** (no empty header) — the row's required-input rule already drops it. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
-| 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
+| 14 | Screenshots / Demo | medium (conditional), large, perf | `preserved_blocks` contains `demo`/`screenshots` | Splice the `preserved_blocks` `demo`/`screenshots` content byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
+| 15 | Proof | small | — (always renders; absolutely suppressed at typo tier) | One compact line by `proof.kind`: `automated` → `**Proof:** unit-covered — <test file>`; `visual` → `**Proof:** screenshots below` (pointer to row #14's `<details>`); `na` → `**Proof:** n/a`; `pending` → `**Proof:** _pending — add tests / QA notes / screenshots before merge_`. Placement: after the testing rows (#9/#10), before What-I-learned (#11); a standalone line when those rows are absent. |
 
 For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #13 → #14); preserved blocks splice into canonical positions (Step 3.4).
 
