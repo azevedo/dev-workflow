@@ -286,6 +286,29 @@ For each matched line, capture the trailer **text only** — the content after t
 
 If no trailers (and no near-matches) are found, set `deviation_trailers = ()` silently. Note: local squashing before `/ba:propose` drops trailers in non-final commits (documented residual).
 
+### 2g. Shared classification facts (runs before 2h)
+
+Materialize two facts **once**, read by three consumers — the existing Breaking-changes row #4, Risk (2h below), and `## Where to look` (Step 2i) — so none of the three re-derives them and the heuristics can't drift apart:
+
+- `sensitive_paths_touched` — the matched sensitive-class names touched by the diff (possibly empty), matched on a **path segment / word boundary**, never a substring (so `AuthorList.tsx` does not match `auth`). Classes:
+  - **payments**: `payment`, `billing`, `charge`, `invoice`
+  - **auth**: `auth`, `session`, `token`, `login`, `credential`, `password`
+  - **migrations**: `migrate`, `migration`, `schema`, `db/`
+  - **security**: `crypto`, `secret`, `permission`, `acl`, `security`
+- `breaking_signal` — bool, reusing row #4's existing API-removal/schema-change detector.
+
+### 2h. Risk derivation (deterministic; runs after 2g)
+
+Materialize `risk = (level, reason)` from `sensitive_paths_touched` + diff size + `breaking_signal`. Level is `max(path_risk, size_risk, breaking_risk)` — first match wins:
+
+| level | condition |
+|---|---|
+| high | `breaking_signal` is true OR `sensitive_paths_touched` is non-empty |
+| medium | `large` tier by size, OR a sensitive-adjacent path with notable size |
+| low | otherwise |
+
+`reason` names the dominant contributor, drawn from `sensitive_paths_touched` / the breaking signal (e.g. `medium — touches auth, DB migration`). Materialize `risk` as a fixed string here — never generate it as free-text inside composition — because it feeds a structured lead-line that Step 5d's fetch-before-write re-composition must re-derive byte-identically.
+
 ## Step 3: Compose body (the seam)
 
 This is the composition spec — Claude executes it to produce `title` and `body` from the inputs gathered in Step 2. It is pure: it reads from `CompositionInputs` only, performs no I/O, makes no MCP calls, runs no git commands. If you find yourself needing a fact that isn't in `CompositionInputs`, that's a gather-side bug — go back to Step 2.
@@ -302,6 +325,7 @@ CompositionInputs:
   solutions          # tuple of accepted entries, possibly empty
   preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
   proof              # (kind, pointer) — kind ∈ {automated, visual, na, pending}
+  risk               # (level, reason) — level ∈ {low, medium, high}; materialized string
   deviation_trailers # tuple of (text,) — unique trailer texts, label stripped, possibly empty
 ```
 
@@ -390,6 +414,7 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 13 | Deviations | small | `deviation_trailers` is non-empty (gathered in Step 2f) | Render `deviation_trailers` (already gathered and deduped in Step 2f from `Deviation (U<n>):` trailers over the `DIFF_BASE..HEAD` window) as a `## Deviations` section: **one bullet per unique trailer text, with the `U<n>` label stripped** — the reviewer never sees a U-ID. When `issue_context` is present, mirror the same content to the Linear ticket body. If `deviation_trailers` is empty, **omit the section entirely** (no empty header) — the row's required-input rule already drops it. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
 | 14 | Screenshots / Demo | medium (conditional), large, perf | `preserved_blocks` contains `demo`/`screenshots` | Splice the `preserved_blocks` `demo`/`screenshots` content byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 | 15 | Proof | small | — (always renders; absolutely suppressed at typo tier) | One compact line by `proof.kind`: `automated` → `**Proof:** unit-covered — <test file>`; `visual` → `**Proof:** screenshots below` (pointer to row #14's `<details>`); `na` → `**Proof:** n/a`; `pending` → `**Proof:** _pending — add tests / QA notes / screenshots before merge_`. Placement: after the testing rows (#9/#10), before What-I-learned (#11); a standalone line when those rows are absent. |
+| 16 | Risk lead-line | small | — (always renders; absolutely suppressed at typo tier — no carve-out) | `**Risk:** <level> — <reason>` as an un-headed line, the first line of the body, above Impact (#2). No wrapper section header — the line stands alone. |
 
 For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #13 → #14); preserved blocks splice into canonical positions (Step 3.4).
 
