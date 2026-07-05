@@ -309,6 +309,16 @@ Materialize `risk = (level, reason)` from `sensitive_paths_touched` + diff size 
 
 `reason` names the dominant contributor, drawn from `sensitive_paths_touched` / the breaking signal (e.g. `medium — touches auth, DB migration`). Materialize `risk` as a fixed string here — never generate it as free-text inside composition — because it feeds a structured lead-line that Step 5d's fetch-before-write re-composition must re-derive byte-identically.
 
+### 2i. Focus-area selection (deterministic; runs after 2h)
+
+Materialize `focus_areas` — a tuple of 1–2 short strings, possibly empty — from diff hotspots. Reads the shared `sensitive_paths_touched` / `breaking_signal` facts (2g) and the already-materialized `risk` (2h); this is why 2g → 2h → 2i is a strict order within Step 2.
+
+**Hotspot rule:** the top 1–2 files by churn (`additions + deletions` from `diff.file_stats`'s `--numstat`) that also carry a breaking or sensitive signal, plus any breaking-change surface.
+
+**Dedup vs Risk basis:** dedup on the **matched sensitive-class name** already named in `risk.reason` (e.g. drop a `payments/…` hotspot when `risk.reason` already says "touches payments") — not a raw-path string compare.
+
+If no file clearly dominates and no breaking/sensitive signal exists, `focus_areas = ()` (no hotspot).
+
 ## Step 3: Compose body (the seam)
 
 This is the composition spec — Claude executes it to produce `title` and `body` from the inputs gathered in Step 2. It is pure: it reads from `CompositionInputs` only, performs no I/O, makes no MCP calls, runs no git commands. If you find yourself needing a fact that isn't in `CompositionInputs`, that's a gather-side bug — go back to Step 2.
@@ -326,6 +336,7 @@ CompositionInputs:
   preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
   proof              # (kind, pointer) — kind ∈ {automated, visual, na, pending}
   risk               # (level, reason) — level ∈ {low, medium, high}; materialized string
+  focus_areas        # tuple of short strings, possibly empty
   deviation_trailers # tuple of (text,) — unique trailer texts, label stripped, possibly empty
 ```
 
@@ -415,6 +426,7 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 14 | Screenshots / Demo | medium (conditional), large, perf | `preserved_blocks` contains `demo`/`screenshots` | Splice the `preserved_blocks` `demo`/`screenshots` content byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 | 15 | Proof | small | — (always renders; absolutely suppressed at typo tier) | One compact line by `proof.kind`: `automated` → `**Proof:** unit-covered — <test file>`; `visual` → `**Proof:** screenshots below` (pointer to row #14's `<details>`); `na` → `**Proof:** n/a`; `pending` → `**Proof:** _pending — add tests / QA notes / screenshots before merge_`. Placement: after the testing rows (#9/#10), before What-I-learned (#11); a standalone line when those rows are absent. |
 | 16 | Risk lead-line | small | — (always renders; absolutely suppressed at typo tier — no carve-out) | `**Risk:** <level> — <reason>` as an un-headed line, the first line of the body, above Impact (#2). No wrapper section header — the line stands alone. |
+| 17 | Where to look | medium, large | `focus_areas` is non-empty | A `## Where to look` section with 1–2 bullets naming each area, placed after Impact/Motivation (#2/#3), before Breaking changes (#4). Never repeats an area `risk.reason` already named (dedup basis: 2i). At `medium` with a single trivial area, the content **may** fold into the Impact prose instead of earning its own header; at `large` it always renders as its own section. Omitted entirely when `focus_areas` is empty (no hotspot). |
 
 For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #13 → #14); preserved blocks splice into canonical positions (Step 3.4).
 
@@ -463,7 +475,9 @@ Commit message and PR/MR body share the same rendered string: `title + "\n\n" + 
 
 #### 3.6 Soft size-target warning
 
-After full composition, compare `body` against its tier's soft target shape (3.1a):
+The always-on Risk lead-line (#16), the always-on Proof line (#15), and the `## Where to look` section (#17, heading + bullets) are **routing chrome** — they exist to route the reviewer's attention, not to describe the change, so they must never self-trigger a small-tier overshoot warning. Before comparing `body`'s length against its tier's target, **subtract** these three elements' rendered length from the measured length. Compare the remainder against the target below.
+
+After that subtraction, compare the remainder against its tier's soft target shape (3.1a):
 
 - small — warn if the body exceeds ~300 characters or introduces `##` headers without two distinct concerns.
 - medium — warn if the body exceeds ~one screen or more than two `H2` sections.
