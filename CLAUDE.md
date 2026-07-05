@@ -32,7 +32,7 @@ Claude Code plugin providing brainstorm and plan commands with triage, conventio
 
 ### Git Workflow Commands (ship code — commit, push, open PR/MR)
 
-- `/ba:propose [--describe-only] [--issue <ID>]` — Commit, push, and open PR/MR with a composed title and body
+- `/ba:propose [--describe-only] [--review] [--issue <ID>]` — Commit, push, and open PR/MR with a composed title and body
 
 ## Agents
 

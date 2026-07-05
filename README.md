@@ -180,21 +180,24 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
   `commands/ba/review.md` §5 for the authoritative resolution flow.
 - **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
 
-### /ba:propose [--describe-only] [--issue <ID>]
+### /ba:propose [--describe-only] [--review] [--issue <ID>]
 
 Commit, push, and open a PR/MR with a composed title and body.
 
-- Pure-function body composition: orchestrator gathers inputs (diff, branch, Linear, docs/solutions, preserved blocks, evidence) → composition reads value objects and returns title + body
+- Pure-function body composition: orchestrator gathers inputs (diff, branch, Linear, docs/solutions, preserved blocks, proof, risk, focus areas) → composition reads value objects and returns title + body
 - Host-detected dispatch: GitHub `gh`, GitLab `glab`, graceful fallback for unknown hosts (compose + push only)
 - Body composition selects from Michael Lynch's 16-section menu, sized to the diff — the size-tier vocabulary is hidden behind the composition seam (no flag, no preview surface)
 - **U-ID preservation** — never strips or rewrites `/ba:execute`'s U-tagged commit subjects (`U<n>` per the convention in `execute.md`); PR/MR title is U-ID-free by design
-- **Deviation rollup** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and renders them as a `## Deviations` section in the MR/PR body (and Linear ticket when linked); omits the section when no trailers found; warns on near-matches at preview
+- **Proof** — always-on one-line signal, auto-detected from the diff (test file touched, visual evidence preserved from the PR body, docs-only, or pending); no blocking question
+- **Risk lead-line** — an always-on, un-headed `**Risk:** low/medium/high — <reason>` line at the top of the body, deterministically derived from sensitive paths, size, and breaking-change signals; absent at typo tier
+- **Where to look** — an earned `## Where to look` section naming 1–2 hotspot areas on medium+ diffs, omitted when there's no dominant hotspot
+- **Deviation fold** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and folds genuinely reviewer-relevant substance into the Impact prose (no standalone header, no `U<n>` shown); the commit trailer and Linear ticket rollup (when linked) are unchanged; warns on near-matches at preview
 - Linear MCP optional with diff-derived fallback; clear preview warning when MCP is unavailable
 - `docs/solutions/` auto-detection on current-branch-touched entries; per-entry confirm to splice as "What I learned"
 - Cursor BugBot block and existing `## Demo` / `## Screenshots` preserved byte-identical
 - Commit message and PR/MR body share the same composed markdown — no separate render path
 - `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
-- Preview-then-confirm always — apply / edit / regenerate-with-hint / exit
+- **Apply-by-default** — every `ACTION` applies without a confirmation prompt by default; pass `--review` (alias `--interactive`) or set `BA_PROPOSE_REVIEW=1` to restore the Apply / edit / regenerate-with-hint / exit menu and the Step 0b edit-only confirm
 
 ### `/ba:handoff [focus]`
 

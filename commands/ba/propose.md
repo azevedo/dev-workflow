@@ -1,7 +1,7 @@
 ---
 name: ba:propose
-description: Commit, push, and open a PR/MR with a composed title and body — preview-then-confirm, host-detected dispatch for GitHub and GitLab.
-argument-hint: "[--describe-only] [--issue <ID>] [optional: free-text hint]"
+description: Commit, push, and open a PR/MR with a composed title and body — apply-by-default (--review to restore confirmation), host-detected dispatch for GitHub and GitLab.
+argument-hint: "[--describe-only] [--review] [--issue <ID>] [optional: free-text hint]"
 ---
 
 # Propose Changes for Review
@@ -19,9 +19,14 @@ Strip recognized flags from the argument string; what remains is a free-text hin
 Recognized flags:
 
 - `--describe-only` — Compose and print the body; do not commit, push, or create/edit a PR/MR. Useful as a dry run.
+- `--review` (alias `--interactive`) — Restore the interactive confirmation gates (Step 0b edit-only confirm, Step 4 Apply menu) that are otherwise skipped by default. See `REVIEW_MODE` below.
 - `--issue <ID>` — Explicitly bind a Linear issue ID. Overrides branch-name detection.
 
-Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b. One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
+**`REVIEW_MODE`** — a run-local orchestrator variable (alongside `ACTION`, `HOST`; it never enters `CompositionInputs`) that gates the Step 0b edit-only confirm and the Step 4 Apply menu (see U2 in those steps). Resolved as an OR, not an AND: `REVIEW_MODE = (--review present) OR (BA_PROPOSE_REVIEW is set to a non-empty, non-"0" value)`. Either signal alone is sufficient — a flag or an env var must never be silently ignored, since silently dropping an explicit safety opt-in on an apply-by-default command is the worst failure mode. `BA_PROPOSE_REVIEW=0` and an empty value are treated as unset. `BA_PROPOSE_REVIEW=1` set once in a shell profile is the persistent equivalent of always passing `--review`.
+
+**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. (Review fix: this list previously lived as two independent near-verbatim copies, one at each confirmation site, with no cross-reference tying them together — stated once here instead.)
+
+Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b (skipped by default — see `REVIEW_MODE`). One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
 
 ## Step 0: Pre-flight
 
@@ -77,14 +82,21 @@ else
   fi
 
   if [[ -n "$OPEN_PR_URL" && "$HAS_COMMITS_TO_PUSH" == no ]]; then
-    # Confirm the edit-only intent — refusing this exits early
-    ask "Nothing to push. Update the PR description only?" yes/no
-    [[ answer == yes ]] && ACTION=edit_only || exit 0
+    if [[ "$REVIEW_MODE" == true ]]; then
+      # Confirm the edit-only intent — refusing this exits early
+      ask "Nothing to push. Update the PR description only?" yes/no
+      [[ answer == yes ]] && ACTION=edit_only || exit 0
+    else
+      # Apply-by-default (U2): auto-confirm edit-only intent, no prompt.
+      ACTION=edit_only
+    fi
   elif [[ -n "$OPEN_PR_URL" ]]; then
     ACTION=commit_push_edit
   fi
 fi
 ```
+
+**Apply-by-default (U2):** this confirmation is auto-confirmed to `ACTION=edit_only` when `REVIEW_MODE` is false (the default — no `--review` flag and no `BA_PROPOSE_REVIEW`) and asked (current behavior) only when `REVIEW_MODE` is true. See the `REVIEW_MODE` definition (Arguments, above) for the full scope of what this flip touches and what it leaves unaffected.
 
 After Step 0b, every downstream step reads `ACTION` and `OPEN_PR_URL` and nothing else for mode dispatch / PR-targeting. `MODE` and `skip_push` are not separate variables — they were intermediate concepts in an earlier draft, collapsed at plan-review time into `ACTION` so cross-step state is named once. The Step 5 action plan table (below) dispatches on `ACTION` directly; `OPEN_PR_URL` is the canonical PR identifier threaded through Steps 2d and 5d.
 
@@ -129,6 +141,7 @@ git fetch --no-tags origin "$DEFAULT_BRANCH"
 DIFF_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH")
 git diff --stat "$DIFF_BASE..HEAD"
 git diff --numstat "$DIFF_BASE..HEAD"
+git diff --name-status "$DIFF_BASE..HEAD"
 git log --pretty=oneline "$DIFF_BASE..HEAD"
 git rev-parse --abbrev-ref HEAD
 ```
@@ -137,6 +150,7 @@ Capture into the orchestrator's local state:
 
 - `diff.range = "$DIFF_BASE..HEAD"`
 - `diff.file_stats = <output of --numstat>`
+- `diff.file_status = <output of --name-status>` — per-path add/modify/delete status. `--numstat` gives line-count deltas only, so it can't distinguish a deleted test file from a modified one; Proof detection (Step 2e) reads `diff.file_status` to exclude deletions.
 - `diff.commit_log = <output of --pretty=oneline>`
 - `branch.name = <current branch>`
 - `branch.base_ref = "origin/$DEFAULT_BRANCH"`
@@ -247,20 +261,16 @@ Step 5d re-fetches the body immediately before write and re-extracts these block
 
 If `ACTION` is one of `commit_push_create` / `describe_only` and no open PR/MR exists for the branch, set `preserved_blocks = ()`. The `commit_push_edit` and `edit_only` cases imply an open PR/MR by Step 0b's resolution, so this branch isn't reached for those actions.
 
-### 2e. Evidence (user-supplied URLs only)
+### 2e. Proof detection (non-blocking — no question asked)
 
-If the diff suggests user-observable behavior — UI files changed, e.g. files matching `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.css`, `templates/`, `views/`, etc. — ask:
+Scan `diff.file_stats` + `diff.file_status` (both captured in 2a) and derive `proof` deterministically. No prompt — this replaces the earlier blocking evidence question:
 
-> "This change appears user-visible. Include evidence?"
->
-> 1. **Use existing evidence** — paste URL(s) or markdown embed → splice as `## Demo`
-> 2. **Skip** — no evidence section
+- **Automated** — one or more test files with `A`/`M` status in `diff.file_status` (deletions excluded, since a deleted test file proves nothing) → `proof = ("automated", "<first test file path>")`. Test-file globs: a path matching `*_test.*`, `*.test.*`, `*_spec.*`, `*.spec.*`, `test_*.*`, or under a `test/`, `tests/`, `spec/`, or `__tests__/` segment. Presence only — quality is not asserted (a weakening diff still trips this).
+- **Visual** — `preserved_blocks` contains `demo`/`screenshots` → `proof = ("visual", <pointer to the Screenshots/Demo section>)`. A pointer, not an embed.
+- **n/a** — no runtime surface: every changed path is under `docs/`, or a repo-root passive doc (`README.md`, `CLAUDE.md`, `CHANGELOG.md`), or config-only → `proof = ("na", None)`. Review fix: a bare `*.md` glob would also match `commands/*.md`, `agents/*.md`, `skills/*.md` — prompt-spec files that are executable agent logic, not passive documentation — and wrongly suppress the pending/QA nudge on exactly the diffs (like this one) that most need it. Those paths fall through to **pending** instead.
+- **pending** — otherwise → `proof = ("pending", None)`.
 
-If "Use existing evidence", prompt for the markdown to splice. Accept whatever the user pastes verbatim (URL validation is out of scope — preview catches obvious issues).
-
-`evidence = ((kind="markdown", raw=<text>),)` or `()`.
-
-If no user-observable files changed, skip this prompt — `evidence = ()`.
+`Manual` (repro/QA notes) is **non-materializing**: no gather step ever sets `proof.kind = manual`. It exists only as help/prose vocabulary describing what a human may add by hand via the `--review` Edit-body path (Step 4) — it is not a code-representable `proof` value, and no registry branch renders it.
 
 ### 2f. Deviation trailers (`/ba:execute` rollup)
 
@@ -278,6 +288,39 @@ For each matched line, capture the trailer **text only** — the content after t
 
 If no trailers (and no near-matches) are found, set `deviation_trailers = ()` silently. Note: local squashing before `/ba:propose` drops trailers in non-final commits (documented residual).
 
+### 2g. Shared classification facts (runs before 2h)
+
+Materialize two facts **once**, read by three consumers — the existing Breaking-changes row #4, Risk (2h below), and `## Where to look` (Step 2i) — so none of the three re-derives them and the heuristics can't drift apart:
+
+- `sensitive_paths_touched` — the matched sensitive-class names touched by the diff (possibly empty), matched on a **path segment / word boundary**, never a substring (so `AuthorList.tsx` does not match `auth`). Classes:
+  - **payments**: `payment`, `billing`, `charge`, `invoice`
+  - **auth**: `auth`, `session`, `token`, `login`, `credential`, `password`
+  - **migrations**: `migrate`, `migration`, `schema`, `db/`
+  - **security**: `crypto`, `secret`, `permission`, `acl`, `security`
+- `breaking_signal` — bool, reusing row #4's existing API-removal/schema-change detector.
+
+### 2h. Risk derivation (deterministic; runs after 2g)
+
+Materialize `risk = (level, reason)` from `sensitive_paths_touched` + diff size + `breaking_signal`. Evaluate the table top-down; the first matching row wins (review fix: the earlier `max(path_risk, size_risk, breaking_risk)` framing named three sub-scores that were never independently defined — this table is the only definition):
+
+| level | condition |
+|---|---|
+| high | `breaking_signal` is true OR `sensitive_paths_touched` is non-empty |
+| medium | `lines_changed > 200 OR files_changed > 10` (raw facts from `diff.file_stats`, computed here directly — **not** the seam-hidden `tier` value, since 2h runs before Step 3's `3.1 Classify size tier` even exists; review fix: the earlier "`large` tier by size" wording named a not-yet-computed, composition-only concept, and the dropped "sensitive-adjacent path with notable size" clause added nothing beyond `sensitive_paths_touched`, which already forces `high` above) |
+| low | otherwise |
+
+`reason` names the dominant contributor, drawn from `sensitive_paths_touched` / the breaking signal (e.g. `medium — touches auth, DB migration`). Materialize `risk` as a fixed string here — never generate it as free-text inside composition — because it feeds a structured lead-line that Step 5d's fetch-before-write re-composition must re-derive byte-identically.
+
+### 2i. Focus-area selection (deterministic; runs after 2h)
+
+Materialize `focus_areas` — a tuple of 1–2 short strings, possibly empty — from diff hotspots. Reads the shared `sensitive_paths_touched` / `breaking_signal` facts (2g) and the already-materialized `risk` (2h); this is why 2g → 2h → 2i is a strict order within Step 2.
+
+**Hotspot rule:** the top 1–2 files by churn (`additions + deletions` from `diff.file_stats`'s `--numstat`) that also carry a breaking or sensitive signal, plus any breaking-change surface.
+
+**Dedup vs Risk basis:** dedup against the shared structured fact `sensitive_paths_touched` (2g) directly — drop a hotspot whose matched sensitive-class name is already in that set (e.g. drop a `payments/…` hotspot when `sensitive_paths_touched` already contains `payments`). Not a raw-path string compare, and not a text-parse of `risk.reason`'s rendered prose (review fix: parsing `reason`'s wording would couple 2i to however 2h happens to phrase it, silently breaking if that phrasing ever changes — `sensitive_paths_touched` is the stable, already-shared fact both consumers were built to read).
+
+If no file clearly dominates and no breaking/sensitive signal exists, `focus_areas = ()` (no hotspot).
+
 ## Step 3: Compose body (the seam)
 
 This is the composition spec — Claude executes it to produce `title` and `body` from the inputs gathered in Step 2. It is pure: it reads from `CompositionInputs` only, performs no I/O, makes no MCP calls, runs no git commands. If you find yourself needing a fact that isn't in `CompositionInputs`, that's a gather-side bug — go back to Step 2.
@@ -293,7 +336,10 @@ CompositionInputs:
   issue_context      # opaque Mapping or None
   solutions          # tuple of accepted entries, possibly empty
   preserved_blocks   # tuple of (kind, raw_markdown), possibly empty
-  evidence           # tuple of (kind, raw), possibly empty
+  proof              # (kind, pointer) — kind ∈ {automated, visual, na, pending}
+  risk               # (level, reason) — level ∈ {low, medium, high}; materialized string
+  focus_areas        # tuple of short strings, possibly empty
+  breaking_signal    # bool — materialized once in Step 2g; row #4 (Breaking changes) reads this field rather than re-deriving its own detector (review fix: 2g's "so none of the three re-derives them" claim was previously unenforceable because this field never crossed the seam)
   deviation_trailers # tuple of (text,) — unique trailer texts, label stripped, possibly empty
 ```
 
@@ -317,7 +363,7 @@ ComposedBody:
 - Match weight to weight: when in doubt, shorter wins, and a larger diff earns *more selectivity, not more content*. Default to the smallest body that still saves the reviewer a round-trip. This governs prose verbosity and optional/narrative sections — it never suppresses a required section (breaking changes, dependency justifications, cross-refs still appear when their input is present). See the per-tier shape targets (3.1a) and the leave-out list (3.2a).
 - `title` is effect-phrased. If the initial draft is mechanism-only (e.g., "add a mutex to guard X"), rewrite to effect form ("prevent X during simultaneous Y") and stash the original for the preview's "rewritten from" disclosure.
 - Preserved blocks appear exactly once, byte-identical to input. Splice positions chosen internally.
-- Section order follows Lynch's priority (descriptive title → impact → motivation → breaking changes → external refs → dependency justifications → cross-refs → bug summaries → testing instr → testing limits → what I learned → alternatives → searchable artifacts → screenshots → rants → tempted-to-explain).
+- Section order follows Lynch's priority (descriptive title → risk lead-line → impact → motivation → where to look → breaking changes → external refs → dependency justifications → cross-refs → bug summaries → testing instr → testing limits → proof → what I learned → alternatives → searchable artifacts → screenshots → rants → tempted-to-explain). A deviation fold (when present) rewrites impact's prose in place — it does not occupy its own position in this order.
 - Empty inputs (no Linear, no solutions, no preserved blocks, tiny diff) still produce a valid minimal body.
 - Stateless; deterministic given identical inputs.
 
@@ -364,14 +410,14 @@ The tier from 3.1 sets a **soft** target shape. These are editorial guidance, no
 
 One declarative table replaces the earlier three-step pipeline (tier→sections → filter-by-availability → per-section generator). Each row owns one section: the minimum tier at which it activates, the input that must be present for it to appear, and the rule for generating its body. To add a new section, add one row. To add a new tier, raise/lower thresholds in this column only. Reviewers maintaining the spec read one place to see what each section depends on.
 
-Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*). "Activates at" uses the tier order `typo < small < medium < large`; `perf` is a tier-modifier (see 3.1 note below) that activates rows tagged with `perf` regardless of size threshold.
+Reference numbers #1–#14 are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*). **Rows #15–#17 (Proof, Risk lead-line, Where to look) are `/ba:propose`-specific additions layered past Lynch's original 1–16 numbering, not citations of Lynch's own #15/#16** (which are "Rants and stories" and "tempted to explain outside the commit message," respectively) — a reader following the citation should not expect rows #15–#17 to match the source doc. "Activates at" uses the tier order `typo < small < medium < large`; `perf` is a tier-modifier (see 3.1 note below) that activates rows tagged with `perf` regardless of size threshold.
 
 | # | Section | Activates at | Required input (drop section if missing) | Body rule |
 |---|---|---|---|---|
 | 1 | Title | typo | — | See 3.3 (title rewriting). Always present. |
 | 2 | Impact | small | — | One sentence: what was impossible/broken before, what's possible/fixed now. Falls back to commit log when motivation is thin. |
 | 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` when `issue_context` is present; else derive from `diff.commit_log` and changed file paths. Composition reads only composition-owned fields; the Linear-shape mapping lives in Step 2b. |
-| 4 | Breaking changes | large | Diff signals an API removal or schema change | Name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation. |
+| 4 | Breaking changes | large | `breaking_signal` is true (materialized once in Step 2g; review fix: this row previously named the raw diff signal instead of the shared `CompositionInputs` field, so it silently re-derived rather than reading what 2g already computed) | Name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation. |
 | 6 | Dependency justifications | large | Lockfile / dependency-manifest changes in diff | List lockfile-detected adds; one-line rationale per addition. |
 | 7 | Cross-refs | medium, large | `issue_context.ref` is present | `Fixes <issue_context.ref>` (normalized ref from Step 2b, e.g., `TO-1234`). Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or full URL). |
 | 8 | Bug summaries | large | `issue_context.body_text` is present | Paragraph form, never just `Fixes #N`. |
@@ -379,10 +425,13 @@ Reference numbers are Lynch's menu (see `docs/research/2026-05-17-shipping-skill
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
 | 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
-| 13 | Deviations | small | `deviation_trailers` is non-empty (gathered in Step 2f) | Render `deviation_trailers` (already gathered and deduped in Step 2f from `Deviation (U<n>):` trailers over the `DIFF_BASE..HEAD` window) as a `## Deviations` section: **one bullet per unique trailer text, with the `U<n>` label stripped** — the reviewer never sees a U-ID. When `issue_context` is present, mirror the same content to the Linear ticket body. If `deviation_trailers` is empty, **omit the section entirely** (no empty header) — the row's required-input rule already drops it. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
-| 14 | Screenshots / Demo | medium (conditional), large, perf | `evidence` is non-empty OR `preserved_blocks` contains `demo`/`screenshots` | Splice `evidence` markdown verbatim; when `preserved_blocks` contains `demo`/`screenshots`, prefer those byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
+| 13 | Deviations (fold) | small | `deviation_trailers` is non-empty (gathered in Step 2f) | No standalone header — this row does not occupy its own position in the ordering sequence below. When genuinely reviewer-relevant, fold the substance of `deviation_trailers` into the **Impact** prose (#2) as one clause, rewritten in plain change terms — no "plan" reference, no `U<n>`. Composition owns the fold; Step 2f's job is unchanged (capture the raw, deduped, U-ID-stripped trailer text). Non-reviewer-relevant trailers are simply not surfaced in the body. At **typo tier** (no Impact section; Risk/Proof suppressed) a deviation surfaces **nowhere** in the reviewer body — the durable `Deviation (U<n>):` commit trailer and the Linear rollup (unchanged, mirrored when `issue_context` is present) are the guarantee. If `deviation_trailers` is empty, nothing folds — Impact reads as normal. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
+| 14 | Screenshots / Demo | medium (conditional), large, perf | `preserved_blocks` contains `demo`/`screenshots` | Splice the `preserved_blocks` `demo`/`screenshots` content byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
+| 15 | Proof | small | — (always renders; absolutely suppressed at typo tier) | One compact line by `proof.kind`: `automated` → `**Proof:** unit-covered — <test file>`; `visual` → `**Proof:** screenshots below` (pointer to row #14's `<details>`); `na` → `**Proof:** n/a`; `pending` → `**Proof:** _pending — add tests / QA notes / screenshots before merge_`. Placement: after the testing rows (#9/#10), before What-I-learned (#11); a standalone line when those rows are absent. |
+| 16 | Risk lead-line | small | — (always renders; absolutely suppressed at typo tier — no carve-out) | `**Risk:** <level> — <reason>` as an un-headed line, the first line of the body, above Impact (#2). No wrapper section header — the line stands alone. |
+| 17 | Where to look | medium, large | `focus_areas` is non-empty | A `## Where to look` section with 1–2 bullets naming each area, placed after Impact/Motivation (#2/#3), before Breaking changes (#4). Never repeats an area `risk.reason` already named (dedup basis: 2i). At `medium` with a single trivial area, the content **may** fold into the Impact prose instead of earning its own header; at `large` it always renders as its own section. Omitted entirely when `focus_areas` is empty (no hotspot). |
 
-For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #2 → #3 → #4 → #6 → #7 → #8 → #9 → #10 → #11 → #12 → #13 → #14); preserved blocks splice into canonical positions (Step 3.4).
+For each row whose tier threshold is satisfied by `tier` AND whose required input is present in `CompositionInputs`, generate the body per the rule. Rows whose threshold isn't met or whose input is missing emit nothing — no second-pass filter needed. Section ordering follows Lynch's priority (#1 → #16 → #2 → #3 → #17 → #4 → #6 → #7 → #8 → #9 → #10 → #15 → #11 → #12 → #14); preserved blocks splice into canonical positions (Step 3.4). Row #13 (Deviations fold) does not appear in this sequence — it has no standalone position; when active, it rewrites #2's prose in place.
 
 > **Note on `perf` as a tier-modifier**: a perf-typed change can be small *or* large by line count. The table treats `perf` as a flag that activates row #3 and row #14 regardless of size threshold; size-derived threshold rules still apply to other rows. This avoids the "first-match-wins" gotcha where a tiny perf change would otherwise classify as `typo` and drop row #14's before/after table.
 
@@ -429,7 +478,9 @@ Commit message and PR/MR body share the same rendered string: `title + "\n\n" + 
 
 #### 3.6 Soft size-target warning
 
-After full composition, compare `body` against its tier's soft target shape (3.1a):
+The always-on Risk lead-line (#16), the always-on Proof line (#15), and the `## Where to look` section (#17, heading + bullets, **only when rendered as its own standalone section** — see below) are **routing chrome** — they exist to route the reviewer's attention, not to describe the change, so they must never self-trigger a small-tier overshoot warning. Measure the size target against the **narrative content only** (rows #2–#12 and any preserved blocks): compute `body`'s length as generated, then exclude the Risk line, the Proof line, and — only in the standalone-section case — the Where-to-look heading-plus-bullets before comparing to the target below. Review fix: measuring narrative-only up front (rather than measuring the whole rendered body and subtracting chrome after the fact) removes the ambiguity of where each chrome element's text ends. It also resolves row #17's medium-tier fold case cleanly: when Where-to-look folds into Impact prose instead of earning its own header, that folded content is no longer separable chrome — it *is* narrative content at that point, so it is measured as ordinary Impact prose, not excluded.
+
+After that subtraction, compare the remainder against its tier's soft target shape (3.1a):
 
 - small — warn if the body exceeds ~300 characters or introduces `##` headers without two distinct concerns.
 - medium — warn if the body exceeds ~one screen or more than two `H2` sections.
@@ -467,7 +518,10 @@ Pre-prefix the block with warnings if any:
 
 **`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer command `/ba:review --local` follows the same rule.)
 
-For every other `ACTION`, ask via `AskUserQuestion`:
+**Apply-by-default (U2).** For every other `ACTION`, branch on `REVIEW_MODE` (resolved in Arguments, U1, from `--review`/`--interactive` OR `BA_PROPOSE_REVIEW`):
+
+- `REVIEW_MODE` false (default) — the preview block still prints (it is a receipt, not a gate); skip the `AskUserQuestion` below and proceed straight to Step 5.
+- `REVIEW_MODE` true — ask via `AskUserQuestion`:
 
 > "Apply?"
 >
@@ -477,6 +531,10 @@ For every other `ACTION`, ask via `AskUserQuestion`:
 > 4. **Exit** — abort without changes
 
 Loop until the user picks Apply or Exit.
+
+See the `REVIEW_MODE` definition (Arguments, above) for the full scope of what this flip touches (this menu and Step 0b's edit-only confirm) and what it leaves unaffected.
+
+**Documented residual:** with no gate, a mis-composed title/body ships to a public PR before a human reads it, and `edit_only` overwrites a live PR description with no abort point. Accepted per user decision (fire-and-forget); mitigation is `--describe-only` (dry run) or `--review` for risky work. See Dependencies & Risks in the originating plan.
 
 ## Step 5: Apply
 
