@@ -80,14 +80,21 @@ else
   fi
 
   if [[ -n "$OPEN_PR_URL" && "$HAS_COMMITS_TO_PUSH" == no ]]; then
-    # Confirm the edit-only intent — refusing this exits early
-    ask "Nothing to push. Update the PR description only?" yes/no
-    [[ answer == yes ]] && ACTION=edit_only || exit 0
+    if [[ "$REVIEW_MODE" == true ]]; then
+      # Confirm the edit-only intent — refusing this exits early
+      ask "Nothing to push. Update the PR description only?" yes/no
+      [[ answer == yes ]] && ACTION=edit_only || exit 0
+    else
+      # Apply-by-default (U2): auto-confirm edit-only intent, no prompt.
+      ACTION=edit_only
+    fi
   elif [[ -n "$OPEN_PR_URL" ]]; then
     ACTION=commit_push_edit
   fi
 fi
 ```
+
+**Apply-by-default (U2):** this confirmation is auto-confirmed to `ACTION=edit_only` when `REVIEW_MODE` is false (the default — no `--review` flag and no `BA_PROPOSE_REVIEW`) and asked (current behavior) only when `REVIEW_MODE` is true. This is one of exactly two confirmations the apply-by-default flip touches — the other is Step 4's `Apply?` menu. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE`.
 
 After Step 0b, every downstream step reads `ACTION` and `OPEN_PR_URL` and nothing else for mode dispatch / PR-targeting. `MODE` and `skip_push` are not separate variables — they were intermediate concepts in an earlier draft, collapsed at plan-review time into `ACTION` so cross-step state is named once. The Step 5 action plan table (below) dispatches on `ACTION` directly; `OPEN_PR_URL` is the canonical PR identifier threaded through Steps 2d and 5d.
 
@@ -470,7 +477,10 @@ Pre-prefix the block with warnings if any:
 
 **`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer command `/ba:review --local` follows the same rule.)
 
-For every other `ACTION`, ask via `AskUserQuestion`:
+**Apply-by-default (U2).** For every other `ACTION`, branch on `REVIEW_MODE` (resolved in Arguments, U1, from `--review`/`--interactive` OR `BA_PROPOSE_REVIEW`):
+
+- `REVIEW_MODE` false (default) — the preview block still prints (it is a receipt, not a gate); skip the `AskUserQuestion` below and proceed straight to Step 5.
+- `REVIEW_MODE` true — ask via `AskUserQuestion`:
 
 > "Apply?"
 >
@@ -480,6 +490,10 @@ For every other `ACTION`, ask via `AskUserQuestion`:
 > 4. **Exit** — abort without changes
 
 Loop until the user picks Apply or Exit.
+
+This is the other of exactly two confirmations the apply-by-default flip touches (the first is Step 0b's edit-only confirm). The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit above are unaffected by `REVIEW_MODE`.
+
+**Documented residual:** with no gate, a mis-composed title/body ships to a public PR before a human reads it, and `edit_only` overwrites a live PR description with no abort point. Accepted per user decision (fire-and-forget); mitigation is `--describe-only` (dry run) or `--review` for risky work. See Dependencies & Risks in the originating plan.
 
 ## Step 5: Apply
 
