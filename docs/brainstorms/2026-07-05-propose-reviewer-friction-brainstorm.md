@@ -24,9 +24,9 @@ what matters; the body explains only what the platform can't already show.
 Six coupled changes, all confined to `commands/ba/propose.md` (plus doc-sync):
 
 1. **Proof section** — default-on, non-blocking, one-line-pending scaffold.
-2. **"For reviewers" block** — a single block combining an always-on risk line + the
-   1–2 review-focus areas.
-3. **Risk signal** — always one line (low/med/high), derived from touched paths + size + breaking signals.
+2. **Risk lead-line** — an un-headed status line at the top of the body, always-on for
+   non-typo diffs (low/med/high + short reason), derived from touched paths + size + breaking signals.
+3. **"Where to look" section** — 1–2 review-focus areas under an honestly-named header, medium+ only, only when there's a hotspot.
 4. **Apply-by-default** — kill the Step 4 "Apply?" gate by default; opt-*in* escape hatch.
 5. **Deviations reviewer-neutral fold** — drop the standalone `## Deviations` header; fold any reviewer-relevant substance into an existing section in plain change terms.
 6. **Anti-bloat integration** — already-built (2026-06-11) discipline is the constraint the new always-on sections must fit inside, not a new workstream.
@@ -50,8 +50,11 @@ Rejected framings:
   "which parts are AI" line is noise, and it isn't reliably derivable from a diff.
 - **Commit-splitting / incrementalism** (out of scope) — belongs to `/ba:execute`; `propose`
   already made the deliberate one-commit-per-run YAGNI call (Step 5a).
-- **Two separate Risk and Review-focus sections** (rejected by user) — combined into one
-  "For reviewers" block: fewer headers, one reviewer cue, less proliferation.
+- **A combined "For reviewers" block** (rejected by user) — the *whole* body is for reviewers, so
+  a `## For reviewers` header is redundant framing. The two signals sit where they naturally belong
+  instead: risk as an un-headed lead-line (a status badge, like a CI check), review-focus under an
+  honest name (`## Where to look`). This also fits propose's existing "no headers unless two distinct
+  concerns" discipline better than a wrapper section would.
 
 All new inputs (proof detection, risk derivation) are **gathered in Step 2 and passed across
 the composition seam** — the `compose_body` contract stays pure (synthesis-locked in
@@ -77,24 +80,37 @@ the composition seam** — the `compose_body` contract stays pure (synthesis-loc
   as folded in, or narrowing it to "auto-capture screenshots to fill the Visual row" if the
   browser-capture mechanism is still wanted later.
 
-### 2 + 3. "For reviewers" block — combined, always-on risk line
+### 2 + 3. Risk lead-line + "Where to look" — no wrapper section
 
-- **One combined block**, not two sections:
-  ```
-  ## For reviewers
-  **Risk:** medium — touches auth, DB migration
-  **Look closest at:** the token-refresh path in `auth.rs`; the migration backfill
-  ```
-- **Risk line is always present** (low included), one word + a short "because" clause. Derived in
-  Step 2 from: sensitive paths (payments / auth / migrations / security-touching files), diff
-  size, and breaking-change signals → low | medium | high.
-- **Review-focus** names the 1–2 areas most worth human attention (diff hotspots from
-  `file_stats`, breaking signals, security paths). Activates at medium+; on a small/typo diff
-  there's usually nothing to point at.
-- **Typo-tier exception:** the whole block is suppressed at typo tier (typo = one line, no body
-  per 3.1a) — an always-on risk line must not contradict the one-line-typo target.
-- Risk derivation is a Step 2 gather concern; the block is a Step 3.2 registry row. The seam
-  never sees "risk logic," only the materialized risk value + focus list on `CompositionInputs`.
+No `## For reviewers` container — the whole body is already for the reviewer. The two signals
+sit separately where each belongs:
+
+```
+<title>
+
+**Risk:** medium — touches auth, DB migration      ← un-headed lead-line, top of body
+
+<impact / motivation prose…>
+
+## Where to look                                   ← medium+ only, only when there's a hotspot
+- the token-refresh path in `auth.rs`
+- the migration backfill
+```
+
+- **Risk is an un-headed lead-line**, not a section — a status badge (like a CI check) as the
+  first line under the title. Always present for non-typo diffs (low included), one word + a
+  short "because" clause. Derived in Step 2 from: sensitive paths (payments / auth / migrations /
+  security-touching files), diff size, and breaking-change signals → low | medium | high.
+- **"Where to look"** names the 1–2 areas most worth human attention (diff hotspots from
+  `file_stats`, breaking signals, security paths). Own header, honest name; activates at medium+;
+  omitted when there's no hotspot. At medium it may fold into the impact prose, earning its own
+  header only at large tier (consistent with how propose already treats Impact/Motivation under
+  "no headers unless two distinct concerns").
+- **Typo-tier exception:** both signals are suppressed at typo tier (typo = one line, no body per
+  3.1a) — an always-on risk line must not contradict the one-line-typo target.
+- Risk derivation and focus-area selection are Step 2 gather concerns; the lead-line and the
+  section are Step 3.2 registry rows. The seam never sees "risk logic," only the materialized risk
+  value + focus list on `CompositionInputs`.
 
 ### 4. Apply-by-default — flip #46's default
 
@@ -124,11 +140,11 @@ the composition seam** — the `compose_body` contract stays pure (synthesis-loc
 
 - The 3.1a per-tier shape targets, 3.2a "leave out" list, and 3.6 per-tier overshoot warning
   already exist (2026-06-11). Item 6 is **confirmed already solved** — no new anti-bloat work.
-- The design rule that makes items 1–3 safe: **"always-on vs earned" is one decision.** Risk line
-  = always-on (one line); Proof = always-on (one line when pending); Review-focus = earned
-  (medium+); the whole "For reviewers" block = suppressed at typo tier. Net effect on a typical
-  `execute`→`propose` medium diff: +1 Proof line, +1 "For reviewers" block (~3 lines) — inside the
-  one-screen medium target.
+- The design rule that makes items 1–3 safe: **"always-on vs earned" is one decision.** Risk
+  lead-line = always-on (one line); Proof = always-on (one line when pending); "Where to look" =
+  earned (medium+); both signals suppressed at typo tier. Net effect on a typical
+  `execute`→`propose` medium diff: +1 Proof line, +1 Risk lead-line, +1 short "Where to look"
+  section — inside the one-screen medium target.
 
 ## Scope Boundaries
 
@@ -148,9 +164,9 @@ the composition seam** — the `compose_body` contract stays pure (synthesis-loc
   renders a single `**Proof:** _pending…_` line; the old Step 2e blocking prompt is gone.
 - A diff containing new/changed test files renders a one-line Proof pointer naming a test file; no
   CI status or raw test output appears in the body.
-- Every non-typo run renders one `## For reviewers` block with an always-present `**Risk:**` line
-  (low/med/high + short reason); the block is absent at typo tier.
-- Review-focus names 1–2 areas on medium+ diffs and is omitted when there's no hotspot.
+- Every non-typo run renders an un-headed `**Risk:**` lead-line (low/med/high + short reason) at
+  the top of the body; it is absent at typo tier and there is no `## For reviewers` wrapper header.
+- A `## Where to look` section names 1–2 areas on medium+ diffs and is omitted when there's no hotspot.
 - `/ba:propose` with no flags **applies without a confirmation prompt**; `--review` (or
   `BA_PROPOSE_REVIEW=1`) restores the Step 4 menu and the Step 0b edit-only confirm.
 - No MR/PR body contains a standalone `## Deviations` header; reviewer-relevant deviation substance
