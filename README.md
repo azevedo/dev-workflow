@@ -171,7 +171,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased analysis
 - **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that moves high-noise findings into a separate `Suppressed` section
 - **Fix application & own-MR resolution** — for local scopes and your **own** MR (authorship detected
-  from `gh`/`glab`), apply fixes locally: apply-all, Critical + High + Med-conf-100, or a one-by-one walk
+  from `gh`/`glab`), apply fixes locally: accept all recommendations, Critical + High + Med-conf-100, or a one-by-one walk
   where each finding leads with a recommended disposition (**Apply / Skip / Modify**). A precondition
   check confirms the local tree matches the reviewed diff before editing; after applying, a guard runs
   **bidirectional reconciliation** of accepted-vs-applied and then a **verify-then-keep** targeted-test
