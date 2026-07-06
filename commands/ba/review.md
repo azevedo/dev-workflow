@@ -1022,19 +1022,18 @@ Announce one line before the menu:
 **When `MR_AUTHORSHIP == mine`**, use **AskUserQuestion** — "How would you like to handle the findings?"
 1. **Fix locally** *(Recommended — it's your MR)* — Apply fixes to your local checkout
    (precondition-gated; see below). Leads to the fix-local resolution sub-menu.
-2. **Walk one by one** — Step through each finding; per-finding choose Apply / Skip / Modify
+2. **Accept all recommendations** — Apply each finding's recommended disposition directly, without
+   opening the sub-menu (precondition-gated; see below) — same flow as **"Accept all recommendations"
+   flow** under **For local scopes** (recommended dispositions, Modify-pause, prior-revert deferral,
+   guard, summary). If zero post-gate findings exist, display "No findings to walk." and return to
+   this menu.
+3. **Walk one by one** — Step through each finding; per-finding choose Apply / Skip / Modify
    (precondition-gated; see below). Skips the fix-local sub-menu and goes directly to the per-finding fix
-   walk (same walk as "Review one by one" in the sub-menu, lines 854–869). If zero post-gate findings exist,
+   walk (the same walk as **"Review one by one" flow** in the sub-menu). If zero post-gate findings exist,
    display "No findings to walk." and return to this menu.
-3. **Fix Critical + High + Med-conf-100** — Apply the **Filter for `Apply Critical + High + Med-conf-100`**
-   (defined under **For local scopes**) and fix directly, without opening the sub-menu (precondition-gated;
-   see below). If 0 findings match, report "0 findings matched the filter (Critical + High + Med-conf-100)."
-   and return to this menu. Prior-revert-marked findings within the matched set are skipped; if all matches
-   are prior-revert-marked, surface "N findings matched the filter; all are prior-revert-marked and were
-   skipped." before returning to menu.
 4. **Done** — Acknowledge findings without further action.
 
-Precondition failure for **Walk one by one** and **Fix Critical + High + Med-conf-100**: reuse the existing
+Precondition failure for **Accept all recommendations** and **Walk one by one**: reuse the existing
 failure flow verbatim (see Fix locally — precondition check, below), including the one-Checkout limit. The
 "Post comment" fallback always posts all findings regardless of which option triggered the precondition check.
 
