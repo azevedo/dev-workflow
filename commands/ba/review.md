@@ -838,8 +838,8 @@ The options depend on the scope type.
 > **Unified fix-local walk.** This section is reached by both local-scope review and own-MR **Fix locally**
 > (the MR menu's authored-by-you branch). The `Apply Critical + High + Med-conf-100` filter defined in this
 > section (see **Filter for `Apply Critical + High + Med-conf-100`** below) is the **single source of
-> truth** for that predicate — the own-MR menu option, the others'-MR posting menu, and the README bullet
-> reference it by name rather than restating it, so the filter lives in one place.
+> truth** for that predicate — the others'-MR posting menu and the README bullet reference it by name
+> rather than restating it, so the filter lives in one place.
 
 Use **AskUserQuestion**:
 
@@ -876,7 +876,7 @@ is hidden or pre-decided beyond the default selection.
 
 For a finding **resurfaced by the guard**, show its prior-revert marker and recommend **Skip**
 or **Modify** (not Apply) — re-applying the identical reverted fix would just re-fail. The **bulk** apply
-modes (`Apply all fixes` / `Apply Critical + High + Med-conf-100`) skip any prior-revert-marked finding for
+modes (`Accept all recommendations` / `Apply Critical + High + Med-conf-100`) skip any prior-revert-marked finding for
 the same reason — a resurfaced finding is only re-applied through a deliberate per-finding choice.
 
 **"Accept all recommendations" flow:**
@@ -921,7 +921,7 @@ skipped-by-recommendation** is called out explicitly so a blocking-severity skip
 zero-count buckets to stay compact.
 
 **After applying accepted dispositions (the guard).**
-Runs on any per-finding Apply/Modify or bulk apply disposition (`Apply all fixes`,
+Runs on any per-finding Apply/Modify or bulk apply disposition (`Accept all recommendations`,
 `Apply Critical + High + Med-conf-100`), regardless of entry point (Fix locally sub-menu or direct
 "Walk one by one"). If the accepted set is empty (all Skipped, or a filter that matched zero), apply nothing,
 note "nothing applied," and return to the menu — no reconciliation, no test run.
@@ -937,7 +937,7 @@ many-to-many — one edit may satisfy several findings; one finding may need edi
   means the **applied edit's actual diff region** (not the suggested fix's text), so a legitimately wider
   Modify is not flagged as over-application. A multi-file finding counts as **applied** when any of its
   targeted regions is edited — a partial Modify is the user's choice, not under-application.
-- On a **bulk** apply (`Apply all fixes` / `Apply Critical + High + Med-conf-100`), edits land sequentially
+- On a **bulk** apply (`Accept all recommendations` / `Apply Critical + High + Med-conf-100`), edits land sequentially
   and shift later line numbers; match each finding's target region against the post-edit offsets, and treat
   a residual shifted-anchor mismatch as expected noise the user can dismiss — not a real over/under-application.
 
@@ -1091,8 +1091,8 @@ After any **Checkout**, re-run the precondition (both checks) — **Checkout is 
 offered again after a post-Checkout re-run failure. If alignment still can't be reached, the only safe
 applying path is **Re-review**; otherwise **Post comment** / **Patch**.
 
-Then proceed to the fix-local resolution sub-menu (see **For local scopes** — the same Apply-all /
-Critical+High+Med-conf-100 / one-by-one walk / Done options, the same guard).
+Then proceed to the fix-local resolution sub-menu (see **For local scopes** — the same Accept all
+recommendations / Critical+High+Med-conf-100 / one-by-one walk / Done options, the same guard).
 
 #### Posting inline comments
 
