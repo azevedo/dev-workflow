@@ -855,9 +855,11 @@ Use **AskUserQuestion**:
 disposition** — Apply, Skip, or Modify — and a one-line reason, e.g. `(Recommended — Apply: clean
 mechanical fix, no taste call)` or `(Recommended — Skip: stylistic, your call)`. The recommendation is
 a **fix-quality judgment**, not a severity threshold — a clean Medium may be Apply; a High taste-call
-may be Skip. This property is computed once, at presentation time (no stored field on the finding
-schema), and is read by both the "Review one by one" flow below and the "Accept all recommendations"
-flow below.
+may be Skip. Severity does **not** gate eligibility: unlike the retired severity-filtered "Apply all
+fixes", a **Low** finding may carry a recommended **Apply** and be applied under either mode — the
+fix-quality judgment decides, not the rung. This property is computed once, at presentation time (no
+stored field on the finding schema), and is read by both the "Review one by one" flow below and the
+"Accept all recommendations" flow below.
 
 **"Review one by one" flow:**
 
@@ -902,7 +904,7 @@ each) — acceptable, no special handling.
 The applied set (recommended-Apply + Modify edits) funnels through the **existing** post-apply guard
 (reconciliation + verify-then-keep, below) and the **protected-artifacts applier guard** (below) — the
 silent apply must never apply a finding that deletes, relocates, or renames a protected doc. If the
-accepted set is empty (all Skipped/Deferred, or zero findings), the empty-set clause below applies —
+accepted set is empty (all Skipped/Deferred, or zero findings), the **empty-set clause** below applies —
 apply nothing and return to the menu — but first emit the **Critical/High skipped-by-recommendation**
 callout (see summary below) if any such finding was skipped, so a bare "nothing applied" cannot bury a
 blocking-severity skip.
@@ -914,7 +916,10 @@ fixes already applied stay in the working tree **unverified** — the same expos
 sequential bulk apply, widened only by the Modify pauses.
 
 **After the guard**, render a compact post-guard outcome summary, e.g. `Applied N · Skipped M ·
-Modified K · Resurfaced R (open) · Deferred D`. It reflects guard outcomes: a fix the guard
+Modified K · Resurfaced R (open) · Deferred D`. This summary is the accept-all flow's headline over
+the guard's standard **Return to the menu** step (below) — it does not replace that step and does not
+re-list the resurfaced findings the guard already surfaces as open; the counts are the headline, the
+guard's open-findings list is the detail. It reflects guard outcomes: a fix the guard
 auto-reverted moves out of Applied/Modified into **Resurfaced (open)**; **Deferred** is the
 prior-revert-marked findings sent to a deliberate walk; and any **Critical/High finding
 skipped-by-recommendation** is called out explicitly so a blocking-severity skip is never buried. Omit
@@ -923,7 +928,7 @@ zero-count buckets to stay compact.
 **After applying accepted dispositions (the guard).**
 Runs on any per-finding Apply/Modify or bulk apply disposition (`Accept all recommendations`,
 `Apply Critical + High + Med-conf-100`), regardless of entry point (Fix locally sub-menu or direct
-"Walk one by one"). If the accepted set is empty (all Skipped, or a filter that matched zero), apply nothing,
+"Walk one by one"). **Empty-set clause:** if the accepted set is empty (all Skipped, or a filter that matched zero), apply nothing,
 note "nothing applied," and return to the menu — no reconciliation, no test run.
 
 **1. Bidirectional reconciliation.** Map findings to edits by **target region** (file + line range),
@@ -1025,7 +1030,7 @@ Announce one line before the menu:
 2. **Accept all recommendations** — Apply each finding's recommended disposition directly, without
    opening the sub-menu (precondition-gated; see below) — same flow as **"Accept all recommendations"
    flow** under **For local scopes** (recommended dispositions, Modify-pause, prior-revert deferral,
-   guard, summary). If zero post-gate findings exist, display "No findings to walk." and return to
+   guard, summary). If zero post-gate findings exist, display "No findings to apply." and return to
    this menu.
 3. **Walk one by one** — Step through each finding; per-finding choose Apply / Skip / Modify
    (precondition-gated; see below). Skips the fix-local sub-menu and goes directly to the per-finding fix
