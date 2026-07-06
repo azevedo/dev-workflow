@@ -846,10 +846,18 @@ Use **AskUserQuestion**:
 **Question:** "How would you like to handle the findings?"
 
 **Options:**
-1. **Apply all fixes** — Apply all Critical + High + Medium items with suggested fixes (Low excluded — nit/style is not auto-applied)
+1. **Accept all recommendations** — Apply each finding's recommended disposition (apply recommended-Apply, skip recommended-Skip); pause only at recommended-Modify to collect your edit.
 2. **Apply Critical + High + Med-conf-100** — Critical + High at displayed confidence, plus Medium only when confidence == 100; Low and lower-confidence Medium excluded. Always offered; reports "0 findings matched the filter" when nothing qualifies.
 3. **Review one by one** — Go through each finding and decide Apply/Skip/Modify
 4. **Done** — Acknowledge findings without modifying code
+
+**Recommended disposition (per finding).** Every rendered post-gate finding carries a **recommended
+disposition** — Apply, Skip, or Modify — and a one-line reason, e.g. `(Recommended — Apply: clean
+mechanical fix, no taste call)` or `(Recommended — Skip: stylistic, your call)`. The recommendation is
+a **fix-quality judgment**, not a severity threshold — a clean Medium may be Apply; a High taste-call
+may be Skip. This property is computed once, at presentation time (no stored field on the finding
+schema), and is read by both the "Review one by one" flow below and the "Accept all recommendations"
+flow below.
 
 **"Review one by one" flow:**
 
@@ -862,16 +870,55 @@ For each finding, use a single **AskUserQuestion** that includes the full findin
 2. **Skip** — Don't apply (a taste call, or not worth it on your own code).
 3. **Modify** — Apply with edits: you describe the adjustment, then it's applied.
 
-Lead each finding with a **recommended disposition** and a one-line reason, e.g.
-`(Recommended — Apply: clean mechanical fix, no taste call)` or `(Recommended — Skip: stylistic, your
-call)`. The recommendation is a **fix-quality judgment**, not a severity threshold — a clean Medium may
-be Apply; a High taste-call may be Skip. The recommended option is first and pre-selected; overriding it
-costs exactly one interaction. No finding is hidden or pre-decided beyond the default selection.
+Per **Recommended disposition (per finding)** above, each finding leads with its recommendation; the
+recommended option is first and pre-selected — overriding it costs exactly one interaction. No finding
+is hidden or pre-decided beyond the default selection.
 
 For a finding **resurfaced by the guard**, show its prior-revert marker and recommend **Skip**
 or **Modify** (not Apply) — re-applying the identical reverted fix would just re-fail. The **bulk** apply
 modes (`Apply all fixes` / `Apply Critical + High + Med-conf-100`) skip any prior-revert-marked finding for
 the same reason — a resurfaced finding is only re-applied through a deliberate per-finding choice.
+
+**"Accept all recommendations" flow:**
+
+Iterate the rendered (post-gate) findings in order, executing each finding's recommendation per
+**Recommended disposition (per finding)** above — with **no per-finding confirmation**:
+- **Recommended Apply** → apply the suggested fix silently.
+- **Recommended Skip** → skip silently.
+- **Recommended Modify** → **pause at this finding only**, presenting the identical per-finding
+  "Review one by one" AskUserQuestion (finding context inside the question text, recommended option
+  first and pre-selected) so the user can Modify (describe the edit), Skip, or Apply; then continue.
+
+**Prior-revert-marked (guard-resurfaced)** findings are never auto-applied — same as the confidence
+filter bulk mode — they are deferred to a deliberate one-by-one walk and counted as **Deferred**, not
+Skipped.
+
+**Selecting the option is the sole confirmation** — there is no up-front prompt or manifest before the
+silent apply.
+
+If **every** finding is recommended-Modify, this degenerates into the per-finding walk (a pause at
+each) — acceptable, no special handling.
+
+The applied set (recommended-Apply + Modify edits) funnels through the **existing** post-apply guard
+(reconciliation + verify-then-keep, below) and the **protected-artifacts applier guard** (below) — the
+silent apply must never apply a finding that deletes, relocates, or renames a protected doc. If the
+accepted set is empty (all Skipped/Deferred, or zero findings), the empty-set clause below applies —
+apply nothing and return to the menu — but first emit the **Critical/High skipped-by-recommendation**
+callout (see summary below) if any such finding was skipped, so a bare "nothing applied" cannot bury a
+blocking-severity skip.
+
+There is **no dedicated mid-run abort** (matches the existing bulk modes) — each recommended-Modify
+pause is a normal per-finding decision (the user may Skip there instead). The guard runs **once, after
+the loop**, not per finding: if the run is interrupted before it completes, the recommended-Apply
+fixes already applied stay in the working tree **unverified** — the same exposure window as today's
+sequential bulk apply, widened only by the Modify pauses.
+
+**After the guard**, render a compact post-guard outcome summary, e.g. `Applied N · Skipped M ·
+Modified K · Resurfaced R (open) · Deferred D`. It reflects guard outcomes: a fix the guard
+auto-reverted moves out of Applied/Modified into **Resurfaced (open)**; **Deferred** is the
+prior-revert-marked findings sent to a deliberate walk; and any **Critical/High finding
+skipped-by-recommendation** is called out explicitly so a blocking-severity skip is never buried. Omit
+zero-count buckets to stay compact.
 
 **After applying accepted dispositions (the guard).**
 Runs on any per-finding Apply/Modify or bulk apply disposition (`Apply all fixes`,
