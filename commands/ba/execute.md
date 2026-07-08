@@ -179,6 +179,201 @@ clean `fetch` as license to degrade through a subsequent `merge-base` failure.
 
 ---
 
+## Stack-Base Resolution Convention
+
+This section is the **single owner of stack-base** resolution. Consumers cite this
+section and do not re-derive base detection: `/ba:execute` (base for `derive-state`
++ guard), `/ba:handoff` (same, `run_verify: false`), `/ba:propose` (`DIFF_BASE` + MR
+target, layers `host_signal`), `/ba:review` (branch-base detection). Format-neutral
+(git-side; identical for `.md`/`.html` plans).
+
+**Interface** — `resolve-stack-base(git, opts) → resolution`. The bare
+`resolve-stack-base(git)` is the common invocation.
+
+- `opts` (all optional): `target_override` / `base_override` (explicit
+  `--target`/`--base`; win unconditionally for their field); `host_signal` (optional
+  injected callback promoting "ancestor branch has its own open MR" to a strong
+  parent signal — absent by default, so the git-first guarantee is structural, not a
+  caller discipline).
+- `resolution` (consumers read, never re-derive): `base` (commit-ish; this *is*
+  `<base>`), `window` (`"<base>..HEAD"` or `""` on empty-window degrade), `parent`
+  (resolved stack-parent short-name; the default branch when non-stacked), `target`
+  (MR/PR target; defaults to `parent`), `confidence` (`high | ambiguous | low`),
+  `warning` (`string | null`; non-null **exactly when** `confidence != high`; carries
+  the literal `FOREIGN_UID_IN_WINDOW` when the guard fires).
+
+**Empty-window contract (all consumers).** When `window == ""` (equivalently
+`base == ""`, the no-remote/no-local-default degrade), a consumer must **branch on the
+empty window before** constructing or running any `<base>..HEAD` range — an empty
+`base` otherwise forms `..HEAD`, an **invalid git revision range**, not a graceful
+empty window. Git-first consumers (execute, handoff) treat `window == ""` as "no
+subject-scan window → every unit resolves via the `Verify:` tier only" (handoff, with
+no `Verify:` tier, reports every unit `pending` and surfaces the empty-window `low`
+warning). `/ba:propose` treats it as `CompositionInputError`. This rule is restated at
+each wiring site so no consumer forms `..HEAD` by omission.
+
+**Ref scope + self-exclusion.**
+
+- Iterate `refs/heads/` and `refs/remotes/origin/` only (origin-only — a fork/upstream
+  remote would inject unrelated candidates). Exclude `refs/remotes/origin/HEAD`
+  (symbolic dup of the default branch).
+- Exclude the current branch across **all** forms: `refs/heads/<current>`,
+  `refs/remotes/origin/<current>`, and the `@{upstream}` ref. (Extending the exclusion
+  to remotes prevents mis-selecting `origin/<current>` as parent once the branch is
+  pushed and advanced.)
+- Dedup candidates by normalized short-name. **Local-vs-remote-same-name divergence**
+  (e.g. `A` and `origin/A` at different tips) is detected by a **post-loop comparison**
+  of the two candidates' merge-bases with HEAD: if they differ, the candidate still
+  contributes (using the nearer merge-base) but the divergence sets
+  `confidence = ambiguous`. This is *not* the distinct-name tie the illustrative loop
+  detects (that loop's `short != PARENT` guard suppresses same-name pairs) — the
+  divergence check is a separate, prose-specified step run after the loop over any
+  short-name that appeared both locally and under `origin/`.
+- **Fetch policy**: `git fetch --no-tags origin <default-branch>` (preserved) **and**
+  fetch the chosen winner's `origin/` ref once before finalizing so the winner's
+  count/merge-base isn't stale. **Residual (documented):** ranking runs against
+  whatever `refs/remotes/origin/*` tips are already local (only `<default>` is freshly
+  fetched up front), so a stale sibling ref can in principle flip the smallest
+  positive ahead-count and select the wrong parent at `confidence = high`; fetching
+  every candidate before ranking would be O(n) round-trips for a heuristic, so the
+  winner-only fetch is the accepted trade. **Winner-fetch-failure fallback:** if the
+  chosen winner's fetch fails, do **not** abort and do **not** silently use the stale
+  ref — **re-run selection excluding that candidate** (pick the next-best); if no
+  candidate remains, fall through to the default-branch (non-stacked) path; set
+  `confidence = ambiguous` with a stale-fetch warning when a re-selection occurred.
+- Detached HEAD (`git branch --show-current` empty) → detection loop skipped →
+  non-stacked default path.
+
+**Confidence decision table.**
+
+| Observable git condition | `confidence` | `warning` |
+|---|---|---|
+| Single nearest-ancestor at smallest positive count; no guard fire | `high` | `null` |
+| Non-stacked (no positive-count ancestor); clean default merge-base | `high` | `null` |
+| ≥2 candidate ancestors tie at the smallest positive count | `ambiguous` | names the tied candidates + chosen pick |
+| Chosen parent's local vs `origin/` tip diverge | `ambiguous` | names the divergence |
+| `host_signal` names a parent git's count metric did not pick | `ambiguous` | names host pick vs git pick |
+| A `U<n>` token appears in ≥2 in-window subjects (`FOREIGN_UID_IN_WINDOW`) | `low` | `FOREIGN_UID_IN_WINDOW` + detail |
+| Empty-window degrade (no remote, no local default → `window = ""`) | `low` | "empty window — guard did not run" |
+
+`ambiguous` = a parent was chosen but the pick is uncertain (the window is still a
+valid narrowing). `low` = the window itself is untrustworthy for the subject scan.
+
+**Precedence (load-bearing).** The table rows are **not** first-match. When more than
+one row's condition holds, confidence resolves to the **lowest** matching level: `low`
+dominates `ambiguous` dominates `high`. The foreign-U-ID guard (the two `low` rows) is
+evaluated **last and unconditionally** — so a foreign-U-ID duplicate co-occurring with
+a host/git disagreement (an `ambiguous` row) resolves to `low`, never `ambiguous`.
+Without this, a first-match reading could resolve `ambiguous` (which execute *trusts*
+for the subject scan) over a genuinely polluted window and silently reintroduce the
+silent-skip this convention exists to fix.
+
+**Foreign-U-ID guard.** After `base` is resolved (including under override),
+**reuse `derive-state`'s tier-a subject-scan invocation** (owned by the
+`## U-ID & Git-Derived State Convention` section — cite it, do not respecify the
+pipeline), generalized to *extract all* `U<n>` tokens rather than match one, and raise
+`FOREIGN_UID_IN_WINDOW` when any `U<n>` token occurs in **≥2** subjects. Reusing
+tier-a's exact invocation keeps the revert-exclusion residual defined in one place.
+Under the one-in-flight-plan-per-branch assumption a given `U<n>` is committed once;
+two occurrences ⇒ two plans' commits are in the window ⇒ foreign. The guard runs even
+under `base_override`/`target_override` (advisory) and forces `confidence = low` (the
+biconditional stays intact; an override over a polluted window reads low, not high).
+
+- **Residual (documented, safe-side):** the proxy assumes exactly one commit per
+  `U<n>` for the life of the branch. A legitimate rework/fixup that re-tags the *same*
+  `U<n>` a second time on an otherwise correctly-scoped, non-stacked branch would
+  false-trigger `FOREIGN_UID_IN_WINDOW`. The failure mode is safe-side (forces the
+  `Verify:`-tier fallback, never a false `done`), but the user would see a confusing
+  warning on a solo branch. If same-unit re-tagging becomes a supported flow, the
+  proxy must be revisited.
+- **Residual (documented, numeric-collision proxy only):** a foreign plan whose U-IDs
+  do **not** overlap the current plan's numbering (parent minted U1–U5, current mints
+  U6–U10) leaves no duplicate, so the guard does not fire and `confidence` can stay
+  `high` over a still-polluted window. Sufficient for the silent-skip bug (caused by
+  reused/colliding U-IDs, which the proxy catches) but not a general foreign-window
+  detector; correct base **detection**, not this guard, is what narrows the base for
+  the diff-scoping case.
+
+**Override field-population matrix.**
+
+| Override given | `base` | `target` | `parent` |
+|---|---|---|---|
+| none | auto-detected | = `parent` | auto-detected |
+| `--base X` only | `X` | auto-detected parent | auto-detected |
+| `--target Y` only | auto-detected | `Y` | auto-detected |
+| both | `X` | `Y` | auto-detected (informational) |
+
+A `base_override` is validated as an ancestor of HEAD
+(`git merge-base --is-ancestor X HEAD`); a non-ancestor aborts with a clear error (an
+arbitrary `X..HEAD` is syntactically valid but breaks diff semantics). **Distinguish
+the two failure exit codes**: `--is-ancestor` returns **exit 1** = "X is a valid ref
+but not an ancestor of HEAD" (semantic rejection) and **exit 128** = "X does not
+resolve to a valid object" (a typo / bad ref) — the abort message must name which, so
+a typo isn't reported as a semantic override rejection. **`target_override`
+validation** (parity with `base_override`): validate it resolves to an existing local
+or `origin/` ref (`git rev-parse --verify`); a nonexistent target aborts here with a
+clear error rather than surfacing only later as a host-specific failure at
+`/ba:propose` Step 5.
+
+**Degrade/abort ladder — moved verbatim** from the former `<base>` definition in the
+`## U-ID & Git-Derived State Convention` section: degrade order (no upstream/remote →
+local default; that absent → empty window + `Verify:` tier); abort (either `git fetch`
+or the final chosen-base `git merge-base` non-zero, for any reason including a clean
+fetch then a failing merge-base → surface the git error and **abort**; never silently
+empty). Empty-window is reserved strictly for the no-remote/no-local-default degrade,
+never the abort path.
+
+- **No-remote detection is a pre-check, not fetch-failure introspection.** "no
+  upstream/remote → degrade" and "`git fetch` failed offline → abort" both surface as
+  a non-zero `fetch`, so they must be disambiguated *before* attempting the fetch.
+  Detect the missing-remote condition up front — `git remote get-url origin` (no
+  origin) and the absence of an `@{upstream}` — and route that to **degrade**. Only a
+  fetch that fails *when a remote demonstrably exists* routes to **abort**. Do not
+  infer no-remote from the fetch exit code.
+
+**`host_signal` conflict resolution.** host + git agree → `high`; disagree → the
+`host_signal` parent wins `parent`/`target` (it is the strong signal — that is where
+the MR should stack), `base` is recomputed as `merge-base HEAD <host-parent>` for a
+coherent diff, and `confidence = ambiguous` with a warning naming both picks.
+
+**Invariants.** Call once, early, before `derive-state` and any diff-range
+construction; read-only w.r.t. the working tree and `refs/heads` (may write
+remote-tracking refs via `fetch`, as the existing `<base>` ladder already does);
+idempotent. Override precedence is total for `base`/`target`; the foreign-U-ID guard
+still runs advisory. Abort is raised, never returned.
+
+**Code-shape decision:** *the exact ref-iteration and count-selection is the design,
+and re-deriving it from prose would plausibly produce a wrong structure (dropping the
+`origin/HEAD` exclusion, missing the tie-detection that yields `ambiguous`, or not
+skipping per-candidate failures) — it anchors to the loop absorbed from
+`commands/ba/review.md` and the brainstorm `## Locked Design`.*
+
+```bash
+# Nearest-ancestor stack-parent detection (absorbs review.md's local-only loop, extended to origin/ refs).
+# Emits BEST_MB (merge-base with the chosen parent), PARENT (short-name), and TIE (≥2 at min count).
+CURRENT=$(git branch --show-current)                 # empty on detached HEAD → loop skipped
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+BEST_COUNT=999999; BEST_MB=""; PARENT=""; TIE=0
+if [ -n "$CURRENT" ]; then
+  for ref in $(git for-each-ref --format='%(refname:short)' refs/heads/ refs/remotes/origin/); do
+    short=${ref#origin/}
+    [ "$short" = "$CURRENT" ] && continue            # exclude current: local + origin/<current>
+    [ "$ref" = "origin/HEAD" ] && continue           # exclude symbolic default dup
+    [ "$ref" = "$UPSTREAM" ] && continue             # exclude @{u}
+    mb=$(git merge-base HEAD "$ref" 2>/dev/null) || continue     # per-candidate failure: skip, don't abort
+    count=$(git rev-list --count "$mb..HEAD" 2>/dev/null) || continue
+    if [ "$count" -gt 0 ] && [ "$count" -lt "$BEST_COUNT" ]; then
+      BEST_COUNT=$count; BEST_MB=$mb; PARENT=$short; TIE=0
+    elif [ "$count" -gt 0 ] && [ "$count" -eq "$BEST_COUNT" ] && [ "$short" != "$PARENT" ]; then
+      TIE=1                                          # ≥2 candidates tie at min count → confidence=ambiguous
+    fi
+  done
+fi
+# No positive-count ancestor found → non-stacked: BEST_MB="", fall to default merge-base (byte-identical to today).
+```
+
+---
+
 ## Step 1: Initialize
 
 ### Branch Check
