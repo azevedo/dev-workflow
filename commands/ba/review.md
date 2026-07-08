@@ -132,10 +132,13 @@ only own-MR fix-local routing is affected.
 Base detection for the **branch** case is owned by the `## Stack-Base Resolution
 Convention` section in `commands/ba/execute.md` — call `resolve-stack-base(git)` (no
 `host_signal`; review does not resume execution or make a trust decision) and read
-`r.base`/`r.parent`. This supersedes review.md's former local-only `main → master →
-symbolic-ref` `DEFAULT_BRANCH` ladder and local-only nearest-ancestor loop; the
-canonical ladder (including origin-ref scope and self-exclusion) now lives in that one
-owner. **`/ba:review` does not surface `warning`/`confidence`** — unlike
+`r.base`/`r.parent`. **Execute the owner spec, don't approximate it:** open that section
+and run its detection / degrade-abort steps verbatim — the full algorithm (ref scope,
+self-exclusion, fetch policy) lives only there; the bash block below is a placeholder that
+consumes `r.base`/`r.parent`, not a reimplementation of the detector. This supersedes
+review.md's former local-only `main → master → symbolic-ref` `DEFAULT_BRANCH` ladder and
+local-only nearest-ancestor loop; the canonical ladder (including origin-ref scope and
+self-exclusion) now lives in that one owner. **`/ba:review` does not surface `warning`/`confidence`** — unlike
 execute/handoff/propose, it consumes only `r.base`/`r.parent` for a diff range, so the
 anti-skip / warning-surfacing behavior does not apply here (this is a deliberate
 exemption, not an accidental omission). The Step 2 never-hide selection ledger and the

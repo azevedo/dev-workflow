@@ -49,7 +49,11 @@ is the `run_verify: false` asymmetry owned by the `## U-ID & Git-Derived State C
 section in `execute.md`). `<base>` for the subject scan comes from
 `resolve-stack-base(git)` (git-first — handoff passes **no** `host_signal`, so zero host
 calls; base derivation is owned by the `## Stack-Base Resolution Convention` section in
-`execute.md`). `derive-state` is format-blind on the git side; the only format-specific step
+`execute.md`). **Execute the owner spec, don't approximate it:** open
+`commands/ba/execute.md`'s `## Stack-Base Resolution Convention` section and run its
+detection / degrade-abort / guard steps verbatim — the full algorithm (ref scope,
+self-exclusion, fetch policy, confidence precedence, foreign-U-ID guard) lives only
+there; this site consumes the resulting `resolution` fields and never re-derives them. `derive-state` is format-blind on the git side; the only format-specific step
 is locating the plan's current unit set (markdown `### U<n>` or HTML `U<n>` visible-text +
 `id=""`).
 

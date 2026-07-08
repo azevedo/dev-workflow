@@ -140,8 +140,12 @@ Each sub-step materializes one field of `CompositionInputs`. None of this happen
 
 `DIFF_BASE` and the MR/PR target both come from `resolve-stack-base` (owned by the
 `## Stack-Base Resolution Convention` section in `execute.md`) — do **not** re-derive
-`merge-base HEAD origin/$DEFAULT_BRANCH` inline. `/ba:propose` is the one consumer that
-layers a `host_signal`:
+`merge-base HEAD origin/$DEFAULT_BRANCH` inline. **Execute the owner spec, don't
+approximate it:** open that section and run its detection / degrade-abort / guard steps
+verbatim — the full algorithm (ref scope, self-exclusion, fetch policy, confidence
+precedence, foreign-U-ID guard, override validation) lives only there; this step supplies
+the `host_signal` and reads the resulting `resolution` fields. `/ba:propose` is the one
+consumer that layers a `host_signal`:
 
 - `r = resolve-stack-base(git, host_signal: open-mr-probe, base_override: <--base>, target_override: <--target>)`
 - `DIFF_BASE = r.base`; the MR/PR target (Step 5) = `r.target`.
