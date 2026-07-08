@@ -129,37 +129,29 @@ only own-MR fix-local routing is affected.
 
 **For `local-auto`:** run this bash block to detect scope:
 
-```bash
-# Detect default branch (redirect stdout — only check exit code)
-if git rev-parse --verify main >/dev/null 2>&1; then
-  DEFAULT_BRANCH=main
-elif git rev-parse --verify master >/dev/null 2>&1; then
-  DEFAULT_BRANCH=master
-elif git symbolic-ref refs/remotes/origin/HEAD >/dev/null 2>&1; then
-  DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's|refs/remotes/origin/||')
-else
-  DEFAULT_BRANCH=""
-fi
+Base detection for the **branch** case is owned by the `## Stack-Base Resolution
+Convention` section in `commands/ba/execute.md` — call `resolve-stack-base(git)` (no
+`host_signal`; review does not resume execution or make a trust decision) and read
+`r.base`/`r.parent`. This supersedes review.md's former local-only `main → master →
+symbolic-ref` `DEFAULT_BRANCH` ladder and local-only nearest-ancestor loop; the
+canonical ladder (including origin-ref scope and self-exclusion) now lives in that one
+owner. **`/ba:review` does not surface `warning`/`confidence`** — unlike
+execute/handoff/propose, it consumes only `r.base`/`r.parent` for a diff range, so the
+anti-skip / warning-surfacing behavior does not apply here (this is a deliberate
+exemption, not an accidental omission). The Step 2 never-hide selection ledger and the
+protected-artifacts guard are untouched.
 
+```bash
 CURRENT_BRANCH=$(git branch --show-current)
 MERGE_BASE=""
 DIFF_BASE=""
 
-# Find the nearest ancestor branch (stacked branch support).
-# For main→A→B, this picks A as the base when reviewing B,
-# instead of diffing all the way back to main.
-if [ -n "$CURRENT_BRANCH" ] && [ "$CURRENT_BRANCH" != "${DEFAULT_BRANCH:-}" ]; then
-  BEST_COUNT=999999
-  for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
-    [ "$branch" = "$CURRENT_BRANCH" ] && continue
-    mb=$(git merge-base HEAD "$branch" 2>/dev/null) || continue
-    count=$(git rev-list --count "$mb..HEAD" 2>/dev/null) || continue
-    if [ "$count" -gt 0 ] && [ "$count" -lt "$BEST_COUNT" ]; then
-      BEST_COUNT=$count
-      MERGE_BASE=$mb
-      DIFF_BASE=$branch
-    fi
-  done
+# Branch case: consume resolve-stack-base (owner: execute.md ## Stack-Base Resolution Convention).
+# For main→A→B, r.base is A's merge-base when reviewing B — not all the way back to main.
+if [ -n "$CURRENT_BRANCH" ]; then
+  # r = resolve-stack-base(git); on a stacked branch r.base narrows to the parent, else the default merge-base.
+  MERGE_BASE="<r.base>"      # empty when non-branch / empty-window degrade → falls through below
+  DIFF_BASE="<r.parent>"
 fi
 
 if [ -n "$MERGE_BASE" ]; then
