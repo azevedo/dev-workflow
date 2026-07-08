@@ -192,6 +192,7 @@ Commit, push, and open a PR/MR with a composed title and body.
 - **Risk lead-line** — an always-on, un-headed `**Risk:** low/medium/high — <reason>` line at the top of the body, deterministically derived from sensitive paths, size, and breaking-change signals; absent at typo tier
 - **Where to look** — an earned `## Where to look` section naming 1–2 hotspot areas on medium+ diffs, omitted when there's no dominant hotspot
 - **Deviation fold** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and folds genuinely reviewer-relevant substance into the Impact prose (no standalone header, no `U<n>` shown); the commit trailer and Linear ticket rollup (when linked) are unchanged; warns on near-matches at preview
+- **Stacked-branch aware** — on a stacked branch (a feature branch built on another unmerged feature branch), `DIFF_BASE` and the MR/PR target come from `resolve-stack-base`, so the MR targets the parent branch and shows only this plan's commits; `--base`/`--target` override the resolution. `/ba:execute` and `/ba:handoff` resume correctly on stacked branches too — the parent plan's commits fall outside the resume window, so their U-IDs no longer swallow the current plan's units
 - Linear MCP optional with diff-derived fallback; clear preview warning when MCP is unavailable
 - `docs/solutions/` auto-detection on current-branch-touched entries; per-entry confirm to splice as "What I learned"
 - Cursor BugBot block and existing `## Demo` / `## Screenshots` preserved byte-identical
@@ -253,6 +254,10 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 ### U-ID & git-derived state convention
 
 The **U-ID & Git-Derived State Convention** (owned by the `## U-ID & Git-Derived State Convention` section in `commands/ba/execute.md`) is the single source of the implementation-unit anchor grammar, commit-subject grammar, and `derive-state` operation. The grammar is **format-neutral**: a unit anchor is a `### U<n> — <title>` heading in markdown or an HTML `U<n>` visible-text heading with a matching `id=""` attribute. All five citation sites must be updated together when the convention changes: `commands/ba/plan.md` (mints unit anchors), `commands/ba/execute.md` Step 2e (applies the grammar), `commands/ba/propose.md` (preserves U-tagged subjects + rolls up `Deviation (U<n>):` trailers), `commands/ba/handoff.md` (calls `derive-state` with `run_verify: false`), `commands/ba/review-plan.md` (anchors findings to U-IDs and keyed `AC<n>`).
+
+### Stack-base resolution convention
+
+The **Stack-Base Resolution Convention** (owned by the `## Stack-Base Resolution Convention` section in `commands/ba/execute.md`) is the single source of `resolve-stack-base(git, opts) → resolution`, which computes `<base>` correctly on **stacked branches** by narrowing to the detected stack parent (so a parent plan's commits fall outside `<base>..HEAD`). It owns the `<base>` derivation and the degrade/abort ladder (relocated from the U-ID convention). Its four citation sites — a list **distinct** from the U-ID five-site list — must be updated together when the convention changes: `commands/ba/execute.md` (base for `derive-state` + guard), `commands/ba/handoff.md` (same, `run_verify: false`), `commands/ba/propose.md` (`DIFF_BASE` + MR target, layers `host_signal`), `commands/ba/review.md` (branch-base detection).
 
 ## Agents
 
