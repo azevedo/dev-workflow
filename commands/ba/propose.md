@@ -145,10 +145,15 @@ layers a `host_signal`:
 
 - `r = resolve-stack-base(git, host_signal: open-mr-probe, base_override: <--base>, target_override: <--target>)`
 - `DIFF_BASE = r.base`; the MR/PR target (Step 5) = `r.target`.
-- **Open-MR probe** (`host_signal` callback): reports whether a candidate ancestor
-  branch has its own open PR/MR, reusing the host detection + open-PR probe already run
-  in Step 0a/0b (`gh pr view` / `glab mr view`). Promotes such an ancestor to a strong
-  parent signal so the MR stacks onto the parent branch.
+- Capture `r.warning` / `r.confidence` into orchestrator-side state (alongside `DIFF_BASE`, `DEFAULT_BRANCH` — **not** into `CompositionInputs`). When `r.warning != null` (equivalently `r.confidence != high` — e.g. an `ambiguous` host-vs-git target disagreement, or a `low` `FOREIGN_UID_IN_WINDOW`), the Step 4 preview surfaces it (see Step 4's warning lines) so the author sees a contested/uncertain base **before** the MR opens against it. This is the consumer that cashes in the `ambiguous` state.
+- **Open-MR probe** (`host_signal` callback): given a candidate ancestor branch,
+  reports whether **that branch** has its own open PR/MR. It reuses the *host detection*
+  from Step 0a but **not** Step 0b's `OPEN_PR_URL` probe — that probe is scoped to the
+  current branch (`gh pr view` / `glab mr view` with no ref). The callback must query
+  the candidate by name: `gh pr list --head "<candidate>" --state open` (GitHub) /
+  `glab mr list --source-branch "<candidate>" --state opened` (GitLab), treating a
+  non-empty result as "has an open MR." Promotes such an ancestor to a strong parent
+  signal so the MR stacks onto the parent branch.
 - **Empty-window (per the Stack-Base empty-window contract):** propose's Step 1 routing
   guarantees a valid branch/remote, so `window == ""` is not expected — but if
   `resolve-stack-base` returns `window == ""` / `base == ""`, raise
@@ -175,7 +180,7 @@ Capture into the orchestrator's local state:
 If `git diff --stat "$DIFF_BASE..HEAD"` is empty AND there are commits in the log, raise the empty-diff error:
 
 > **CompositionInputError: branch is fully contained in base.**
-> Your commits exist but the diff vs `<DEFAULT_BRANCH>` is empty. Likely causes: someone landed equivalent changes in `<DEFAULT_BRANCH>` and your branch is now redundant, or the base was force-pushed past your branch tip. Rebase, or close the branch.
+> Your commits exist but the diff vs the resolved base (`<r.target>` — the stack parent when stacked, `origin/<DEFAULT_BRANCH>` otherwise) is empty. Likely causes: someone landed equivalent changes in the base and your branch is now redundant, or the base was force-pushed past your branch tip. Rebase, or close the branch.
 
 If `git diff --stat` is non-empty but unreadable (returns non-zero with no diff), raise:
 
@@ -530,6 +535,7 @@ Tier observability is deliberately omitted from the preview — exposing the sea
 Pre-prefix the block with warnings if any:
 
 - `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
+- `⚠ Stack-base: <r.warning>` (printed verbatim when the `r.warning` captured in Step 2a is non-null — e.g. `⚠ Stack-base: target A came from the open-MR host signal; git's commit-count metric picked C (ambiguous)` or `⚠ Stack-base: FOREIGN_UID_IN_WINDOW — <detail>`. Surfacing this is why `/ba:propose` reads `r.confidence`/`r.warning` at all: an `ambiguous`/`low` base resolution must be visible before the MR opens against it. Never blocks — informational, like the size and MCP warnings.)
 - `⚠ <result.size_warning>` (printed verbatim when `result.size_warning is not None` — e.g. `⚠ Composed body is longer than typical for a change this size (target: ~one screen) — consider trimming`. The phrase names the target shape only; it never surfaces the tier label or the "Lynch's soft cap" source vocabulary.)
 
 **`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer command `/ba:review --local` follows the same rule.)

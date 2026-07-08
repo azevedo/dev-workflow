@@ -110,7 +110,14 @@ grammar governs **execution-time per-unit commits only** — it does NOT govern
 the single summary commit `/ba:propose` may author from its composed body. An
 optional transient `Deviation (U<n>): …` trailer may appear in the commit body.
 
-**(3) `derive-state(plan, git, run_verify) → per-unit verdict`** — the only read.
+**(3) `derive-state(plan, git, run_verify, base) → per-unit verdict`** — the only read.
+`base` is the `<base>` for the tier-a subject-scan window, supplied by the caller
+(who computes it once via `resolve-stack-base(git).base` — see
+`## Stack-Base Resolution Convention`) rather than re-derived here. When a caller
+omits `base`, `derive-state` computes it itself via `resolve-stack-base(git).base`
+(the default), so a bare `derive-state(plan, git, run_verify)` call remains valid and
+byte-identical to threading the same resolved base. Every call site that has already
+resolved `base` **must** pass it, so a single command run resolves base once.
 Returns, for each unit, one of `done-via-subject` / `done-via-verify` /
 `pending` (a caller needing only a boolean reads `done = via-subject | via-verify`).
 Iterates the **plan's** current unit set (a U-ID in git history but absent from
@@ -244,14 +251,14 @@ each wiring site so no consumer forms `..HEAD` by omission.
 `ambiguous` = a parent was chosen but the pick is uncertain (the window is still a
 valid narrowing). `low` = the window itself is untrustworthy for the subject scan.
 
-**Precedence (load-bearing).** The table rows are **not** first-match. When more than
-one row's condition holds, confidence resolves to the **lowest** matching level: `low`
-dominates `ambiguous` dominates `high`. The foreign-U-ID guard (the two `low` rows) is
-evaluated **last and unconditionally** — so a foreign-U-ID duplicate co-occurring with
-a host/git disagreement (an `ambiguous` row) resolves to `low`, never `ambiguous`.
-Without this, a first-match reading could resolve `ambiguous` (which execute *trusts*
-for the subject scan) over a genuinely polluted window and silently reintroduce the
-silent-skip this convention exists to fix.
+**Precedence (load-bearing).** The table rows are **not** first-match. Evaluate every
+row's condition, then set `confidence = min(level)` over all matching rows, ordered
+`low < ambiguous < high`. Equivalently: the foreign-U-ID guard's two `low` rows always
+win when they fire, so a foreign-U-ID duplicate co-occurring with a host/git
+disagreement (an `ambiguous` row) resolves to `low`, never `ambiguous`. Without the
+minimum (a first-match reading), the scan could resolve `ambiguous` — which execute
+*trusts* for the subject scan — over a genuinely polluted window and silently
+reintroduce the silent-skip this convention exists to fix.
 
 **Foreign-U-ID guard.** After `base` is resolved (including under override),
 **reuse `derive-state`'s tier-a subject-scan invocation** (owned by the
@@ -543,7 +550,7 @@ When all tasks are done:
 
 ### Fresh Verification
 
-1. Confirm every unit is `done` via `derive-state(plan, git, run_verify: true)`.
+1. Confirm every unit is `done` via `derive-state(plan, git, run_verify: true, base: r.base)`, reusing the `r` resolved once at Step 1 (do **not** re-call `resolve-stack-base` — the "call once, early" invariant holds through completion). The Resume-Detection anti-skip rule applies here too: when `r.confidence == low`, do **not** trust `done-via-subject` for the completion check — fall through to the `Verify:` tier before declaring the plan complete, so a low-confidence stacked window cannot mark a still-`pending` plan done.
 2. Run targeted tests for all changed files.
 3. Use **AskUserQuestion** to ask about full verification:
    - "All tasks complete. How should I verify?"
