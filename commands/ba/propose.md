@@ -21,6 +21,8 @@ Recognized flags:
 - `--describe-only` — Compose and print the body; do not commit, push, or create/edit a PR/MR. Useful as a dry run.
 - `--review` (alias `--interactive`) — Restore the interactive confirmation gates (Step 0b edit-only confirm, Step 4 Apply menu) that are otherwise skipped by default. See `REVIEW_MODE` below.
 - `--issue <ID>` — Explicitly bind a Linear issue ID. Overrides branch-name detection.
+- `--target <branch>` — Override the resolved MR/PR target branch. Flows into `resolve-stack-base` opts as `target_override` (wins unconditionally for `target`; the foreign-U-ID guard still runs). Validated as an existing local/`origin/` ref.
+- `--base <ref>` — Override the resolved diff base. Flows into `resolve-stack-base` opts as `base_override` (wins unconditionally for `base`; must be an ancestor of HEAD; the foreign-U-ID guard still runs).
 
 **`REVIEW_MODE`** — a run-local orchestrator variable (alongside `ACTION`, `HOST`; it never enters `CompositionInputs`) that gates the Step 0b edit-only confirm and the Step 4 Apply menu (see U2 in those steps). Resolved as an OR, not an AND: `REVIEW_MODE = (--review present) OR (BA_PROPOSE_REVIEW is set to a non-empty, non-"0" value)`. Either signal alone is sufficient — a flag or an env var must never be silently ignored, since silently dropping an explicit safety opt-in on an apply-by-default command is the worst failure mode. `BA_PROPOSE_REVIEW=0` and an empty value are treated as unset. `BA_PROPOSE_REVIEW=1` set once in a shell profile is the persistent equivalent of always passing `--review`.
 
@@ -136,9 +138,23 @@ Each sub-step materializes one field of `CompositionInputs`. None of this happen
 
 ### 2a. Diff and branch metadata
 
+`DIFF_BASE` and the MR/PR target both come from `resolve-stack-base` (owned by the
+`## Stack-Base Resolution Convention` section in `execute.md`) — do **not** re-derive
+`merge-base HEAD origin/$DEFAULT_BRANCH` inline. `/ba:propose` is the one consumer that
+layers a `host_signal`:
+
+- `r = resolve-stack-base(git, host_signal: open-mr-probe, base_override: <--base>, target_override: <--target>)`
+- `DIFF_BASE = r.base`; the MR/PR target (Step 5) = `r.target`.
+- **Open-MR probe** (`host_signal` callback): reports whether a candidate ancestor
+  branch has its own open PR/MR, reusing the host detection + open-PR probe already run
+  in Step 0a/0b (`gh pr view` / `glab mr view`). Promotes such an ancestor to a strong
+  parent signal so the MR stacks onto the parent branch.
+- **Empty-window (per the Stack-Base empty-window contract):** propose's Step 1 routing
+  guarantees a valid branch/remote, so `window == ""` is not expected — but if
+  `resolve-stack-base` returns `window == ""` / `base == ""`, raise
+  `CompositionInputError` rather than forming an invalid `..HEAD` range.
+
 ```bash
-git fetch --no-tags origin "$DEFAULT_BRANCH"
-DIFF_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH")
 git diff --stat "$DIFF_BASE..HEAD"
 git diff --numstat "$DIFF_BASE..HEAD"
 git diff --name-status "$DIFF_BASE..HEAD"
@@ -153,7 +169,7 @@ Capture into the orchestrator's local state:
 - `diff.file_status = <output of --name-status>` — per-path add/modify/delete status. `--numstat` gives line-count deltas only, so it can't distinguish a deleted test file from a modified one; Proof detection (Step 2e) reads `diff.file_status` to exclude deletions.
 - `diff.commit_log = <output of --pretty=oneline>`
 - `branch.name = <current branch>`
-- `branch.base_ref = "origin/$DEFAULT_BRANCH"`
+- `branch.base_ref = "$(r.target)"` (the resolved stack target — `origin/$DEFAULT_BRANCH` when non-stacked)
 - `branch.last_merge_sha = "$DIFF_BASE"`
 
 If `git diff --stat "$DIFF_BASE..HEAD"` is empty AND there are commits in the log, raise the empty-diff error:
@@ -274,7 +290,7 @@ Scan `diff.file_stats` + `diff.file_status` (both captured in 2a) and derive `pr
 
 ### 2f. Deviation trailers (`/ba:execute` rollup)
 
-Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a (this is the `<base>..HEAD` window owned by the `## U-ID & Git-Derived State Convention` section in `execute.md` — `DIFF_BASE` *is* that `<base>`; do not re-derive it). The plan being preserved may be `.md` or `.html` — this step reads only git commit bodies, never the plan file, so the format is irrelevant here:
+Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a (this is the `<base>..HEAD` window; `<base>` derivation is owned by the `## Stack-Base Resolution Convention` section in `execute.md` — `DIFF_BASE` *is* that `<base>` (`resolve-stack-base(git, host_signal: open-mr-probe).base`); do not re-derive it). The plan being preserved may be `.md` or `.html` — this step reads only git commit bodies, never the plan file, so the format is irrelevant here:
 
 ```bash
 git log "$DIFF_BASE..HEAD" --format=%B | grep -E '^Deviation \(U[0-9]+\):'
@@ -655,22 +671,22 @@ __BA_PROPOSE_BODY_END__
 **Dispatch:**
 
 ```bash
-# GitHub — create
+# GitHub — create (target = resolved r.target: the stack parent when stacked, origin default when not)
 gh pr create \
   --title "<title>" \
   --body-file "$BODY_FILE" \
-  --base "$DEFAULT_BRANCH"
+  --base "<r.target>"
 
 # GitHub — edit existing
 gh pr edit "$OPEN_PR_URL" \
   --title "<title>" \
   --body-file "$BODY_FILE"
 
-# GitLab — create
+# GitLab — create (target = resolved r.target: the stack parent when stacked, origin default when not)
 glab mr create \
   --title "<title>" \
   --description "$(cat "$BODY_FILE")" \
-  --target-branch "$DEFAULT_BRANCH"
+  --target-branch "<r.target>"
 
 # GitLab — edit existing
 glab mr update "$OPEN_PR_URL" \
