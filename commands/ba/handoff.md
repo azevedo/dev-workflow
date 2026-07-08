@@ -46,11 +46,25 @@ Name the branch, whether the tree is clean or dirty, and whether commits are pus
 Name the plan path and narrate U-resolution via `derive-state(plan, git, run_verify: false)`
 — subject scan only, **never** run `Verify:` commands (handoff must be side-effect-free; this
 is the `run_verify: false` asymmetry owned by the `## U-ID & Git-Derived State Convention`
-section in `execute.md`). `derive-state` is format-blind on the git side; the only
-format-specific step is locating the plan's current unit set (markdown `### U<n>` or HTML
-`U<n>` visible-text + `id=""`).
+section in `execute.md`). `<base>` for the subject scan comes from
+`resolve-stack-base(git)` (git-first — handoff passes **no** `host_signal`, so zero host
+calls; base derivation is owned by the `## Stack-Base Resolution Convention` section in
+`execute.md`). `derive-state` is format-blind on the git side; the only format-specific step
+is locating the plan's current unit set (markdown `### U<n>` or HTML `U<n>` visible-text +
+`id=""`).
 
-For each unit, the verdict is either `done-via-subject` (its `U<n>` appears in a commit subject in `<base>..HEAD`) or `pending`. Handoff **cannot** observe `done-via-verify` — a unit that is implemented but uncommitted reads `pending` here. Narrate pending units as: "uncommitted, not yet durable — commit and run `/ba:propose` to make it durable." State this limitation explicitly so the receiving session knows the progress report reflects **git durability**, not worktree state.
+**Empty-window (per the Stack-Base empty-window contract):** branch on `r.window == ""`
+**before** any `<base>..HEAD` construction — with no `Verify:` tier to degrade to, an empty
+base would otherwise make the subject scan itself error (`..HEAD`) instead of reporting "all
+pending." On `r.window == ""`, narrate every unit as `pending` and record the empty-window
+`low` warning in the artifact (below).
+
+**Persist the warning.** When `r.warning != null`, surface it **and write it into the handoff
+artifact** — since `run_verify: false` gives no `Verify:` backstop, a console-only warning is
+lost when the next session reads the document. The receiving session must inherit the
+uncertainty.
+
+For each unit, the verdict is either `done-via-subject` (its `U<n>` appears in a commit subject in `<base>..HEAD`, where `<base>` = `resolve-stack-base(git).base`) or `pending`. Handoff **cannot** observe `done-via-verify` — a unit that is implemented but uncommitted reads `pending` here. Narrate pending units as: "uncommitted, not yet durable — commit and run `/ba:propose` to make it durable." State this limitation explicitly so the receiving session knows the progress report reflects **git durability**, not worktree state.
 
 E.g. "mid-execute on `docs/plans/…-plan.md`: U1–U3 done-via-subject; U4–U5 pending (U4 may be implemented in working tree — verify before re-implementing)."
 
