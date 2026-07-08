@@ -70,7 +70,7 @@ Extract:
    - Has "Changes Required" sections → STANDARD
    - Otherwise → MINIMAL
 
-2. **Resume state**: Run `derive-state(plan, git, run_verify: true)` (see `## U-ID & Git-Derived State Convention`). Count units with verdict `done` vs `pending`. If any are `done`, this is a resume.
+2. **Resume state**: Call `resolve-stack-base(git)` once, early (see `## Stack-Base Resolution Convention`; `/ba:execute` passes **no** `host_signal` — zero host calls), then run `derive-state(plan, git, run_verify: true, base: r.base)` (see `## U-ID & Git-Derived State Convention`), threading the resolved base into the read. Surface `r.warning` when non-null. **Empty-window (per the Stack-Base empty-window contract):** when `r.window == ""`, do **not** construct `r.base..HEAD` (it would form the invalid `..HEAD` range) — skip tier-a and resolve every unit via the `Verify:` tier, surfacing the empty-window `low` warning. Count units with verdict `done` vs `pending`. If any are `done`, this is a resume.
 
 3. **Task list**: Extract the discrete executable tasks based on detail level — **format-neutral**:
    - **MINIMAL**: Each implementation unit anchor (markdown `### U<n> — <title>` heading, or HTML `U<n>` visible-text heading with `id=""`) is a task.
@@ -159,23 +159,8 @@ never executes a `Verify:` command, so it returns only `done-via-subject` or
 resume) `Verify:` commands run and must be read-only per the `Verify:` minting
 rules in `commands/ba/plan.md` ("Key rules for all templates").
 
-**`<base>` definition** (owned here; `/ba:propose` cites this for both its diff
-range and its deviation-trailer rollup window). `propose.md`'s Step 2a computes
-`DIFF_BASE` with the same `merge-base` call against the same default-branch
-detection ladder — it is the same algorithm, not a separate definition; `propose.md`
-relies on its own Step 1 routing (detached-HEAD / default-branch guard) to ensure a
-remote is present by the time Step 2a runs, rather than the degrade steps below:
-`git fetch --no-tags origin <default-branch>` then
-`<base> = git merge-base HEAD origin/<default-branch>`, using the same
-default-branch detection ladder as `propose.md`. Degrade order: no
-upstream/remote (fresh local branch) → merge-base against the local default
-branch; that absent too → treat the subject-scan window as **empty** and rely on
-the `Verify:` tier. Distinct from degrade: if **either** `git fetch` **or**
-`git merge-base` returns non-zero for any reason (a repo with no commits yet, an
-orphan branch with no common ancestor, `fetch` failing offline) — including a
-`fetch` that succeeds followed by a `merge-base` that fails — surface the git
-error and **abort**. Do not silently treat the window as empty, and do not read a
-clean `fetch` as license to degrade through a subsequent `merge-base` failure.
+**`<base>`** is `resolve-stack-base(git).base`; base derivation and the
+degrade/abort ladder are owned by `## Stack-Base Resolution Convention`.
 
 ---
 
@@ -394,6 +379,32 @@ git branch --show-current
 1. Announce: "Resuming at U<k> (<d>/<m> done)." where `k` is the first `pending` unit, `d` is done count, `m` is total.
 2. **Dirty-tree guard**: before re-implementing the first `pending` unit, check for uncommitted changes (`git status --short`). If dirty, surface: "U<k> reads pending, but the working tree is dirty — inspect / commit / discard before I re-implement?" Offer: Inspect (show `git diff`), Commit now, Discard changes, Proceed anyway.
 3. A `Verify:` that exits non-zero for an environmental reason (command not found, permission denied) surfaces the warning from the convention — never silently re-implements.
+
+**Anti-skip behavior (stack-base guard).** When `resolve-stack-base` returned
+`r.warning != null`, print it. When `r.confidence == low`, execute must **not** trust
+`done-via-subject` verdicts and falls through to the `Verify:` tier for the affected
+units. (`ambiguous` surfaces the warning + chosen parent but the narrowing is still a
+valid window, so the subject scan is trusted — the only trust fork is on `low`, per
+the confidence table.)
+- **"Affected units" scope**: `confidence` is a resolution-level (not per-unit) field,
+  so `low` distrusts `done-via-subject` for **every unit in the resume window**, not
+  only the specific duplicated `U<n>` — the conservative, safe-side reading (two
+  colliding plans can duplicate several units at once). List the affected units.
+- **Commit-tag-only starvation**: a unit with no code-matchable `Verify:` line is
+  commit-tag-only (`derive-state` tier-b — stays `pending` until its `U<n>` appears in
+  a subject). Under `confidence == low`, tier-a is distrusted and tier-b has nothing to
+  run, so such a unit would read a bare `pending` on every future run while the
+  low-confidence condition persists. Surface a **distinct** signal for these units
+  ("cannot verify — no `Verify:` line and subject-scan distrusted", not a plain
+  `pending`), so the user knows it is "can't tell," not merely "not yet done," and can
+  resolve the base (e.g. via `--base`) or re-tag.
+
+> **Five-site walk (U-ID convention edit).** Threading `base:` into `derive-state` and
+> relocating `<base>` edits the *owned* `## U-ID & Git-Derived State Convention`
+> section, so the "update all five citation sites together" rule fires. All five walked
+> + the README U-ID mirror: `plan.md`/`review-plan.md` reference neither `<base>` nor a
+> based `derive-state` call → grammar-only, unaffected; execute/propose/handoff are
+> edited (this unit + U3/U4); README in U6.
 
 **If fresh start (all units `pending`)**:
 1. Announce: "Starting execution. [M] tasks to complete."
