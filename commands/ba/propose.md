@@ -835,6 +835,7 @@ is indistinguishable from a missed positive, and the silent path has no trace �
 
 - Composition is a pure contract — it consumes the value objects in `CompositionInputs` and reaches out to nothing. Add I/O? Add it to Step 2.
 - Never `git add -A` / `git add .`. Explicit paths only.
+- `/ba:propose` itself never writes source files outside the staged diff. The sole exception is the user-accepted `/ba:compound` **hand-off exception** (Step 5f): after the PR/MR is open, an accepted capture offer hands off to `/ba:compound`, which writes only to `docs/solutions/` — after the push, never in the pushed diff (mirrors the owning convention at `CLAUDE.md` — keep in sync).
 - Never `--no-verify` unless the user has explicitly asked, with an audited reason.
 - Never silent force-push. `--force-with-lease` only, with explicit confirmation.
 - `--body-file` always points at a temp file written by a quoted-sentinel heredoc. Never `--body "$(cat ...)"`, never stdin, never pipes.
