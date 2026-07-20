@@ -602,6 +602,8 @@ git commit -F "$COMMIT_MSG_FILE"
 
 The quoted sentinel `'__BA_PROPOSE_COMMIT_END__'` blocks `$VAR`, backticks, and literal `EOF` expansion.
 
+**Single-call invariant (load-bearing).** The `mktemp`, the heredoc write, and `git commit -F` above **must run in the same Bash tool call** — as shown, one block. Each `/ba:propose` Bash call is a fresh shell, so `$COMMIT_MSG_FILE` does not survive into a later call. Never recover the path in a separate call via `find`/`glob`/`ls` over `${TMPDIR:-/tmp}`: that directory is shared across every concurrent session on the machine, so such a match can silently pick up a *different* session's leftover `ba-propose-commit.*` file and commit the wrong message. If the message is needed again, re-derive it (composition is deterministic) and write a **fresh** temp file inside that same call. Same rule applies to 5d's `BODY_FILE`.
+
 **Hook failure recovery.** If `git commit` returns non-zero:
 
 - Print the hook output verbatim.
@@ -671,16 +673,18 @@ Surface a one-line notice in 5d's output when the published body's preserved blo
 
 **Write body to temp file** (always — no stdin, no pipes). GitHub: use `--body-file "$BODY_FILE"`. GitLab: `glab` has no `--description-file`; use `--description "$(cat "$BODY_FILE")"` instead.
 
+**Single-call invariant (load-bearing).** The `mktemp`, the heredoc write, and the one applicable dispatch command below **must run in the same Bash tool call** — that is why the write and the dispatch are one block, not two. Each `/ba:propose` Bash call is a fresh shell, so `$BODY_FILE` does not survive into a later call. **Never** recover the path in a separate call via `find`/`glob`/`ls` over `${TMPDIR:-/tmp}` (e.g. `find "$TMPDIR" -name 'ba-propose-body.*' -newer …`): that directory is shared across every concurrent session on the machine, so such a match can silently pick up a *different* session's leftover file and ship the wrong PR/MR body — a confirmed, repeated production incident. If the body is needed again (the fetch-before-write re-composition above splices fresh preserved blocks), re-run `compose_body` and write a **fresh** temp file inside that same call — do not reach for the earlier path. `${TMPDIR:-/tmp}` is used because no session-scoped temp path is portably exposed to the command; the same-call rule, not the path, is what prevents the cross-session collision.
+
+**Dispatch** — in one Bash tool call: `mktemp` + heredoc write, then run **exactly one** dispatch command matching (`HOST`, create-vs-edit):
+
 ```bash
 BODY_FILE=$(mktemp "${TMPDIR:-/tmp}/ba-propose-body.XXXXXX")
 cat > "$BODY_FILE" <<'__BA_PROPOSE_BODY_END__'
 <full PR/MR body — same content as commit message>
 __BA_PROPOSE_BODY_END__
-```
 
-**Dispatch:**
+# --- then, in THIS SAME call, run exactly one of the following ---
 
-```bash
 # GitHub — create (target = resolved r.target: the stack parent when stacked, origin default when not)
 gh pr create \
   --title "<title>" \
