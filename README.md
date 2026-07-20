@@ -162,7 +162,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 
 - **5 parallel subagents** — Context Analyzer, Solution Extractor, Related-Docs Finder, Prevention Strategist, Category Classifier
 - **Frictionless manual / model-proactive** — a deliberate run proceeds directly once a problem/solution pair is identifiable (no confirmation gate); best invoked right after solving a non-trivial, verified problem
-- **Ship-time offer** — after a successful create, `/ba:propose` may offer to run `/ba:compound` when the change looks like it carried a reusable learning; silent otherwise
+- **Ship-time capture offer** — after a successful create, `/ba:propose` may offer to run `/ba:compound` when the change looks like it carried a reusable learning; silent otherwise
 - **Explicit invocation** — `/ba:compound` or `/ba:compound [context hint]` for immediate documentation
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
 
