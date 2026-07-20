@@ -1,6 +1,6 @@
 ---
 name: ba:compound
-description: "Document a recently solved problem to compound team knowledge. Use when a problem is solved -- auto-triggers on phrases like 'that worked', 'it's fixed', 'problem solved'."
+description: "Document a recently solved problem to docs/solutions/ so future brainstorm/plan sessions can reuse it; use after solving a non-trivial, verified problem."
 argument-hint: "[optional: brief context about the fix]"
 ---
 
@@ -10,33 +10,16 @@ Coordinate multiple subagents working in parallel to document a recently solved 
 
 <context_hint> #$ARGUMENTS </context_hint>
 
-## Auto-Invoke
-
-<auto_invoke>
-<trigger_phrases>
-- "that worked"
-- "it's fixed"
-- "working now"
-- "problem solved"
-- "fixed it"
-- "got it working"
-</trigger_phrases>
-</auto_invoke>
-
 ## Step 0: Pre-flight Check
 
-Check conversation context first, then gate on trigger type:
+Check conversation context before dispatching subagents:
 
 1. Scan conversation for a problem/solution pair (at minimum: a problem statement
    and a resolution/fix). Use the context hint from arguments if provided.
 2. If insufficient context: ask the user to provide more detail or a context hint.
    Do not proceed until a problem/solution pair is identifiable.
-3. If auto-triggered: present a confirmation using AskUserQuestion that proves
-   sufficient context exists:
-   "I detected a solved problem: [brief problem summary]. Want me to document it?"
-   Options: Yes (proceed) / No (cancel)
-   If No: stop, do not dispatch subagents.
-4. If explicitly invoked via `/ba:compound`: proceed directly (context already verified).
+3. Otherwise proceed directly: a deliberate invocation (manual or offer-driven from
+   `/ba:propose`) needs no confirmation once a problem/solution pair is identifiable.
 
 ## Step 1: Phase 1 — Parallel Research
 
@@ -155,7 +138,6 @@ Then use AskUserQuestion with options: Continue working / View documentation / O
 
 - Only the orchestrator writes files — subagents return text data only
 - Do not run a convention-checker gate — docs/solutions/ entries are knowledge artifacts
-- Auto-trigger only fires during freeform conversation — suppress during active /ba: command flows
 - CAUTION: Review extracted code snippets for secrets, API keys, tokens, or PII before writing
 - If file write fails, show the assembled content to the user so it is not lost
 - Follow YAML list format for tags: `tags: [tag1, tag2, tag3]`
