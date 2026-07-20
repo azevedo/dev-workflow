@@ -26,7 +26,7 @@ Recognized flags:
 
 **`REVIEW_MODE`** — a run-local orchestrator variable (alongside `ACTION`, `HOST`; it never enters `CompositionInputs`) that gates the Step 0b edit-only confirm and the Step 4 Apply menu (see U2 in those steps). Resolved as an OR, not an AND: `REVIEW_MODE = (--review present) OR (BA_PROPOSE_REVIEW is set to a non-empty, non-"0" value)`. Either signal alone is sufficient — a flag or an env var must never be silently ignored, since silently dropping an explicit safety opt-in on an apply-by-default command is the worst failure mode. `BA_PROPOSE_REVIEW=0` and an empty value are treated as unset. `BA_PROPOSE_REVIEW=1` set once in a shell profile is the persistent equivalent of always passing `--review`.
 
-**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. (Review fix: this list previously lived as two independent near-verbatim copies, one at each confirmation site, with no cross-reference tying them together — stated once here instead.)
+**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f ship-time capture offer** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is non-blocking, mode-independent **post-completion chrome** that fires identically with or without `--review` — it runs after the ship has already succeeded, gates on its own predicate (5e printed `✓ <url>` and `ACTION == commit_push_create`), and can never change the ship's exit status. (Review fix: this list previously lived as two independent near-verbatim copies, one at each confirmation site, with no cross-reference tying them together — stated once here instead.)
 
 Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b (skipped by default — see `REVIEW_MODE`). One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
 
@@ -686,10 +686,11 @@ __BA_PROPOSE_BODY_END__
 # --- then, in THIS SAME call, run exactly one of the following ---
 
 # GitHub — create (target = resolved r.target: the stack parent when stacked, origin default when not)
-gh pr create \
+# Capture the new PR URL it prints to stdout — the sole producer of CREATED_PR_URL, read by 5e/5f.
+CREATED_PR_URL=$(gh pr create \
   --title "<title>" \
   --body-file "$BODY_FILE" \
-  --base "<r.target>"
+  --base "<r.target>")
 
 # GitHub — edit existing
 gh pr edit "$OPEN_PR_URL" \
@@ -697,10 +698,11 @@ gh pr edit "$OPEN_PR_URL" \
   --body-file "$BODY_FILE"
 
 # GitLab — create (target = resolved r.target: the stack parent when stacked, origin default when not)
-glab mr create \
+# Capture the new MR URL it prints to stdout — the sole producer of CREATED_PR_URL, read by 5e/5f.
+CREATED_PR_URL=$(glab mr create \
   --title "<title>" \
   --description "$(cat "$BODY_FILE")" \
-  --target-branch "<r.target>"
+  --target-branch "<r.target>")
 
 # GitLab — edit existing
 glab mr update "$OPEN_PR_URL" \
@@ -716,12 +718,132 @@ glab mr update "$OPEN_PR_URL" \
 
 ### 5e. Output
 
-On success, print:
+On success, print the new PR/MR URL captured in 5d (`CREATED_PR_URL`):
 
 ```
 ✓ <title>
-  <PR or MR URL>
+  $CREATED_PR_URL
 ```
+
+**Unparseable-URL guard.** If the create call in 5d exits 0 but `CREATED_PR_URL` is empty or not a
+URL (a transient CLI/output-format hiccup), print the success line without a URL and treat the URL as
+absent for gating: Step 5f gates on a non-empty `CREATED_PR_URL`, so it stays silent rather than
+firing on a placeholder.
+
+### 5f. Ship-time capture offer
+
+**Physically last in Step 5** — runs only after 5e has printed `✓ <url>`. Non-blocking,
+mode-independent **post-completion chrome**, not a confirmation gate: *not* governed by
+`REVIEW_MODE`, fires identically with or without `--review`, and never feeds `CompositionInputs`.
+The ship has already succeeded before this block runs.
+
+**Code-shape decision:** the gate/silence/offer control flow is the load-bearing decision of this
+change, and re-deriving it from prose alone plausibly produces a *wrong* structure (firing on edit
+paths, gating on the word "create", or letting a compound failure taint the ship). The exact
+predicate + ordering is fixed by this sketch; the failure-isolation boundary is drawn around the
+`try` body (assessment + prompt + `/ba:compound` invocation), not just the `/ba:compound` call —
+the two guards above the `try` are total and cannot throw. It is a shape sketch, not literal command
+text — the file is a prose spec — and the paragraphs below elaborate each branch.
+
+```
+# 5f. Ship-time capture offer — runs only after 5e printed "✓ <url>".
+# The try/except below isolates the assessment, prompt, and /ba:compound invocation:
+# any exception there degrades to the "PR is live" message. The two guards above the try
+# are total (a comparison + a session check) and cannot throw; nothing here can change
+# the ship's exit status.
+if ACTION != commit_push_create or not CREATED_PR_URL:   # CREATED_PR_URL captured in 5d, printed by 5e
+    return                      # edit_only / commit_push_edit / describe_only / HOST=unknown → unreachable
+if not interactive_session():   # default-mode propose may run scripted/headless
+    return                      # no answerer for the offer → silent, never hang
+try:
+    if solutions:               # Step 2c non-empty → already documented & in the PR
+        return                  # silent
+    if not assess_reusable_learning(deviation_trailers, conversation_arc,
+                                    commit_type, risk, proof):
+        return                  # routine or uncertain → silent (lean-silent = precision)
+    answer = AskUserQuestion("Document this learning?", options=[Yes, No])  # No = one keystroke
+    if answer != Yes:
+        return                  # decline → normal completion; ship already succeeded
+    result = run("/ba:compound", context_hint=seed(motivation, deviation_trailers, risk, proof, diff_summary))
+    # NOTE: compound prints its OWN completion summary AND its own Step 4 menu —
+    # a possible second insufficient-context prompt is also compound's, not propose's.
+    # compound's soft-fail (Step 0 insufficient-context abort, a failed subagent) exits WITHOUT
+    # writing a file and is NOT an exception — so branch on whether a doc was written, not on
+    # absence-of-exception, or a soft-fail would falsely print "captured".
+    if result.wrote_file:
+        print("captured — doc is uncommitted and NOT in this PR")
+    else:
+        print("no doc written (compound aborted, e.g. insufficient context) — run /ba:compound manually.")
+except Exception:
+    print("PR is live; capture failed — run /ba:compound manually.")   # ship stays successful
+```
+
+**Gate — offer iff 5e printed a `✓ <url>` and the action created a new PR/MR.** Concretely:
+`ACTION == commit_push_create` **and** the `CREATED_PR_URL` captured in 5d is non-empty. Binding to
+the URL (not the word "create") is deliberate — it automatically excludes `HOST=unknown` (no URL) and
+every failure exit (no URL). The block is therefore unreachable for `describe_only` (exits at
+Step 4), `edit_only`/`commit_push_edit` (edit paths, no new PR), `HOST=unknown`, and any
+commit/push/create failure.
+
+**Silence preconditions (any true → stay completely silent, no output at all):**
+
+1. **Non-interactive session** (scripted/headless, no answerer) — *checked first*, before any
+   assessment. The offer adds the first `AskUserQuestion` to the default (`--review`-absent)
+   flow, which is prompt-free/scriptable today, so a missing interactive answerer is a silence
+   precondition, never a hang.
+2. **Already captured** — `solutions` (Step 2c) is non-empty. The learning is already documented
+   and rode this very PR; a high-precision negative that costs nothing.
+3. **Negative or uncertain judgment** — the assessment did not land clearly positive. Lean
+   **silent**: precision over recall.
+
+**Assessment (best-effort, blended, read-only).** Not a rigid rubric. Read already-materialized
+orchestrator state plus the conversation; mutate nothing. Weigh:
+
+- (a) `deviation_trailers` from Step 2f — *strongest* signal ("reality diverged from the plan,
+  here's why").
+- (b) A problem → investigation → fix arc visible in the conversation.
+- (c) Commit type / motivation — a `fix:` for a gotcha/workaround weighs positive; a clean `feat:`
+  or a docs/config-only change weighs toward routine.
+- (d) Lightly: `risk` (2h), `proof` (2e), `sensitive_paths_touched` (2g).
+
+Lean-silent: a genuinely ambiguous change (e.g. a `fix:` with no deviation trailer and no clear
+problem→fix arc) is judged **uncertain** and stays silent.
+
+**Offer (only on a positive judgment).** One 2-option `AskUserQuestion` — "Document this
+learning?" — Yes / No, with **No** as the recommended-neutral default (one keystroke to decline).
+
+- **Decline** → proceed to normal completion. Nothing remains to print; success already printed.
+- **Accept** → invoke `/ba:compound` on its explicit (proceed-directly) path, passing a **seeded
+  context hint** — composed motivation + deviation-trailer texts + `risk`/`proof` + a one-line
+  diff summary — so compound's Step 0 insufficient-context guard passes even in a resumed/handoff
+  session whose conversation arc is absent. `/ba:compound` then surfaces its **own** completion
+  summary and its **own** Step 4 menu (Continue / View / Other), and — if the seeded hint is judged
+  thin — may still hit compound's retained Step 0 guard (a possible second round-trip). These are
+  compound's prompts, not propose's.
+
+**Post-hoc summary on accept.** `/ba:compound` can end two ways, and only one is a capture: it may
+write a `docs/solutions/` file, or it may **soft-fail** — abort on its own Step 0 insufficient-context
+guard, or lose a research subagent — which exits *without* writing a file and is **not** an exception
+the `try` catches. Branch the message on whether a doc was actually written, never on
+absence-of-exception alone:
+
+- **Doc written** → surface compound's completion summary and **explicitly note the created doc is
+  uncommitted and NOT in this PR**. It was written after the push, so **commit it yourself** — it will
+  **not** ride your next `/ba:propose` automatically: Step 5a stages from
+  `git diff --numstat "$DIFF_BASE..HEAD"`, a diff between committed refs that never includes an
+  untracked file. The doc stays untracked in your working tree until you `git add` and commit it.
+- **Soft-fail (no doc written)** → say so and point at the escape hatch ("no doc written — run
+  `/ba:compound` manually when you have more context"); do **not** print "captured".
+
+**Failure isolation (the `try` body — assessment, prompt, and invoke).** The ship is already
+reported successful; nothing in 5f may change its exit status. Any exception *inside the `try`* — in
+the assessment, in the `AskUserQuestion` itself, or in the `/ba:compound` invocation — degrades
+identically to a single note and leaves the ship successful: "PR is live; capture failed — run
+`/ba:compound` manually." The two guards above the `try` (the gate check and the interactive-session
+check) are total — a comparison and a session probe — and cannot throw, so wrapping them is
+unnecessary; the boundary is drawn where a failure is actually possible.
+Manual `/ba:compound` is the false-negative escape hatch for every silent path (a correct silence
+is indistinguishable from a missed positive, and the silent path has no trace — accepted).
 
 ## Failure Modes
 
@@ -742,6 +864,7 @@ On success, print:
 
 - Composition is a pure contract — it consumes the value objects in `CompositionInputs` and reaches out to nothing. Add I/O? Add it to Step 2.
 - Never `git add -A` / `git add .`. Explicit paths only.
+- `/ba:propose` itself never writes source files outside the staged diff. The sole exception is the user-accepted `/ba:compound` **hand-off exception** (Step 5f): after the PR/MR is open, an accepted capture offer hands off to `/ba:compound`, which writes only to `docs/solutions/` — after the push, never in the pushed diff (mirrors the owning convention at `CLAUDE.md`; `README.md`'s `/ba:propose` feature list carries a user-facing summary of the same behavior — keep all three in sync).
 - Never `--no-verify` unless the user has explicitly asked, with an audited reason.
 - Never silent force-push. `--force-with-lease` only, with explicit confirmation.
 - `--body-file` always points at a temp file written by a quoted-sentinel heredoc. Never `--body "$(cat ...)"`, never stdin, never pipes.
