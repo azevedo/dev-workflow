@@ -26,7 +26,7 @@ Recognized flags:
 
 **`REVIEW_MODE`** — a run-local orchestrator variable (alongside `ACTION`, `HOST`; it never enters `CompositionInputs`) that gates the Step 0b edit-only confirm and the Step 4 Apply menu (see U2 in those steps). Resolved as an OR, not an AND: `REVIEW_MODE = (--review present) OR (BA_PROPOSE_REVIEW is set to a non-empty, non-"0" value)`. Either signal alone is sufficient — a flag or an env var must never be silently ignored, since silently dropping an explicit safety opt-in on an apply-by-default command is the worst failure mode. `BA_PROPOSE_REVIEW=0` and an empty value are treated as unset. `BA_PROPOSE_REVIEW=1` set once in a shell profile is the persistent equivalent of always passing `--review`.
 
-**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f ship-time capture offer** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is non-blocking, mode-independent **post-completion chrome** that fires identically with or without `--review` — it runs after the ship has already succeeded, gates on its own predicate (5e printed `✓ <url>` and `ACTION == commit_push_create`), and can never change the ship's exit status. (Review fix: this list previously lived as two independent near-verbatim copies, one at each confirmation site, with no cross-reference tying them together — stated once here instead.)
+**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f ship-time capture offer** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is a non-blocking, mode-independent **required terminal step** of Step 5 (Step 5 is not complete until 5f has *run* — not *succeeded*) that fires identically with or without `--review` — it runs after the ship has already succeeded, gates on its own predicate (5e printed `✓ <url>` and `ACTION == commit_push_create`), and can never change the ship's exit status. (Review fix: this list previously lived as two independent near-verbatim copies, one at each confirmation site, with no cross-reference tying them together — stated once here instead.)
 
 Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b (skipped by default — see `REVIEW_MODE`). One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
 
@@ -568,7 +568,7 @@ Step 5 dispatches on the single `ACTION` value resolved in Step 0b. The `HOST=un
 
 | `ACTION` | Actions |
 |---|---|
-| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) |
+| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output) → 5f (capture offer) |
 | `commit_push_edit` | 5a (stage) → 5b (commit) → 5c (push) → 5d (edit existing PR/MR) |
 | `edit_only` | 5d only (edit existing PR/MR description; no commit, no push) |
 | `describe_only` | Print body to stdout; exit zero. |
@@ -727,43 +727,58 @@ On success, print the new PR/MR URL captured in 5d (`CREATED_PR_URL`):
 
 **Unparseable-URL guard.** If the create call in 5d exits 0 but `CREATED_PR_URL` is empty or not a
 URL (a transient CLI/output-format hiccup), print the success line without a URL and treat the URL as
-absent for gating: Step 5f gates on a non-empty `CREATED_PR_URL`, so it stays silent rather than
-firing on a placeholder.
+absent for the offer: Step 5f does not fire the offer on a placeholder — instead it emits a one-line
+`5f: capture offer suppressed — ship-url-unresolved` trace. A successful `commit_push_create` ship
+that stayed silent must remain observable, never a byte-identical skip.
 
 ### 5f. Ship-time capture offer
 
-**Physically last in Step 5** — runs only after 5e has printed `✓ <url>`. Non-blocking,
-mode-independent **post-completion chrome**, not a confirmation gate: *not* governed by
-`REVIEW_MODE`, fires identically with or without `--review`, and never feeds `CompositionInputs`.
-The ship has already succeeded before this block runs.
+**A required terminal step of Step 5** — Step 5 is not complete until 5f has **run** (not
+"succeeded": a run-but-failed 5f still leaves the ship successful). Physically last in Step 5, it
+runs only after 5e has printed `✓ <url>`. Non-blocking and mode-independent, not a confirmation
+gate: *not* governed by `REVIEW_MODE`, fires identically with or without `--review`, and never
+feeds `CompositionInputs`. The ship has already succeeded before this block runs, and nothing here
+can change its exit status.
 
 **Code-shape decision:** the gate/silence/offer control flow is the load-bearing decision of this
 change, and re-deriving it from prose alone plausibly produces a *wrong* structure (firing on edit
-paths, gating on the word "create", or letting a compound failure taint the ship). The exact
-predicate + ordering is fixed by this sketch; the failure-isolation boundary is drawn around the
-`try` body (assessment + prompt + `/ba:compound` invocation), not just the `/ba:compound` call —
-the two guards above the `try` are total and cannot throw. It is a shape sketch, not literal command
-text — the file is a prose spec — and the paragraphs below elaborate each branch.
+paths, tracing the unreachable enum guard, folding the reachable empty-URL case into the traceless
+bucket, or letting a compound failure taint the ship). The exact predicate + ordering + per-path
+trace is fixed by this sketch; the failure-isolation boundary is drawn around the `try` body
+(assessment + prompt + `/ba:compound` invocation), not just the `/ba:compound` call — the guards
+above the `try` cannot breach the exit-status guarantee (their `print`s are infallible per the
+**Print failure model** below). It is a shape sketch, not literal command text — the file is a prose
+spec — and the paragraphs below elaborate each branch.
 
 ```
 # 5f. Ship-time capture offer — runs only after 5e printed "✓ <url>".
-# The try/except below isolates the assessment, prompt, and /ba:compound invocation:
-# any exception there degrades to the "PR is live" message. The two guards above the try
-# are total (a comparison + a session check) and cannot throw; nothing here can change
-# the ship's exit status.
-if ACTION != commit_push_create or not CREATED_PR_URL:   # CREATED_PR_URL captured in 5d, printed by 5e
-    return                      # edit_only / commit_push_edit / describe_only / HOST=unknown → unreachable
+# Trace invariant: each of the four SILENCE guards below emits exactly one
+# `5f: capture offer suppressed — <reason>` line, then returns. The offer path is exempt from that
+# count — it traces via the AskUserQuestion itself, plus one bounded outcome line on accept.
+# Genuinely-unreachable actions (the first guard) stay traceless. The try/except isolates the
+# assessment, prompt, and /ba:compound invocation: any exception there degrades to the "PR is live"
+# message. Every print here is infallible (see the print-failure model below), so nothing —
+# including the two guards above the try — can change the ship's exit status.
+if ACTION != commit_push_create:   # CREATED_PR_URL captured in 5d, printed by 5e
+    return                      # unreachable action (edit_only / commit_push_edit / describe_only)
+                                # → traceless (HOST=unknown keeps this ACTION but exits in 5d first)
+if not CREATED_PR_URL:          # reachable: successful create, 5e could not parse the URL (5e guard)
+    print("5f: capture offer suppressed — ship-url-unresolved")
+    return
 if not interactive_session():   # default-mode propose may run scripted/headless
+    print("5f: capture offer suppressed — non-interactive")   # a static stdout write cannot hang
     return                      # no answerer for the offer → silent, never hang
 try:
     if solutions:               # Step 2c non-empty → already documented & in the PR
-        return                  # silent
+        print("5f: capture offer suppressed — already-captured")
+        return
     if not assess_reusable_learning(deviation_trailers, conversation_arc,
                                     commit_type, risk, proof):
-        return                  # routine or uncertain → silent (lean-silent = precision)
-    answer = AskUserQuestion("Document this learning?", options=[Yes, No])  # No = one keystroke
+        print("5f: capture offer suppressed — judged-not-reusable")   # negative OR uncertain
+        return                  # lean-silent = precision
+    answer = AskUserQuestion("Document this learning?", options=[Yes, No])  # the offer IS its trace
     if answer != Yes:
-        return                  # decline → normal completion; ship already succeeded
+        return                  # decline → no closing line; offer already fired (not a silent path)
     result = run("/ba:compound", context_hint=seed(motivation, deviation_trailers, risk, proof, diff_summary))
     # NOTE: compound prints its OWN completion summary AND its own Step 4 menu —
     # a possible second insufficient-context prompt is also compound's, not propose's.
@@ -778,23 +793,36 @@ except Exception:
     print("PR is live; capture failed — run /ba:compound manually.")   # ship stays successful
 ```
 
-**Gate — offer iff 5e printed a `✓ <url>` and the action created a new PR/MR.** Concretely:
-`ACTION == commit_push_create` **and** the `CREATED_PR_URL` captured in 5d is non-empty. Binding to
-the URL (not the word "create") is deliberate — it automatically excludes `HOST=unknown` (no URL) and
-every failure exit (no URL). The block is therefore unreachable for `describe_only` (exits at
-Step 4), `edit_only`/`commit_push_edit` (edit paths, no new PR), `HOST=unknown`, and any
-commit/push/create failure.
+**Gate — split into two guards.** (1) `ACTION != commit_push_create` → **traceless** return: 5f is
+not meant to run for `describe_only` (exits at Step 4) or `edit_only`/`commit_push_edit` (edit paths,
+no new PR). Cases that keep `ACTION == commit_push_create` but exit *before* 5f — `HOST=unknown`
+(5d exits zero) and any pre-5f failure exit (5b/5c/5d) — never reach here at all, so they are
+traceless by construction, not by this guard. (2) On `commit_push_create` that does reach 5f, a
+**non-empty `CREATED_PR_URL`** is still required to fire the offer, but an empty one is now a
+**reachable, traced** silence (`ship-url-unresolved`) rather than a traceless skip — a successful
+ship that stays silent must remain observable. Binding the offer to the URL (not the word "create")
+still excludes the no-URL cases from *firing*; the split just distinguishes "never meant to run"
+(traceless) from "ran, chose silence" (traced).
 
-**Silence preconditions (any true → stay completely silent, no output at all):**
+**Silence preconditions (any true → emit exactly one `5f: capture offer suppressed — <reason>` line, then return — no offer). Listed in check order:**
 
-1. **Non-interactive session** (scripted/headless, no answerer) — *checked first*, before any
-   assessment. The offer adds the first `AskUserQuestion` to the default (`--review`-absent)
-   flow, which is prompt-free/scriptable today, so a missing interactive answerer is a silence
-   precondition, never a hang.
-2. **Already captured** — `solutions` (Step 2c) is non-empty. The learning is already documented
-   and rode this very PR; a high-precision negative that costs nothing.
-3. **Negative or uncertain judgment** — the assessment did not land clearly positive. Lean
+1. **Unparseable ship URL** — `commit_push_create` succeeded but `CREATED_PR_URL` is empty (5e could
+   not parse it). Reason token `ship-url-unresolved`. *Checked first*, right after the unreachable-
+   action guard — a successful ship that can't fire the offer must still trace, not skip silently.
+2. **Non-interactive session** (scripted/headless, no answerer). Reason token `non-interactive`. The
+   offer adds the first `AskUserQuestion` to the default (`--review`-absent) flow, which is
+   prompt-free/scriptable today, so a missing interactive answerer is a silence precondition, never
+   a hang — and the trace is a plain stdout write, which cannot hang a headless session.
+3. **Already captured** — `solutions` (Step 2c) is non-empty. Reason token `already-captured`. The
+   learning is already documented and rode this very PR; a high-precision negative that costs
+   nothing.
+4. **Negative or uncertain judgment** — the assessment did not land clearly positive. Reason token
+   `judged-not-reusable` — one honest label covering both the negative and the lean-silent-uncertain
+   outcomes (the assessment stays a bool; it is not split into a confidence result). Lean
    **silent**: precision over recall.
+
+Items 1–2 are the two guards above the `try`; items 3–4 sit inside it. Genuinely-unreachable actions
+(the first gate guard, plus `HOST=unknown` and any pre-5f exit) emit nothing.
 
 **Assessment (best-effort, blended, read-only).** Not a rigid rubric. Read already-materialized
 orchestrator state plus the conversation; mutate nothing. Weigh:
@@ -811,6 +839,10 @@ problem→fix arc) is judged **uncertain** and stays silent.
 
 **Offer (only on a positive judgment).** One 2-option `AskUserQuestion` — "Document this
 learning?" — Yes / No, with **No** as the recommended-neutral default (one keystroke to decline).
+The `AskUserQuestion` **is** this path's trace — the offer path emits no `5f: …suppressed` line (it
+wasn't suppressed), and a decline needs no closing line (the offer already fired, so it is not a
+silent path). On accept, exactly one bounded outcome line follows (`captured` | `no doc written`);
+`/ba:compound`'s own summary/menu are compound's, not 5f's.
 
 - **Decline** → proceed to normal completion. Nothing remains to print; success already printed.
 - **Accept** → invoke `/ba:compound` on its explicit (proceed-directly) path, passing a **seeded
@@ -839,11 +871,19 @@ absence-of-exception alone:
 reported successful; nothing in 5f may change its exit status. Any exception *inside the `try`* — in
 the assessment, in the `AskUserQuestion` itself, or in the `/ba:compound` invocation — degrades
 identically to a single note and leaves the ship successful: "PR is live; capture failed — run
-`/ba:compound` manually." The two guards above the `try` (the gate check and the interactive-session
-check) are total — a comparison and a session probe — and cannot throw, so wrapping them is
-unnecessary; the boundary is drawn where a failure is actually possible.
-Manual `/ba:compound` is the false-negative escape hatch for every silent path (a correct silence
-is indistinguishable from a missed positive, and the silent path has no trace — accepted).
+`/ba:compound` manually." The `try` boundary is unchanged by the trace additions: it still wraps
+only the assessment, prompt, and invoke — no `print` site needs to move. **Print failure model
+(all trace/outcome sites).** Every `print` in 5f — the four `5f:` trace lines (`ship-url-unresolved`
+and `non-interactive` above the `try`, `already-captured` and `judged-not-reusable` inside it) and
+the accept-path outcome lines — is treated as **infallible**: stdout is assumed healthy, since 5e's
+`✓ <url>` already wrote to it microseconds earlier, so no `print` here can be the first to break.
+That is why the two above-`try` guards need no wrapping (an unwrapped `print` that cannot fail cannot
+breach the "never changes exit status" guarantee) and why the in-`try` traces need no special catch
+(a stray relabel to "capture failed" is unreachable for the same reason).
+Each reachable silent path now leaves a one-line reasoned trace, so a **skip** (which prints
+nothing) is distinguishable from a **correct silence**. Manual `/ba:compound` remains the escape
+hatch for a **false-negative judgment** — a `judged-not-reusable` trace that should have been an
+offer — the assessment's precision, not its observability, is the accepted residual.
 
 ## Failure Modes
 

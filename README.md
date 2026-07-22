@@ -162,7 +162,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 
 - **5 parallel subagents** — Context Analyzer, Solution Extractor, Related-Docs Finder, Prevention Strategist, Category Classifier
 - **Frictionless manual / model-proactive** — a deliberate run proceeds directly once a problem/solution pair is identifiable (no confirmation gate); best invoked right after solving a non-trivial, verified problem
-- **Ship-time capture offer** — after a successful create, `/ba:propose` may offer to run `/ba:compound` when the change looks like it carried a reusable learning; silent otherwise
+- **Ship-time capture offer** — after a successful create, `/ba:propose` may offer to run `/ba:compound` when the change looks like it carried a reusable learning; otherwise it stays quiet, emitting a one-line suppression trace naming why (see the `/ba:propose` entry)
 - **Explicit invocation** — `/ba:compound` or `/ba:compound [context hint]` for immediate documentation
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
 
@@ -200,7 +200,7 @@ Commit, push, and open a PR/MR with a composed title and body.
 - Commit message and PR/MR body share the same composed markdown — no separate render path
 - `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
 - **Apply-by-default** — every `ACTION` applies without a confirmation prompt by default; pass `--review` (alias `--interactive`) or set `BA_PROPOSE_REVIEW=1` to restore the Apply / edit / regenerate-with-hint / exit menu and the Step 0b edit-only confirm
-- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba:compound` on the just-shipped learning; silent on routine, uncertain, already-captured, and non-interactive ships, and never on edit/describe-only/unknown-host paths
+- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba:compound` on the just-shipped learning; silent on routine, uncertain, already-captured, and non-interactive ships (each now emits a one-line suppression trace naming why), and never on edit/describe-only/unknown-host paths
 
 ### `/ba:handoff [focus]`
 
