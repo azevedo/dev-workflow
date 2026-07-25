@@ -492,6 +492,89 @@ Purely visual or manual checks belong in `Test scenarios:`, never in `Verify:`. 
 
 ---
 
+## Step 4.6: Requirement Reconciliation
+
+After drafting the plan (Step 4) and before the pre-write decision gate (Step 5), reconcile the
+plan's Acceptance Criteria against the origin's explicit requirements. This step runs at **every
+detail level** (MINIMAL, STANDARD, COMPREHENSIVE) and for **every origin type** (brainstorm,
+ticket text already present in context, or a refined bare prompt) — it is the anti-silent-drop
+core of `/ba:plan`, and its cost is low enough to justify running unconditionally; the failure it
+guards against can bite even a MINIMAL plan.
+
+**1. Enumerate explicit requirements.**
+
+Scan the origin — source-agnostic: the brainstorm document, ticket text already present in
+context, or the refined prompt; never a Linear/tracker API call — for *explicit* requirements. An
+explicit requirement is an imperative, user-observable demand: a "must/should" statement, a
+bulleted requirement or fix-direction, or an explicit brainstorm acceptance criterion. Exclude
+background, rationale, implementation suggestions, and examples — those inform the plan but are
+not requirements to reconcile.
+
+**`origin-unresolved` detection.** If the origin is a bare reference — a ticket ID or URL, "see
+the ticket" — whose body is not actually present in context, do not enumerate an empty list and
+call it clean. Mark the reconciliation `origin-unresolved` instead; this is a gate condition (Step
+5), never a clean pass produced from absent text.
+
+**2. Decompose compound and bidirectional requirements into sub-clauses.**
+
+A requirement with multiple independent clauses, or a bidirectional demand ("keep A and B
+**separate**" ⇒ "A must not leak into B" **and** "B must not leak into A"), is split into its
+sub-clauses before reconciliation, and each sub-clause is reconciled independently. A sub-clause
+satisfied while its sibling sub-clause is dropped does **not** let the parent requirement
+reconcile as `→ AC<n>` — the dropped sub-clause gets its own disposition, evaluated on its own
+merits. Without this, a per-statement (non-decomposed) check waves through a requirement that is
+only half-honored.
+
+**3. Reconcile each requirement (or sub-clause) to an AC or an exclusion.**
+
+Resolve each item to one of:
+- `→ AC<n>` (one or more) — the requirement is covered by a minted acceptance criterion.
+- `→ EXCLUDED: <reason>` — the requirement is not covered. Record **provenance**:
+  - `inherited` — the exclusion mirrors a scope boundary the origin (brainstorm) already approved.
+  - `plan-introduced` — the plan itself chose to drop or narrow a requirement the approved origin
+    did not already exclude.
+
+  Only a `plan-introduced` exclusion is a gate condition (Step 5). An `inherited` exclusion prints
+  in the ledger but never trips the gate.
+
+**Falsifiability self-check**, applied per requirement/sub-clause: *"could the plan ship and pass
+all its ACs without addressing this requirement? If yes, it is under-mapped"* — mirroring the
+`Verify:` falsifiability rule above. This catches a requirement that superficially maps to an AC
+but isn't actually covered by it, including a compound requirement whose dropped sub-clause would
+otherwise hide behind its covered sibling.
+
+**4. Print the ledger, unconditionally, on every path.**
+
+Print the full reconciliation ledger regardless of detail level, origin type, or interactivity,
+and regardless of whether anything gates. **This is an invariant, not a courtesy: the ledger
+prints on every path; only the gate (Step 5) is conditional. A clean reconciliation and a skipped
+reconciliation must never produce identical output** — when nothing gates, the printed ledger
+itself is the observable proof this step ran.
+
+Ledger format (one line per requirement/sub-clause):
+
+```
+- "<requirement text>" → AC<n>
+- "<requirement text>" → EXCLUDED (inherited): <reason>
+- "<requirement text>" → EXCLUDED (plan-introduced): <reason>
+- origin-unresolved: <what's missing>
+```
+
+**5. Resume dedupe.**
+
+On a resumed/re-run `/ba:plan` for an in-flight plan, re-enumerating requirements can re-surface
+an exclusion already recorded. Before appending an approved `plan-introduced` exclusion to `## What
+We're NOT Doing`, check whether that requirement's exclusion is already present there. Dedupe on
+**the excluded requirement's identity** (which requirement is being excluded) — not the free-text
+reason string, since two runs may word the same exclusion differently and an exact-string match
+would append a near-duplicate.
+
+**Step 6 note:** this step is now the single owner of requirement/scope reconciliation for all
+origin types, not just brainstorm origins — Step 6 cross-references it instead of independently
+re-checking coverage.
+
+---
+
 ## Step 5: Convention-Compliance Check
 
 **MANDATORY.** Run before writing the plan to disk.
@@ -528,11 +611,10 @@ Before finalizing, re-read the brainstorm document and verify:
 
 - [ ] Every key decision from the brainstorm is reflected in the plan
 - [ ] The chosen approach matches what was decided in the brainstorm
-- [ ] Constraints and requirements are captured in acceptance criteria
+- [ ] Requirement and scope-boundary coverage — owned by Step 4.6's reconciliation ledger, not re-checked here
 - [ ] Open questions from the brainstorm are either resolved or flagged
 - [ ] The `origin:` frontmatter field points to the brainstorm file
 - [ ] The Sources section includes the brainstorm with carried-forward decisions
-- [ ] Scope boundaries from the brainstorm are in "What We're NOT Doing"
 
 If anything was dropped, add it back before writing.
 
