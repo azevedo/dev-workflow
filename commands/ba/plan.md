@@ -213,7 +213,8 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 **After receiving results:**
 - Review identified gaps and edge cases
-- Incorporate critical and important findings into acceptance criteria
+- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A finding at **critical/important** tier that does so is **not** silently folded — hold it under a `Parked-for-gate:` list in your running context (never written into the plan document) until Step 5 reads it and decides.
+- Incorporate all other critical and important findings into acceptance criteria
 - Add missing error handling or validation requirements to the plan
 - Note any flow permutations that need addressing
 
@@ -575,25 +576,63 @@ re-checking coverage.
 
 ---
 
-## Step 5: Convention-Compliance Check
+## Step 5: Pre-Write Decision Gate
 
-**MANDATORY.** Run before writing the plan to disk.
+**MANDATORY.** Run before writing the plan to disk. This is a single **batched pre-write decision
+round**: it merges the convention-compliance check with four scope/fidelity stop conditions
+surfaced by Step 4.6's reconciliation ledger and Step 3's parked findings, so the user is never
+stopped twice for the same plan.
 
-1. Dispatch the convention-checker agent:
-   - Task dev-workflow:convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
+**1. Gather convention violations** (as before):
+   - Dispatch the convention-checker agent:
+     - Task dev-workflow:convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
+   - Review the agent's findings. Also check each `Verify:` line in the plan: flag any that
+     appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with
+     side effects).
 
-2. Review the agent's findings. Also check each `Verify:` line in the plan: flag any that appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with side effects).
+**2. Gather the four requirement/scope stop conditions** from Step 4.6's ledger and Step 3's
+parked findings:
+   - **(a)** Any `plan-introduced` exclusion in the ledger.
+   - **(b)** Any `Parked-for-gate:` spec-flow finding (critical/important tier, proposing to
+     narrow/drop a requirement) from Step 3 — scoped to findings **not already covered by an
+     origin-explicit requirement** in the ledger (a spec-flow-discovered gap the origin never
+     stated). When a parked finding (b) targets the *same* origin-explicit requirement the ledger
+     already flagged as (a), it is one decision, not two — the batched round below asks **once**.
+   - **(c)** A **thin-origin divergence**: the reconciliation is thin-origin (the origin yielded
+     fewer than 2 explicit requirements, OR at least half the minted ACs are assistant-inferred
+     with no origin-traceable requirement) **and** (the detail level is STANDARD/COMPREHENSIVE,
+     **or** ≥2 ACs are assistant-inferred). A thin origin on a correctly-scoped MINIMAL plan does
+     **not** meet this condition and is suppressed — this is not a fuzzy judgment call.
+   - **(d)** `origin-unresolved` from Step 4.6.
 
-3. **For each VIOLATION**, use **AskUserQuestion** to present it:
-   - "Convention X says Y, but the plan does Z. How should we handle this?"
-   - Options:
-     1. **Update plan to comply** — Modify the plan to follow the convention
-     2. **Add justification for override** — Keep the plan as-is, document why
-     3. **Flag as known debt** — Acknowledge, plan to address later
+**3. Evaluate both categories, then branch on interactivity.** The two categories are batched into
+one *presentation* round, but their resolution semantics differ (see the carve-out below).
 
-4. **MUST resolve all violations** before writing the plan to disk.
+**4. Interactive session:**
+   - If there are **no** convention violations and **none** of (a–d) apply: write with **no added
+     prompt** — the clean-pass case. A plan whose requirements all map cleanly, with nothing to
+     ask, must not add gate fatigue on the common path.
+   - Otherwise, present **one batched AskUserQuestion round** covering every violation and every
+     (a–d) condition that applies (co-fired (a)/(b) pairs collapsed to one question, per above).
+     For each:
+     - **Convention violation** — options: Update plan to comply / Add justification for override
+       / Flag as known debt.
+     - **(a)/(b)/(c)/(d) condition** — options: Accept and continue (the exclusion/divergence
+       stands, record it) / Revise the plan to cover it / Pause and let me decide.
+   - **MUST resolve all convention violations** before writing — unconditional, in every mode (see
+     the carve-out below). The (a–d) conditions may resolve to "accept."
 
-5. Append compliance summary to the plan's end:
+**5. Non-interactive session (Caution-1 carve-out — load-bearing):**
+   - **Evaluate convention violations first, independently of (a–d), and hard-stop** if any exist —
+     a non-interactive session **never auto-proceeds past a convention violation**, in every mode,
+     with no exception. This preserves the pre-existing "MUST resolve all violations before
+     writing" semantics unchanged.
+   - **Only once no convention violations remain**, evaluate (a–d): print the ledger plus a
+     `gate not presented — non-interactive` trace line, and **proceed** — never hang waiting for
+     input that can't arrive. A mixed round (some violations, some a–d conditions) still hard-stops on
+     the violations; the a–d fallback never lets a violation ride through alongside it.
+
+**6. Append compliance summary** to the plan's end (as before):
    ```markdown
    ## Convention Compliance
    - [x] [Convention A] — aligned
