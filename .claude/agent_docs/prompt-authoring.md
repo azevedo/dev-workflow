@@ -33,6 +33,43 @@ agent file, and `CLAUDE.md` "for safety"; and leaving authoring residue in shipp
 parentheticals, rejected-alternative notes, checklists from the plan that produced the change. None
 of that addresses the model. It competes with the text that does.
 
+## Reviewing a prompt change
+
+A diff touching `commands/ba/*.md`, `agents/*.md`, or `references/*.md` changes runtime behavior,
+not documentation. Read the whole changed file, not just the hunks — weight and duplication are
+properties of the file, and a hunk can look fine while pushing an already-heavy command past what
+its job needs.
+
+Flag:
+
+- **Over-specification** — mechanics where intent would do: packing algorithms, counting
+  procedures, threshold arithmetic standing in for a qualitative call, prescribed wording for
+  output the model composes.
+- **Unreachable weight** — material in a command body that only one branch reaches, where a named
+  load site in `references/` would do. Say roughly how many lines load unconditionally.
+- **Defensive duplication** — a rule copied across a command body, an agent file, and `CLAUDE.md`
+  "for safety". Distinguish this from a mirror-site obligation the repo has committed to; for those,
+  flag the opposite — a convention change that misses one of its sites.
+- **Authoring residue** — review-fix parentheticals, rejected-alternative rationale,
+  residual-limitation notes, plan checklists. Anything speaking to the repo's history rather than to
+  the model executing the text.
+- **Same-turn self-verification** — a step that checks or scores an artifact the same run just
+  produced, especially via a subagent. Reviewing work from a *prior* session is a product feature,
+  not a finding.
+- **Unevaluable conditions** — a branch predicated on state with no defined way to detect it. Reads
+  as specified behavior; is dead.
+- **Verification that only proves the text exists** — a `Verify:` line grepping for prose the same
+  change just wrote confirms authorship, not behavior. `commands/ba/plan.md`'s own `Verify:` minting
+  rules already classify presence-only greps as false-greens.
+
+Do not flag: machine-boundary contracts specified exactly — that precision is correct, and the
+finding is when a change *loosens* one. Nor length as such; a long section that is all load-bearing
+is fine, a short one that over-steers is not.
+
+When a rule's necessity is genuinely uncertain, name the A/B that would settle it rather than
+asserting a verdict. An untested claim about how a model behaves is the same mistake this checklist
+exists to catch.
+
 ## Deciding a prompt change: fixture A/B
 
 There is no automated suite for prose command files, and a running session executes the body it
