@@ -213,7 +213,7 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 **After receiving results:**
 - Review identified gaps and edge cases
-- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A finding at **critical/important** tier that does so is **not** silently folded — hold it under a `Parked-for-gate:` list in your running context (never written into the plan document) until Step 5 reads it and decides. Record each entry in a minimal structured shape so Step 5 can match it against the ledger by lookup rather than free-text judgment: `Parked-for-gate: <finding text> — targets: "<origin requirement text>"`.
+- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A critical/important finding that does so is **not** silently folded — park it (in your running context, never in the plan document) and carry it to Step 5's decision round, noting which origin requirement it targets.
 - Incorporate all other critical and important findings into acceptance criteria
 - Add missing error handling or validation requirements to the plan
 - Note any flow permutations that need addressing
@@ -496,11 +496,13 @@ Purely visual or manual checks belong in `Test scenarios:`, never in `Verify:`. 
 ## Step 4.6: Requirement Reconciliation
 
 After drafting the plan (Step 4) and before the pre-write decision gate (Step 5), reconcile the
-plan's Acceptance Criteria against the origin's explicit requirements. This step runs at **every
-detail level** (MINIMAL, STANDARD, COMPREHENSIVE) and for **every origin type** (brainstorm,
-ticket text already present in context, or a refined bare prompt) — it is the anti-silent-drop
-core of `/ba:plan`, and its cost is low enough to justify running unconditionally; the failure it
-guards against can bite even a MINIMAL plan.
+plan's Acceptance Criteria against the origin's explicit requirements. Runs at **every detail
+level** (MINIMAL, STANDARD, COMPREHENSIVE) and for **every origin type** (brainstorm, ticket text
+already present in context, or a refined bare prompt).
+
+The job is traceability in both directions: every origin requirement should reach an AC or an
+owned exclusion, and every AC should trace back to something the origin asked for. Requiring that
+trace keeps a plan from quietly growing past its origin as much as from quietly shrinking below it.
 
 **1. Enumerate explicit requirements.**
 
@@ -508,51 +510,39 @@ Scan the origin — source-agnostic: the brainstorm document, ticket text alread
 context, or the refined prompt; never a Linear/tracker API call — for *explicit* requirements. An
 explicit requirement is an imperative, user-observable demand: a "must/should" statement, a
 bulleted requirement or fix-direction, or an explicit brainstorm acceptance criterion. Exclude
-background, rationale, implementation suggestions, and examples — those inform the plan but are
-not requirements to reconcile.
+background, rationale, implementation suggestions, and examples.
 
-**`origin-unresolved` detection.** If the origin is a bare reference — a ticket ID or URL, "see
-the ticket" — whose body is not actually present in context, do not enumerate an empty list and
-call it clean. Mark the reconciliation `origin-unresolved` instead; this is a gate condition (Step
-5), never a clean pass produced from absent text.
+**`origin-unresolved`.** If the origin is a bare reference — a ticket ID or URL, "see the ticket" —
+whose body is not actually present in context, do not enumerate an empty list and call it clean.
+Mark the reconciliation `origin-unresolved`; that is a gate condition (Step 5), never a clean pass
+produced from absent text.
 
 **2. Decompose compound and bidirectional requirements into sub-clauses.**
 
 A requirement with multiple independent clauses, or a bidirectional demand ("keep A and B
-**separate**" ⇒ "A must not leak into B" **and** "B must not leak into A"), is split into its
-sub-clauses before reconciliation, and each sub-clause is reconciled independently. A sub-clause
-satisfied while its sibling sub-clause is dropped does **not** let the parent requirement
-reconcile as `→ AC<n>` — the dropped sub-clause gets its own disposition, evaluated on its own
-merits. Without this, a per-statement (non-decomposed) check waves through a requirement that is
-only half-honored.
+**separate**" ⇒ "A must not leak into B" **and** "B must not leak into A"), splits into its
+sub-clauses, each reconciled independently. A sub-clause satisfied while its sibling is dropped
+does **not** let the parent requirement reconcile as `→ AC<n>`.
 
 **3. Reconcile each requirement (or sub-clause) to an AC or an exclusion.**
 
 Resolve each item to one of:
-- `→ AC<n>` (one or more) — the requirement is covered by a minted acceptance criterion.
-- `→ EXCLUDED: <reason>` — the requirement is not covered. Record **provenance**:
-  - `inherited` — the exclusion mirrors a scope boundary the origin (brainstorm) already approved.
-  - `plan-introduced` — the plan itself chose to drop or narrow a requirement the approved origin
-    did not already exclude.
+- `→ AC<n>` (one or more) — covered by a minted acceptance criterion. Test it: *could the plan ship
+  and pass all its ACs without addressing this requirement?* If yes, it is under-mapped.
+- `→ EXCLUDED: <reason>` — not covered. Record **provenance**:
+  - `inherited` — mirrors a scope boundary the origin already approved.
+  - `plan-introduced` — the plan itself dropped or narrowed something the approved origin did not
+    already exclude.
 
   Only a `plan-introduced` exclusion is a gate condition (Step 5). An `inherited` exclusion prints
   in the ledger but never trips the gate.
 
-**Falsifiability self-check**, applied per requirement/sub-clause: *"could the plan ship and pass
-all its ACs without addressing this requirement? If yes, it is under-mapped"* — mirroring the
-`Verify:` falsifiability rule above. This catches a requirement that superficially maps to an AC
-but isn't actually covered by it, including a compound requirement whose dropped sub-clause would
-otherwise hide behind its covered sibling.
+**4. Print the ledger on every path.**
 
-**4. Print the ledger, unconditionally, on every path.**
-
-Print the full reconciliation ledger regardless of detail level, origin type, or interactivity,
-and regardless of whether anything gates. **This is an invariant, not a courtesy: the ledger
-prints on every path; only the gate (Step 5) is conditional. A clean reconciliation and a skipped
-reconciliation must never produce identical output** — when nothing gates, the printed ledger
-itself is the observable proof this step ran.
-
-Ledger format (one line per requirement/sub-clause):
+The ledger prints regardless of detail level, origin type, or whether anything gates — a clean
+reconciliation and a skipped one must never produce identical output. Match its length to the
+plan: once nothing gates, a small plan may collapse to a single summary line (`7 requirements, all
+mapped`); a reconciliation carrying any exclusion or `origin-unresolved` always prints in full.
 
 ```
 - "<requirement text>" → AC<n>
@@ -561,92 +551,62 @@ Ledger format (one line per requirement/sub-clause):
 - origin-unresolved: <what's missing>
 ```
 
-**5. Resume dedupe.**
+The ledger is ephemeral — only an approved `plan-introduced` exclusion persists, via `## What We're
+NOT Doing`. A re-run recomputes it from the origin text, and dedupes against that section on the
+excluded requirement's identity rather than on its reason wording.
 
-The ledger itself is ephemeral: only an approved `plan-introduced` exclusion persists to disk (via
-`## What We're NOT Doing`); a resumed run recomputes the full ledger from the origin text each
-time, never from a stored prior result.
-
-On a resumed/re-run `/ba:plan` for an in-flight plan, re-enumerating requirements can re-surface
-an exclusion already recorded. Before appending an approved `plan-introduced` exclusion to `## What
-We're NOT Doing`, check whether that requirement's exclusion is already present there. Dedupe on
-**the excluded requirement's identity** (which requirement is being excluded) — not the free-text
-reason string, since two runs may word the same exclusion differently and an exact-string match
-would append a near-duplicate.
-
-**Step 6 note:** this step is now the single owner of requirement/scope reconciliation for all
-origin types, not just brainstorm origins — Step 6 cross-references it instead of independently
-re-checking coverage.
+**Step 6 note:** this step owns requirement/scope reconciliation for all origin types, not just
+brainstorm origins — Step 6 cross-references it instead of independently re-checking coverage.
 
 ---
 
 ## Step 5: Pre-Write Decision Gate
 
-**MANDATORY.** Run before writing the plan to disk. This is a single **batched pre-write decision
-round**: it merges the convention-compliance check with four scope/fidelity stop conditions
-surfaced by Step 4.6's reconciliation ledger and Step 3's parked findings, so the user is never
-stopped twice for the same plan.
+**MANDATORY.** Run before writing the plan to disk. A single **batched decision round** covering
+the convention-compliance check plus the scope/fidelity stop conditions surfaced by Step 4.6's
+ledger and Step 3's parked findings, so the user is never stopped twice for the same plan.
 
-**1. Gather convention violations** (as before):
+**1. Gather convention violations:**
    - Dispatch the convention-checker agent:
      - Task dev-workflow:convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
    - Review the agent's findings. Also check each `Verify:` line in the plan: flag any that
      appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with
      side effects).
 
-**2. Gather the four requirement/scope stop conditions** from Step 4.6's ledger and Step 3's
-parked findings:
+**2. Gather the scope/fidelity stop conditions** from Step 4.6's ledger and Step 3's parked
+findings:
    - **(a)** Any `plan-introduced` exclusion in the ledger.
-   - **(b)** Any `Parked-for-gate:` spec-flow finding (critical/important tier, proposing to
-     narrow/drop a requirement) from Step 3 — scoped to findings **not already covered by an
-     origin-explicit requirement** in the ledger (a spec-flow-discovered gap the origin never
-     stated). Use each entry's recorded `targets:` field (see Step 3) — a recorded match, not a
-     free-text guess — to check this: when a parked finding's `targets:` names the *same*
-     origin-explicit requirement the ledger already flagged as (a), it is one decision, not two —
-     the batched round below asks **once**.
-   - **(c)** A **thin-origin divergence**: the reconciliation is thin-origin (the origin yielded
-     fewer than 2 explicit requirements, OR at least half the minted ACs are assistant-inferred
-     with no origin-traceable requirement) **and** (the detail level is STANDARD/COMPREHENSIVE,
-     **or** a strict majority — more than half, not merely at-least-half — of minted ACs are
-     assistant-inferred). An **assistant-inferred AC** is one with no `→ AC<n>` line pointing to it
-     anywhere in the Step 4.6 ledger — derive this by inverting the ledger, do not track it as
-     separate data. Requiring a *strict* majority on the second clause keeps it distinguishable from
-     the first clause's at-least-half test, so a MINIMAL plan sitting exactly at half (e.g. 2 of 4
-     ACs inferred — a normal split) does **not** trip the gate: a thin origin on a correctly-scoped
-     MINIMAL plan is suppressed — this is not a fuzzy judgment call.
+   - **(b)** Any parked spec-flow finding from Step 3 that proposes narrowing or dropping a
+     requirement. When it targets the same requirement already flagged by (a), it is one decision,
+     not two — ask once.
+   - **(c)** Any **material ambiguity**: an origin requirement that admits two readings which would
+     lead to materially different work, and that you resolved by picking one. Coverage is not the
+     only way to lose a requirement — one mapped to an AC under a silently-chosen reading is still
+     a scope call made on the user's behalf. Report the requirement, the reading you took, and the
+     alternative. Routine implementation choices are not ambiguities; do not report them.
    - **(d)** `origin-unresolved` from Step 4.6.
 
-**3. Evaluate both categories, then branch on interactivity.** The two categories are batched into
-one *presentation* round, but their resolution semantics differ (see the carve-out below).
-
-**4. Interactive session:**
+**3. Interactive session:**
    - If there are **no** convention violations and **none** of (a–d) apply: write with **no added
-     prompt** — the clean-pass case. A plan whose requirements all map cleanly, with nothing to
-     ask, must not add gate fatigue on the common path.
+     prompt**. A plan that reconciles cleanly with nothing to ask must not add gate fatigue.
    - Otherwise, present **one batched AskUserQuestion round** covering every violation and every
-     (a–d) condition that applies (co-fired (a)/(b) pairs collapsed to one question, per above).
-     For each:
+     applicable (a–d) condition:
      - **Convention violation** — options: Update plan to comply / Add justification for override
        / Flag as known debt.
-     - **(a)/(b)/(c)/(d) condition** — options: Accept and continue (the exclusion/divergence
-       stands, record it) / Revise the plan to cover it / Pause and let me decide.
-   - **MUST resolve all convention violations** before writing — unconditional, in every mode (see
-     the carve-out below). The (a–d) conditions may resolve to "accept."
+     - **(a)–(d) condition** — options: Accept and continue (it stands, record it) / Revise the
+       plan to cover it / Pause and let me decide.
+   - **MUST resolve all convention violations** before writing. The (a–d) conditions may resolve to
+     "accept."
 
-**5. Non-interactive session (Caution-1 carve-out — load-bearing):**
-   - **Evaluate convention violations first, independently of (a–d), and hard-stop** if any exist —
-     a non-interactive session **never auto-proceeds past a convention violation**, in every mode,
-     with no exception. This preserves the pre-existing "MUST resolve all violations before
-     writing" semantics unchanged. **Hard-stop means**: do not write the plan; print a
-     `convention-violation — hard-stop, non-interactive, plan not written` trace line naming each
-     unresolved violation, and end the run — never hang waiting on an AskUserQuestion that has no
-     answerer.
-   - **Only once no convention violations remain**, evaluate (a–d): print the ledger plus a
-     `gate not presented — non-interactive` trace line, and **proceed** — never hang waiting for
-     input that can't arrive. A mixed round (some violations, some a–d conditions) still hard-stops on
-     the violations; the a–d fallback never lets a violation ride through alongside it.
+**4. When no interactive answerer is available:** never hang on a question nothing can answer.
+   Convention violations still hard-stop — do not write the plan, print
+   `convention-violation — hard-stop, plan not written` naming each unresolved violation, and end
+   the run. With no violations outstanding, print the ledger plus
+   `gate not presented — no interactive answerer` and proceed. Detecting this condition has no
+   defined mechanism yet; until it does, treat the interactive path as the default and this as the
+   fallback for when a prompt cannot be presented.
 
-**6. Append compliance summary** to the plan's end (as before):
+**5. Append compliance summary** to the plan's end (as before):
    ```markdown
    ## Convention Compliance
    - [x] [Convention A] — aligned

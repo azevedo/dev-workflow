@@ -104,7 +104,7 @@ Transforms feature descriptions into implementation plans with exact file paths 
 - **Conditional external research** — risk-based: security/payments always research externally; known patterns skip it
 - **Three detail levels** — MINIMAL (simple bugs), STANDARD (most features), COMPREHENSIVE (major features with phased implementation and phase gates)
 - **SpecFlow analysis** — agent maps all user flows, identifies edge cases and gaps before plan is finalized
-- **Requirement reconciliation ledger** — every explicit origin requirement is reconciled to an AC or a provenance-tagged exclusion and printed before write; a plan-introduced exclusion, thin origin, or unresolved origin joins the pre-write gate instead of silently narrowing scope
+- **Requirement reconciliation ledger** — every explicit origin requirement is reconciled to an AC or a provenance-tagged exclusion and printed before write; a plan-introduced exclusion, a material ambiguity, or an unresolved origin joins the pre-write gate instead of being resolved silently
 - **"What We're NOT Doing"** — every plan includes explicit scope boundaries
 
 Plans are saved to `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` (default) or `.html`.
