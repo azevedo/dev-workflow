@@ -213,7 +213,7 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 **After receiving results:**
 - Review identified gaps and edge cases
-- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A finding at **critical/important** tier that does so is **not** silently folded — hold it under a `Parked-for-gate:` list in your running context (never written into the plan document) until Step 5 reads it and decides.
+- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A finding at **critical/important** tier that does so is **not** silently folded — hold it under a `Parked-for-gate:` list in your running context (never written into the plan document) until Step 5 reads it and decides. Record each entry in a minimal structured shape so Step 5 can match it against the ledger by lookup rather than free-text judgment: `Parked-for-gate: <finding text> — targets: "<origin requirement text>"`.
 - Incorporate all other critical and important findings into acceptance criteria
 - Add missing error handling or validation requirements to the plan
 - Note any flow permutations that need addressing
@@ -563,6 +563,10 @@ Ledger format (one line per requirement/sub-clause):
 
 **5. Resume dedupe.**
 
+The ledger itself is ephemeral: only an approved `plan-introduced` exclusion persists to disk (via
+`## What We're NOT Doing`); a resumed run recomputes the full ledger from the origin text each
+time, never from a stored prior result.
+
 On a resumed/re-run `/ba:plan` for an in-flight plan, re-enumerating requirements can re-surface
 an exclusion already recorded. Before appending an approved `plan-introduced` exclusion to `## What
 We're NOT Doing`, check whether that requirement's exclusion is already present there. Dedupe on
@@ -596,13 +600,20 @@ parked findings:
    - **(b)** Any `Parked-for-gate:` spec-flow finding (critical/important tier, proposing to
      narrow/drop a requirement) from Step 3 — scoped to findings **not already covered by an
      origin-explicit requirement** in the ledger (a spec-flow-discovered gap the origin never
-     stated). When a parked finding (b) targets the *same* origin-explicit requirement the ledger
-     already flagged as (a), it is one decision, not two — the batched round below asks **once**.
+     stated). Use each entry's recorded `targets:` field (see Step 3) — a recorded match, not a
+     free-text guess — to check this: when a parked finding's `targets:` names the *same*
+     origin-explicit requirement the ledger already flagged as (a), it is one decision, not two —
+     the batched round below asks **once**.
    - **(c)** A **thin-origin divergence**: the reconciliation is thin-origin (the origin yielded
      fewer than 2 explicit requirements, OR at least half the minted ACs are assistant-inferred
      with no origin-traceable requirement) **and** (the detail level is STANDARD/COMPREHENSIVE,
-     **or** ≥2 ACs are assistant-inferred). A thin origin on a correctly-scoped MINIMAL plan does
-     **not** meet this condition and is suppressed — this is not a fuzzy judgment call.
+     **or** a strict majority — more than half, not merely at-least-half — of minted ACs are
+     assistant-inferred). An **assistant-inferred AC** is one with no `→ AC<n>` line pointing to it
+     anywhere in the Step 4.6 ledger — derive this by inverting the ledger, do not track it as
+     separate data. Requiring a *strict* majority on the second clause keeps it distinguishable from
+     the first clause's at-least-half test, so a MINIMAL plan sitting exactly at half (e.g. 2 of 4
+     ACs inferred — a normal split) does **not** trip the gate: a thin origin on a correctly-scoped
+     MINIMAL plan is suppressed — this is not a fuzzy judgment call.
    - **(d)** `origin-unresolved` from Step 4.6.
 
 **3. Evaluate both categories, then branch on interactivity.** The two categories are batched into
@@ -626,7 +637,10 @@ one *presentation* round, but their resolution semantics differ (see the carve-o
    - **Evaluate convention violations first, independently of (a–d), and hard-stop** if any exist —
      a non-interactive session **never auto-proceeds past a convention violation**, in every mode,
      with no exception. This preserves the pre-existing "MUST resolve all violations before
-     writing" semantics unchanged.
+     writing" semantics unchanged. **Hard-stop means**: do not write the plan; print a
+     `convention-violation — hard-stop, non-interactive, plan not written` trace line naming each
+     unresolved violation, and end the run — never hang waiting on an AskUserQuestion that has no
+     answerer.
    - **Only once no convention violations remain**, evaluate (a–d): print the ledger plus a
      `gate not presented — non-interactive` trace line, and **proceed** — never hang waiting for
      input that can't arrive. A mixed round (some violations, some a–d conditions) still hard-stops on
