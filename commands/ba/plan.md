@@ -213,7 +213,8 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 **After receiving results:**
 - Review identified gaps and edge cases
-- Incorporate critical and important findings into acceptance criteria
+- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A critical/important finding that does so is **not** silently folded — park it (in your running context, never in the plan document) and carry it to Step 5's decision round, noting which origin requirement it targets.
+- Incorporate all other critical and important findings into acceptance criteria
 - Add missing error handling or validation requirements to the plan
 - Note any flow permutations that need addressing
 
@@ -492,25 +493,120 @@ Purely visual or manual checks belong in `Test scenarios:`, never in `Verify:`. 
 
 ---
 
-## Step 5: Convention-Compliance Check
+## Step 4.6: Requirement Reconciliation
 
-**MANDATORY.** Run before writing the plan to disk.
+After drafting the plan (Step 4) and before the pre-write decision gate (Step 5), reconcile the
+plan's Acceptance Criteria against the origin's explicit requirements. Runs at **every detail
+level** (MINIMAL, STANDARD, COMPREHENSIVE) and for **every origin type** (brainstorm, ticket text
+already present in context, or a refined bare prompt).
 
-1. Dispatch the convention-checker agent:
-   - Task dev-workflow:convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
+The job is traceability in both directions: every origin requirement should reach an AC or an
+owned exclusion, and every AC should trace back to something the origin asked for. Requiring that
+trace keeps a plan from quietly growing past its origin as much as from quietly shrinking below it.
 
-2. Review the agent's findings. Also check each `Verify:` line in the plan: flag any that appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with side effects).
+**1. Enumerate explicit requirements.**
 
-3. **For each VIOLATION**, use **AskUserQuestion** to present it:
-   - "Convention X says Y, but the plan does Z. How should we handle this?"
-   - Options:
-     1. **Update plan to comply** — Modify the plan to follow the convention
-     2. **Add justification for override** — Keep the plan as-is, document why
-     3. **Flag as known debt** — Acknowledge, plan to address later
+Scan the origin — source-agnostic: the brainstorm document, ticket text already present in
+context, or the refined prompt; never a Linear/tracker API call — for *explicit* requirements. An
+explicit requirement is an imperative, user-observable demand: a "must/should" statement, a
+bulleted requirement or fix-direction, or an explicit brainstorm acceptance criterion. Exclude
+background, rationale, implementation suggestions, and examples.
 
-4. **MUST resolve all violations** before writing the plan to disk.
+**`origin-unresolved`.** If the origin is a bare reference — a ticket ID or URL, "see the ticket" —
+whose body is not actually present in context, do not enumerate an empty list and call it clean.
+Mark the reconciliation `origin-unresolved`; that is a gate condition (Step 5), never a clean pass
+produced from absent text.
 
-5. Append compliance summary to the plan's end:
+**2. Decompose compound and bidirectional requirements into sub-clauses.**
+
+A requirement with multiple independent clauses, or a bidirectional demand ("keep A and B
+**separate**" ⇒ "A must not leak into B" **and** "B must not leak into A"), splits into its
+sub-clauses, each reconciled independently. A sub-clause satisfied while its sibling is dropped
+does **not** let the parent requirement reconcile as `→ AC<n>`.
+
+**3. Reconcile each requirement (or sub-clause) to an AC or an exclusion.**
+
+Resolve each item to one of:
+- `→ AC<n>` (one or more) — covered by a minted acceptance criterion. Test it: *could the plan ship
+  and pass all its ACs without addressing this requirement?* If yes, it is under-mapped.
+- `→ EXCLUDED: <reason>` — not covered. Record **provenance**:
+  - `inherited` — mirrors a scope boundary the origin already approved.
+  - `plan-introduced` — the plan itself dropped or narrowed something the approved origin did not
+    already exclude.
+
+  Only a `plan-introduced` exclusion is a gate condition (Step 5). An `inherited` exclusion prints
+  in the ledger but never trips the gate.
+
+**4. Print the ledger on every path.**
+
+The ledger prints regardless of detail level, origin type, or whether anything gates — a clean
+reconciliation and a skipped one must never produce identical output. Match its length to the
+plan: once nothing gates, a small plan may collapse to a single summary line (`7 requirements, all
+mapped`); a reconciliation carrying any exclusion or `origin-unresolved` always prints in full.
+
+```
+- "<requirement text>" → AC<n>
+- "<requirement text>" → EXCLUDED (inherited): <reason>
+- "<requirement text>" → EXCLUDED (plan-introduced): <reason>
+- origin-unresolved: <what's missing>
+```
+
+The ledger is ephemeral — only an approved `plan-introduced` exclusion persists, via `## What We're
+NOT Doing`. A re-run recomputes it from the origin text, and dedupes against that section on the
+excluded requirement's identity rather than on its reason wording.
+
+**Step 6 note:** this step owns requirement/scope reconciliation for all origin types, not just
+brainstorm origins — Step 6 cross-references it instead of independently re-checking coverage.
+
+---
+
+## Step 5: Pre-Write Decision Gate
+
+**MANDATORY.** Run before writing the plan to disk. A single **batched decision round** covering
+the convention-compliance check plus the scope/fidelity stop conditions surfaced by Step 4.6's
+ledger and Step 3's parked findings, so the user is never stopped twice for the same plan.
+
+**1. Gather convention violations:**
+   - Dispatch the convention-checker agent:
+     - Task dev-workflow:convention-checker("Validate this plan against project conventions: <summary of plan including file paths, naming, architecture decisions, test structure, new dependencies>")
+   - Review the agent's findings. Also check each `Verify:` line in the plan: flag any that
+     appears unmatchable (no grep-able symbol/path/command) or non-read-only (runs a command with
+     side effects).
+
+**2. Gather the scope/fidelity stop conditions** from Step 4.6's ledger and Step 3's parked
+findings:
+   - **(a)** Any `plan-introduced` exclusion in the ledger.
+   - **(b)** Any parked spec-flow finding from Step 3 that proposes narrowing or dropping a
+     requirement. When it targets the same requirement already flagged by (a), it is one decision,
+     not two — ask once.
+   - **(c)** Any **material ambiguity**: an origin requirement that admits two readings which would
+     lead to materially different work, and that you resolved by picking one. Coverage is not the
+     only way to lose a requirement — one mapped to an AC under a silently-chosen reading is still
+     a scope call made on the user's behalf. Report the requirement, the reading you took, and the
+     alternative. Routine implementation choices are not ambiguities; do not report them.
+   - **(d)** `origin-unresolved` from Step 4.6.
+
+**3. Interactive session:**
+   - If there are **no** convention violations and **none** of (a–d) apply: write with **no added
+     prompt**. A plan that reconciles cleanly with nothing to ask must not add gate fatigue.
+   - Otherwise, present **one batched AskUserQuestion round** covering every violation and every
+     applicable (a–d) condition:
+     - **Convention violation** — options: Update plan to comply / Add justification for override
+       / Flag as known debt.
+     - **(a)–(d) condition** — options: Accept and continue (it stands, record it) / Revise the
+       plan to cover it / Pause and let me decide.
+   - **MUST resolve all convention violations** before writing. The (a–d) conditions may resolve to
+     "accept."
+
+**4. When no interactive answerer is available:** never hang on a question nothing can answer.
+   Convention violations still hard-stop — do not write the plan, print
+   `convention-violation — hard-stop, plan not written` naming each unresolved violation, and end
+   the run. With no violations outstanding, print the ledger plus
+   `gate not presented — no interactive answerer` and proceed. Detecting this condition has no
+   defined mechanism yet; until it does, treat the interactive path as the default and this as the
+   fallback for when a prompt cannot be presented.
+
+**5. Append compliance summary** to the plan's end (as before):
    ```markdown
    ## Convention Compliance
    - [x] [Convention A] — aligned
@@ -528,11 +624,10 @@ Before finalizing, re-read the brainstorm document and verify:
 
 - [ ] Every key decision from the brainstorm is reflected in the plan
 - [ ] The chosen approach matches what was decided in the brainstorm
-- [ ] Constraints and requirements are captured in acceptance criteria
+- [ ] Requirement and scope-boundary coverage — owned by Step 4.6's reconciliation ledger, not re-checked here
 - [ ] Open questions from the brainstorm are either resolved or flagged
 - [ ] The `origin:` frontmatter field points to the brainstorm file
 - [ ] The Sources section includes the brainstorm with carried-forward decisions
-- [ ] Scope boundaries from the brainstorm are in "What We're NOT Doing"
 
 If anything was dropped, add it back before writing.
 
