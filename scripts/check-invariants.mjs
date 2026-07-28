@@ -276,6 +276,74 @@ function sentinelsCheck(opts) {
   };
 }
 
+const REFERENCES_SEARCH_DIRS = ['commands', 'agents'];
+
+// Top-level only — references/ is flat, and recursing would need walkMarkdown, whose recursion
+// this directory has no use for.
+function listReferenceFiles(root) {
+  try {
+    const entries = fs.readdirSync(path.join(root, 'references'), { withFileTypes: true });
+    return { files: entries.filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => `references/${e.name}`).sort() };
+  } catch (err) {
+    return { error: String((err && err.message) || err) };
+  }
+}
+
+function referencesCheck(opts) {
+  const records = [];
+  const refRes = listReferenceFiles(opts.root);
+  if (refRes.error) {
+    return {
+      subjectCount: 0,
+      subjectNoun: 'reference files',
+      reason: `cannot list references/: ${refRes.error}`,
+      records: [
+        { invariant: 'references', file: 'references', line: null, verdict: 'UNKNOWN', message: `cannot list references/: ${refRes.error}` },
+      ],
+    };
+  }
+  const { files: corpus, errorRecords } = loadCorpus(opts, REFERENCES_SEARCH_DIRS);
+  records.push(...errorRecords.map((r) => ({ ...r, invariant: 'references' })));
+
+  if (refRes.files.length === 0 || corpus.length === 0) {
+    records.push({
+      invariant: 'references',
+      file: 'references',
+      line: null,
+      verdict: 'UNKNOWN',
+      message: `empty references/ glob (${refRes.files.length}) or empty search corpus (${corpus.length})`,
+    });
+    return { subjectCount: refRes.files.length, subjectNoun: 'reference files', reason: 'no subjects to check', records };
+  }
+
+  const corpusText = corpus.map((file) => {
+    const lr = readLines(opts.root, file);
+    return lr.error ? [] : lr.lines;
+  });
+
+  for (const refFile of refRes.files) {
+    const basename = path.basename(refFile);
+    const needle = `\`references/${basename}\``;
+    const cited = corpusText.some((lines) => lines.some((line) => line.includes(needle)));
+    if (!cited) {
+      records.push({
+        invariant: 'references',
+        file: refFile,
+        line: null,
+        verdict: 'FAIL',
+        message: `no citation of ${needle} found in ${REFERENCES_SEARCH_DIRS.join('/, ')}/`,
+      });
+    }
+  }
+
+  return {
+    subjectCount: refRes.files.length,
+    subjectNoun: 'reference files',
+    reason: `${refRes.files.length} reference file(s) checked against ${corpus.length} corpus file(s)`,
+    records,
+  };
+}
+
 function notImplemented(id) {
   return {
     subjectCount: 0,
@@ -295,7 +363,7 @@ function notImplemented(id) {
 
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
-  { id: 'references', run: () => notImplemented('references') },
+  { id: 'references', run: referencesCheck },
   { id: 'version-bump', run: () => notImplemented('version-bump') },
 ];
 
