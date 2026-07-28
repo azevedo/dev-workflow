@@ -1,0 +1,471 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+const VERDICT_CODE = { PASS: 0, FAIL: 1, UNKNOWN: 2 };
+
+function makeRecord(invariant, file, line, verdict, message) {
+  return { invariant, file, line, verdict, message };
+}
+
+function formatRecord(r) {
+  const loc = r.line != null ? `${r.file}:${r.line}` : r.file;
+  return `${r.invariant} — ${loc} — ${r.message}`;
+}
+
+// FAIL outranks UNKNOWN — a broken invariant must read as "broken", not "couldn't tell".
+function verdictForRecords(records) {
+  if (records.some((r) => r.verdict === 'FAIL')) return 'FAIL';
+  if (records.some((r) => r.verdict === 'UNKNOWN')) return 'UNKNOWN';
+  return 'PASS';
+}
+
+function exitCodeForRecords(records) {
+  return VERDICT_CODE[verdictForRecords(records)];
+}
+
+function usage() {
+  return 'Usage: check-invariants.mjs [--only <id>] [--root <dir>]';
+}
+
+function parseArgs(argv) {
+  const opts = { only: null, root: process.cwd() };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--only') opts.only = argv[++i];
+    else if (a === '--root') opts.root = argv[++i];
+    else {
+      console.error(`Unknown flag: ${a}\n${usage()}`);
+      return null;
+    }
+  }
+  return opts;
+}
+
+// Returns an error result rather than throwing, so callers can produce a named UNKNOWN record.
+function readLines(root, relPath) {
+  try {
+    const text = fs.readFileSync(path.join(root, relPath), 'utf8');
+    return { lines: text.split('\n') };
+  } catch (err) {
+    return { error: String((err && err.message) || err) };
+  }
+}
+
+// Recursive so one helper serves both the flat agents/ and the nested commands/ba/;
+// returns an error result rather than throwing on a missing relDir.
+function walkMarkdown(root, relDir) {
+  const files = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
+    } catch (err) {
+      throw { relDir: dir, error: String((err && err.message) || err) };
+    }
+    for (const entry of entries) {
+      const relPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(relPath);
+      else if (entry.isFile() && entry.name.endsWith('.md')) files.push(relPath);
+    }
+  }
+  try {
+    walk(relDir);
+  } catch (e) {
+    return { error: e.error, relDir: e.relDir };
+  }
+  files.sort();
+  return { files };
+}
+
+const PROMPT_SURFACE_DIRS = ['commands', 'agents'];
+const VERSION_BUMP_WATCHED_PREFIXES = [...PROMPT_SURFACE_DIRS, 'references'].map((d) => `${d}/`);
+const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
+
+// Reads the corpus once — both dir listing and file contents — so every check that needs the
+// same prompt-surface text shares one read and one error-reporting path, rather than each
+// sub-check re-reading files and trusting a sibling to have reported a read failure.
+function loadCorpus(opts, dirs, invariant) {
+  const files = [];
+  const errorRecords = [];
+  for (const dir of dirs) {
+    const res = walkMarkdown(opts.root, dir);
+    if (res.error) {
+      errorRecords.push(makeRecord(invariant, dir, null, 'UNKNOWN', `cannot list directory: ${res.error}`));
+      continue;
+    }
+    files.push(...res.files);
+  }
+  const entries = [];
+  for (const file of files) {
+    const lr = readLines(opts.root, file);
+    if (lr.error) {
+      errorRecords.push(makeRecord(invariant, file, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    entries.push({ file, lines: lr.lines });
+  }
+  return { entries, errorRecords };
+}
+
+function fenceMatch(line) {
+  const m = line.match(/^ {0,3}(`{3,}|~{3,})/);
+  if (!m) return null;
+  return { char: m[1][0], length: m[1].length };
+}
+
+// A closer has the same 0-3-space indentation cap as an opener (CommonMark), plus no info
+// string — trimming all leading whitespace before comparing (the prior approach) accepted a
+// closer indented arbitrarily far, letting fence *content* that happened to repeat the fence
+// character prematurely end the region.
+function fenceCloseMatch(line, char, minLength) {
+  const re = char === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/;
+  const m = line.match(re);
+  return m != null && m[1].length >= minLength;
+}
+
+// Tracks fence character and run length (not just "inside a fence") because the corpus has
+// four-backtick fences containing nested three-backtick fences — a length-blind scanner would
+// close on the inner fence and mis-split the region. A fence still open at EOF still yields a
+// region (start..EOF, terminated: false) so a heredoc opener inside it is recognized as "in a
+// fence" rather than misreported as bare prose — the fence's own UNKNOWN already covers it.
+function fencedRegions(lines) {
+  const regions = [];
+  const unterminated = [];
+  let open = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (!open) {
+      const m = fenceMatch(lines[i]);
+      if (m) open = { ...m, start: i };
+      continue;
+    }
+    if (fenceCloseMatch(lines[i], open.char, open.length)) {
+      regions.push({ start: open.start, end: i, terminated: true });
+      open = null;
+    }
+  }
+  if (open) {
+    unterminated.push(open.start);
+    regions.push({ start: open.start, end: lines.length, terminated: false });
+  }
+  return { regions, unterminated };
+}
+
+function autoScoreKeywordAgreement(entries) {
+  const records = [];
+  const participants = [];
+  for (const { file, lines } of entries) {
+    const keywords = new Map();
+    lines.forEach((line, idx) => {
+      const re = /\[AUTO-SCORE:\s*([a-z]+)/g;
+      let m;
+      while ((m = re.exec(line))) {
+        if (!keywords.has(m[1])) keywords.set(m[1], idx + 1);
+      }
+    });
+    if (keywords.size > 0) participants.push({ file, keywords });
+  }
+
+  if (participants.length < 2) {
+    records.push(
+      makeRecord(
+        'sentinels',
+        PROMPT_SURFACE_DIRS.join(', '),
+        null,
+        'UNKNOWN',
+        `expected an emitter and a parser, found ${participants.length}`,
+      ),
+    );
+    return { records, participantCount: participants.length };
+  }
+
+  for (const p of participants) {
+    for (const [kw, line] of p.keywords) {
+      if (!ALLOWED_AUTO_SCORE_KEYWORDS.has(kw)) {
+        records.push(makeRecord('sentinels', p.file, line, 'FAIL', `[AUTO-SCORE: ${kw}] is outside {clean, weak, error}`));
+      }
+    }
+  }
+
+  for (const a of participants) {
+    for (const b of participants) {
+      if (a === b) continue;
+      for (const [kw, bLine] of b.keywords) {
+        if (!a.keywords.has(kw)) {
+          records.push(
+            makeRecord(
+              'sentinels',
+              a.file,
+              bLine,
+              'FAIL',
+              `keyword set differs from ${b.file}: missing '${kw}' (present at ${b.file}:${bLine})`,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  return { records, participantCount: participants.length };
+}
+
+function heredocFencePairing(entries) {
+  const records = [];
+  let openerCount = 0;
+  for (const { file, lines } of entries) {
+    const { regions, unterminated } = fencedRegions(lines);
+    for (const startLine of unterminated) {
+      records.push(makeRecord('sentinels', file, startLine + 1, 'UNKNOWN', 'fence opened here is never closed before EOF'));
+    }
+    const consumedTerminators = new Set();
+    lines.forEach((line, idx) => {
+      const m = line.match(/<<'([^']+)'/);
+      if (!m) return;
+      openerCount++;
+      const token = m[1];
+      const region = regions.find((r) => idx > r.start && idx < r.end);
+      if (!region) {
+        records.push(makeRecord('sentinels', file, idx + 1, 'FAIL', `heredoc opener <<'${token}' is not inside a fenced code block`));
+        return;
+      }
+      // An opener inside a fence that's still open at EOF isn't independently mis-terminated —
+      // the fence's own "never closed before EOF" UNKNOWN above already names the root cause.
+      if (!region.terminated) return;
+      let terminators = 0;
+      let matchedLine = null;
+      for (let i = region.start + 1; i < region.end; i++) {
+        if (consumedTerminators.has(i)) continue; // claimed by an earlier opener sharing this token+region
+        if (lines[i].trim() === token) {
+          terminators++;
+          if (matchedLine === null) matchedLine = i;
+        }
+      }
+      if (terminators === 1) {
+        consumedTerminators.add(matchedLine);
+      } else {
+        records.push(
+          makeRecord(
+            'sentinels',
+            file,
+            idx + 1,
+            'FAIL',
+            `heredoc opener <<'${token}' has ${terminators} terminator(s) in its fence, expected exactly 1`,
+          ),
+        );
+      }
+    });
+  }
+  if (openerCount === 0) {
+    records.push(makeRecord('sentinels', PROMPT_SURFACE_DIRS.join(', '), null, 'UNKNOWN', 'no heredoc openers found in the corpus'));
+  }
+  return { records, openerCount };
+}
+
+function sentinelsCheck(opts) {
+  const { entries, errorRecords } = loadCorpus(opts, PROMPT_SURFACE_DIRS, 'sentinels');
+  const a = autoScoreKeywordAgreement(entries);
+  const b = heredocFencePairing(entries);
+  const records = [...errorRecords, ...a.records, ...b.records];
+  return {
+    subjectCount: a.participantCount + b.openerCount,
+    subjectNoun: 'subjects',
+    reason: `${a.participantCount} AUTO-SCORE participant(s), ${b.openerCount} heredoc opener(s)`,
+    records,
+  };
+}
+
+// Top-level only — references/ is flat, and recursing would need walkMarkdown, whose recursion
+// this directory has no use for.
+function listReferenceFiles(root) {
+  try {
+    const entries = fs.readdirSync(path.join(root, 'references'), { withFileTypes: true });
+    return { files: entries.filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => `references/${e.name}`).sort() };
+  } catch (err) {
+    return { error: String((err && err.message) || err) };
+  }
+}
+
+function referencesCheck(opts) {
+  const records = [];
+  const refRes = listReferenceFiles(opts.root);
+  if (refRes.error) {
+    const message = `cannot list references/: ${refRes.error}`;
+    return {
+      subjectCount: 0,
+      subjectNoun: 'reference files',
+      reason: message,
+      records: [makeRecord('references', 'references', null, 'UNKNOWN', message)],
+    };
+  }
+  const { entries, errorRecords } = loadCorpus(opts, PROMPT_SURFACE_DIRS, 'references');
+  records.push(...errorRecords);
+
+  if (refRes.files.length === 0 || entries.length === 0) {
+    records.push(
+      makeRecord(
+        'references',
+        'references',
+        null,
+        'UNKNOWN',
+        `empty references/ glob (${refRes.files.length}) or empty search corpus (${entries.length})`,
+      ),
+    );
+    return { subjectCount: refRes.files.length, subjectNoun: 'reference files', reason: 'no subjects to check', records };
+  }
+
+  for (const refFile of refRes.files) {
+    const basename = path.basename(refFile);
+    const needle = `\`references/${basename}\``;
+    const cited = entries.some(({ lines }) => lines.some((line) => line.includes(needle)));
+    if (!cited) {
+      records.push(
+        makeRecord(
+          'references',
+          refFile,
+          null,
+          'FAIL',
+          `no citation of ${needle} found in ${PROMPT_SURFACE_DIRS.join('/, ')}/`,
+        ),
+      );
+    }
+  }
+
+  return {
+    subjectCount: refRes.files.length,
+    subjectNoun: 'reference files',
+    reason: `${refRes.files.length} reference file(s) checked against ${entries.length} corpus file(s)`,
+    records,
+  };
+}
+
+function gitRead(root, args, label) {
+  try {
+    return { value: execFileSync('git', args, { cwd: root, encoding: 'utf8' }) };
+  } catch (err) {
+    return { error: `${label} failed: ${String((err && err.message) || err).split('\n')[0]}` };
+  }
+}
+
+function parsePluginVersion(blobText, label) {
+  let parsed;
+  try {
+    parsed = JSON.parse(blobText);
+  } catch (err) {
+    return { error: `${label}: plugin.json did not parse as JSON` };
+  }
+  const version = parsed.version;
+  if (typeof version !== 'string' || version.trim() === '') {
+    return { error: `${label}: 'version' is missing or not a non-empty string` };
+  }
+  return { value: version.trim() };
+}
+
+function versionBumpCheck(opts) {
+  const unknown = (message) => ({
+    subjectCount: 0,
+    subjectNoun: 'comparison inputs',
+    reason: message,
+    records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'UNKNOWN', message)],
+  });
+
+  const base = gitRead(opts.root, ['rev-parse', '--verify', 'HEAD~1^{commit}'], 'git rev-parse HEAD~1');
+  if (base.error) return unknown(base.error);
+
+  const diff = gitRead(opts.root, ['diff', '--name-only', 'HEAD~1', 'HEAD'], 'git diff --name-only');
+  if (diff.error) return unknown(diff.error);
+  const changedPaths = diff.value.split('\n').filter(Boolean);
+  const touchesWatched = changedPaths.some((p) => VERSION_BUMP_WATCHED_PREFIXES.some((prefix) => p.startsWith(prefix)));
+
+  if (!touchesWatched) {
+    const reason = 'not applicable — no prompt-surface paths changed';
+    return {
+      subjectCount: 3,
+      subjectNoun: 'comparison inputs',
+      reason,
+      records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'PASS', reason)],
+    };
+  }
+
+  const oldBlob = gitRead(opts.root, ['show', 'HEAD~1:.claude-plugin/plugin.json'], 'git show HEAD~1:.claude-plugin/plugin.json');
+  if (oldBlob.error) return unknown(oldBlob.error);
+  const newBlob = gitRead(opts.root, ['show', 'HEAD:.claude-plugin/plugin.json'], 'git show HEAD:.claude-plugin/plugin.json');
+  if (newBlob.error) return unknown(newBlob.error);
+
+  const oldVersion = parsePluginVersion(oldBlob.value, 'HEAD~1');
+  if (oldVersion.error) return unknown(oldVersion.error);
+  const newVersion = parsePluginVersion(newBlob.value, 'HEAD');
+  if (newVersion.error) return unknown(newVersion.error);
+
+  if (oldVersion.value === newVersion.value) {
+    const message = `version unchanged (${oldVersion.value}) while commands/, agents/, or references/ changed`;
+    return {
+      subjectCount: 3,
+      subjectNoun: 'comparison inputs',
+      reason: message,
+      records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'FAIL', message)],
+    };
+  }
+
+  const reason = `version ${oldVersion.value} → ${newVersion.value}`;
+  return {
+    subjectCount: 3,
+    subjectNoun: 'comparison inputs',
+    reason,
+    records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'PASS', reason)],
+  };
+}
+
+const CHECKS = [
+  { id: 'sentinels', run: sentinelsCheck },
+  { id: 'references', run: referencesCheck },
+  { id: 'version-bump', run: versionBumpCheck },
+];
+
+function runChecks(opts) {
+  const checks = opts.only ? CHECKS.filter((c) => c.id === opts.only) : CHECKS;
+  if (opts.only && checks.length === 0) {
+    console.error(`Unknown check id: ${opts.only}`);
+    return null;
+  }
+  return checks.map((c) => ({ id: c.id, ...c.run(opts) }));
+}
+
+// Every verdict line prints, PASS included, with a mandatory reason — two PASSes with the
+// same subject count can mean different things (e.g. version-bump's "not applicable" vs.
+// "version bumped"), and an indistinguishable line reintroduces the vacuous green one level up.
+function report(results) {
+  for (const r of results) {
+    const verdict = verdictForRecords(r.records);
+    console.log(`${r.id}: ${verdict} (${r.subjectCount} ${r.subjectNoun}) — ${r.reason}`);
+  }
+  for (const r of results) {
+    for (const rec of r.records.filter((x) => x.verdict !== 'PASS')) {
+      console.log(formatRecord(rec));
+    }
+  }
+}
+
+function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (!opts) {
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const results = runChecks(opts);
+    if (results === null) {
+      process.exitCode = 2;
+      return;
+    }
+    report(results);
+    const allRecords = results.flatMap((r) => r.records);
+    process.exitCode = exitCodeForRecords(allRecords);
+  } catch (err) {
+    console.error(String((err && err.stack) || err));
+    process.exitCode = 2;
+  }
+}
+
+main();
