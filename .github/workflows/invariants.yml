@@ -1,0 +1,23 @@
+name: invariants
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  invariants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, not depth 2: on pull_request GitHub checks out an ephemeral merge
+          # commit whose first parent is the base branch tip, so HEAD~1 compares base->merge
+          # (the PR's cumulative diff). A shallow fetch at depth 2 can leave that parent
+          # grafted, silently truncating the comparison. Do not "optimize" this to depth 1.
+          fetch-depth: 0
+      - run: node scripts/selfcheck-invariants.mjs
+      - run: node scripts/check-invariants.mjs
