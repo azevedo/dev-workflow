@@ -344,6 +344,98 @@ function referencesCheck(opts) {
   };
 }
 
+const VERSION_BUMP_WATCHED_PREFIXES = ['commands/', 'agents/', 'references/'];
+
+function gitRead(root, args, label) {
+  try {
+    return { value: execFileSync('git', args, { cwd: root, encoding: 'utf8' }) };
+  } catch (err) {
+    return { error: `${label} failed: ${String((err && err.message) || err).split('\n')[0]}` };
+  }
+}
+
+function parsePluginVersion(blobText, label) {
+  let parsed;
+  try {
+    parsed = JSON.parse(blobText);
+  } catch (err) {
+    return { error: `${label}: plugin.json did not parse as JSON` };
+  }
+  const version = parsed.version;
+  if (typeof version !== 'string' || version.trim() === '') {
+    return { error: `${label}: 'version' is missing or not a non-empty string` };
+  }
+  return { value: version.trim() };
+}
+
+function versionBumpCheck(opts) {
+  const unknown = (message) => ({
+    subjectCount: 0,
+    subjectNoun: 'comparison inputs',
+    reason: message,
+    records: [
+      { invariant: 'version-bump', file: '.claude-plugin/plugin.json', line: null, verdict: 'UNKNOWN', message },
+    ],
+  });
+
+  const base = gitRead(opts.root, ['rev-parse', '--verify', 'HEAD~1^{commit}'], 'git rev-parse HEAD~1');
+  if (base.error) return unknown(base.error);
+
+  const diff = gitRead(opts.root, ['diff', '--name-only', 'HEAD~1', 'HEAD'], 'git diff --name-only');
+  if (diff.error) return unknown(diff.error);
+  const changedPaths = diff.value.split('\n').filter(Boolean);
+  const touchesWatched = changedPaths.some((p) => VERSION_BUMP_WATCHED_PREFIXES.some((prefix) => p.startsWith(prefix)));
+
+  if (!touchesWatched) {
+    return {
+      subjectCount: 3,
+      subjectNoun: 'comparison inputs',
+      reason: 'not applicable — no prompt-surface paths changed',
+      records: [
+        {
+          invariant: 'version-bump',
+          file: '.claude-plugin/plugin.json',
+          line: null,
+          verdict: 'PASS',
+          message: 'not applicable — no prompt-surface paths changed',
+        },
+      ],
+    };
+  }
+
+  const oldBlob = gitRead(opts.root, ['show', 'HEAD~1:.claude-plugin/plugin.json'], 'git show HEAD~1:.claude-plugin/plugin.json');
+  if (oldBlob.error) return unknown(oldBlob.error);
+  const newBlob = gitRead(opts.root, ['show', 'HEAD:.claude-plugin/plugin.json'], 'git show HEAD:.claude-plugin/plugin.json');
+  if (newBlob.error) return unknown(newBlob.error);
+
+  const oldVersion = parsePluginVersion(oldBlob.value, 'HEAD~1');
+  if (oldVersion.error) return unknown(oldVersion.error);
+  const newVersion = parsePluginVersion(newBlob.value, 'HEAD');
+  if (newVersion.error) return unknown(newVersion.error);
+
+  if (oldVersion.value === newVersion.value) {
+    const message = `version unchanged (${oldVersion.value}) while commands/, agents/, or references/ changed`;
+    return {
+      subjectCount: 3,
+      subjectNoun: 'comparison inputs',
+      reason: message,
+      records: [
+        { invariant: 'version-bump', file: '.claude-plugin/plugin.json', line: null, verdict: 'FAIL', message },
+      ],
+    };
+  }
+
+  const reason = `version ${oldVersion.value} → ${newVersion.value}`;
+  return {
+    subjectCount: 3,
+    subjectNoun: 'comparison inputs',
+    reason,
+    records: [
+      { invariant: 'version-bump', file: '.claude-plugin/plugin.json', line: null, verdict: 'PASS', message: reason },
+    ],
+  };
+}
+
 function notImplemented(id) {
   return {
     subjectCount: 0,
@@ -364,7 +456,7 @@ function notImplemented(id) {
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
-  { id: 'version-bump', run: () => notImplemented('version-bump') },
+  { id: 'version-bump', run: versionBumpCheck },
 ];
 
 function runChecks(opts) {
