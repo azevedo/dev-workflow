@@ -29,11 +29,16 @@ function gitCommit(root, message) {
 
 // Combines stdout+stderr into one string: normal check output goes to stdout, but parse
 // errors (e.g. an unknown --only id) are written to stderr, and case assertions need to see both.
-function runChecker(root, checkId) {
+// Uses process.execPath (not the bare "node") so a case can strip PATH via envOverride to
+// simulate git being absent without also breaking Node's own resolution of the checker.
+function runChecker(root, checkId, envOverride) {
   const args = [CHECKER, '--root', root];
   if (checkId) args.push('--only', checkId);
   try {
-    const stdout = execFileSync('node', args, { encoding: 'utf8' });
+    const stdout = execFileSync(process.execPath, args, {
+      encoding: 'utf8',
+      env: envOverride ? { ...process.env, ...envOverride } : process.env,
+    });
     return { exitCode: 0, stdout };
   } catch (err) {
     return { exitCode: err.status, stdout: (err.stdout ?? '') + (err.stderr ?? '') };
@@ -252,13 +257,46 @@ const CASES = [
     expectSubstring: 'git rev-parse HEAD~1 failed',
   },
   {
-    name: 'any check UNKNOWN — --root with no commands/ directory yields a named record',
+    name: 'sentinels UNKNOWN — --root with no commands/ directory yields a named record',
     checkId: 'sentinels',
     build(root) {
       fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
     },
     expectExit: 2,
     expectSubstring: 'cannot list directory',
+  },
+  {
+    name: 'references UNKNOWN — --root with no commands/ directory yields a named record too',
+    checkId: 'references',
+    build(root) {
+      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      write(root, 'references/foo.md', 'content\n');
+    },
+    expectExit: 2,
+    expectSubstring: 'cannot list directory',
+  },
+  {
+    name: 'sentinels PASS — an over-indented closer (>3 spaces) does not prematurely end the fence',
+    checkId: 'sentinels',
+    build(root) {
+      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(
+        root,
+        'commands/c.md',
+        "```bash\ncat <<'TOKEN'\nbody\n            ```\nTOKEN\n```\n",
+      );
+    },
+    expectExit: 0,
+    expectSubstring: 'sentinels: PASS',
+  },
+  {
+    name: 'version-bump UNKNOWN — git absent from PATH',
+    checkId: 'version-bump',
+    build() {},
+    expectExit: 2,
+    expectSubstring: 'git rev-parse HEAD~1 failed',
+    env: { PATH: '' },
   },
   {
     name: 'no --only: all three checks run and their verdicts fold with FAIL outranking UNKNOWN',
@@ -285,14 +323,41 @@ const CASES = [
   },
 ];
 
+// Static, not a checker invocation: greps the two scripts' own import lines rather than
+// building a tree and running the checker, since AC7 is a property of the source files
+// themselves, not of any check's behavior against a corpus.
+function checkStdlibImportsOnly() {
+  const name = 'both scripts import only Node built-in modules (AC7)';
+  const files = ['check-invariants.mjs', 'selfcheck-invariants.mjs'].map((f) =>
+    fileURLToPath(new URL(`./${f}`, import.meta.url)),
+  );
+  const offenders = [];
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    const importRe = /^import .* from ['"]([^'"]+)['"];?$/gm;
+    let m;
+    while ((m = importRe.exec(text))) {
+      if (!m[1].startsWith('node:')) offenders.push(`${path.basename(file)}: ${m[1]}`);
+    }
+  }
+  if (offenders.length === 0) {
+    console.log(`PASS: ${name}`);
+    return true;
+  }
+  console.log(`FAIL: ${name}`);
+  console.log(`  non-builtin imports: ${offenders.join(', ')}`);
+  return false;
+}
+
 function main() {
   let failures = 0;
+  if (!checkStdlibImportsOnly()) failures++;
   for (const c of CASES) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ba-invariants-'));
     try {
       const expected = c.expectSubstrings ?? [c.expectSubstring];
       c.build(root);
-      const { exitCode, stdout } = runChecker(root, c.checkId);
+      const { exitCode, stdout } = runChecker(root, c.checkId, c.env);
       const exitOk = exitCode === c.expectExit;
       const substringOk = expected.every((s) => stdout.includes(s));
       if (exitOk && substringOk) {
@@ -314,11 +379,12 @@ function main() {
       fs.rmSync(root, { recursive: true, force: true });
     }
   }
+  const totalChecks = CASES.length + 1; // +1 for checkStdlibImportsOnly
   if (failures > 0) {
-    console.error(`${failures}/${CASES.length} selfcheck case(s) failed.`);
+    console.error(`${failures}/${totalChecks} selfcheck check(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log(`All ${CASES.length} selfcheck cases passed.`);
+    console.log(`All ${totalChecks} selfcheck checks passed.`);
   }
 }
 

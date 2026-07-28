@@ -116,6 +116,16 @@ function fenceMatch(line) {
   return { char: m[1][0], length: m[1].length };
 }
 
+// A closer has the same 0-3-space indentation cap as an opener (CommonMark), plus no info
+// string — trimming all leading whitespace before comparing (the prior approach) accepted a
+// closer indented arbitrarily far, letting fence *content* that happened to repeat the fence
+// character prematurely end the region.
+function fenceCloseMatch(line, char, minLength) {
+  const re = char === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/;
+  const m = line.match(re);
+  return m != null && m[1].length >= minLength;
+}
+
 // Tracks fence character and run length (not just "inside a fence") because the corpus has
 // four-backtick fences containing nested three-backtick fences — a length-blind scanner would
 // close on the inner fence and mis-split the region. A fence still open at EOF still yields a
@@ -131,12 +141,7 @@ function fencedRegions(lines) {
       if (m) open = { ...m, start: i };
       continue;
     }
-    const trimmed = lines[i].trim();
-    const isCloser =
-      trimmed.length > 0 &&
-      trimmed.length >= open.length &&
-      [...trimmed].every((c) => c === open.char);
-    if (isCloser) {
+    if (fenceCloseMatch(lines[i], open.char, open.length)) {
       regions.push({ start: open.start, end: i, terminated: true });
       open = null;
     }
