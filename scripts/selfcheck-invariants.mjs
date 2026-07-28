@@ -27,12 +27,16 @@ function gitCommit(root, message) {
   );
 }
 
+// Combines stdout+stderr into one string: normal check output goes to stdout, but parse
+// errors (e.g. an unknown --only id) are written to stderr, and case assertions need to see both.
 function runChecker(root, checkId) {
+  const args = [CHECKER, '--root', root];
+  if (checkId) args.push('--only', checkId);
   try {
-    const stdout = execFileSync('node', [CHECKER, '--root', root, '--only', checkId], { encoding: 'utf8' });
+    const stdout = execFileSync('node', args, { encoding: 'utf8' });
     return { exitCode: 0, stdout };
   } catch (err) {
-    return { exitCode: err.status, stdout: err.stdout ?? '' };
+    return { exitCode: err.status, stdout: (err.stdout ?? '') + (err.stderr ?? '') };
   }
 }
 
@@ -256,6 +260,29 @@ const CASES = [
     expectExit: 2,
     expectSubstring: 'cannot list directory',
   },
+  {
+    name: 'no --only: all three checks run and their verdicts fold with FAIL outranking UNKNOWN',
+    checkId: null,
+    build(root) {
+      write(
+        root,
+        'commands/a.md',
+        "[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n```bash\ncat <<'TOKEN'\nbody\nTOKEN\n```\n",
+      );
+      write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'references/foo.md', 'content\n'); // cited nowhere -> references FAIL
+      // no git repo at all -> version-bump UNKNOWN; sentinels PASSes -> overall exit must be FAIL (1), not UNKNOWN (2)
+    },
+    expectExit: 1,
+    expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN'],
+  },
+  {
+    name: '--only bogus: unknown check id reports an error and exits 2',
+    checkId: 'bogus',
+    build() {},
+    expectExit: 2,
+    expectSubstring: 'Unknown check id: bogus',
+  },
 ];
 
 function main() {
@@ -263,19 +290,26 @@ function main() {
   for (const c of CASES) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ba-invariants-'));
     try {
+      const expected = c.expectSubstrings ?? [c.expectSubstring];
       c.build(root);
       const { exitCode, stdout } = runChecker(root, c.checkId);
       const exitOk = exitCode === c.expectExit;
-      const substringOk = stdout.includes(c.expectSubstring);
+      const substringOk = expected.every((s) => stdout.includes(s));
       if (exitOk && substringOk) {
         console.log(`PASS: ${c.name}`);
       } else {
         failures++;
         console.log(`FAIL: ${c.name}`);
         console.log(`  expected exit ${c.expectExit}, got ${exitCode}`);
-        console.log(`  expected stdout to include: ${c.expectSubstring}`);
+        console.log(`  expected stdout to include: ${expected.join(' AND ')}`);
         console.log(`  actual stdout:\n${stdout}`);
       }
+    } catch (err) {
+      // A case's own build() (e.g. gitInit/gitCommit) throwing must not abort the remaining
+      // cases — record it as a failure and keep going, same as an assertion mismatch.
+      failures++;
+      console.log(`FAIL: ${c.name}`);
+      console.log(`  case threw: ${String((err && err.stack) || err)}`);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

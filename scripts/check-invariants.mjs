@@ -6,6 +6,10 @@ import { execFileSync } from 'node:child_process';
 
 const VERDICT_CODE = { PASS: 0, FAIL: 1, UNKNOWN: 2 };
 
+function makeRecord(invariant, file, line, verdict, message) {
+  return { invariant, file, line, verdict, message };
+}
+
 function formatRecord(r) {
   const loc = r.line != null ? `${r.file}:${r.line}` : r.file;
   return `${r.invariant} — ${loc} — ${r.message}`;
@@ -76,8 +80,35 @@ function walkMarkdown(root, relDir) {
   return { files };
 }
 
-const SENTINEL_CORPUS_DIRS = ['commands', 'agents'];
+const PROMPT_SURFACE_DIRS = ['commands', 'agents'];
+const VERSION_BUMP_WATCHED_PREFIXES = [...PROMPT_SURFACE_DIRS, 'references'].map((d) => `${d}/`);
 const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
+
+// Reads the corpus once — both dir listing and file contents — so every check that needs the
+// same prompt-surface text shares one read and one error-reporting path, rather than each
+// sub-check re-reading files and trusting a sibling to have reported a read failure.
+function loadCorpus(opts, dirs, invariant) {
+  const files = [];
+  const errorRecords = [];
+  for (const dir of dirs) {
+    const res = walkMarkdown(opts.root, dir);
+    if (res.error) {
+      errorRecords.push(makeRecord(invariant, dir, null, 'UNKNOWN', `cannot list directory: ${res.error}`));
+      continue;
+    }
+    files.push(...res.files);
+  }
+  const entries = [];
+  for (const file of files) {
+    const lr = readLines(opts.root, file);
+    if (lr.error) {
+      errorRecords.push(makeRecord(invariant, file, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    entries.push({ file, lines: lr.lines });
+  }
+  return { entries, errorRecords };
+}
 
 function fenceMatch(line) {
   const m = line.match(/^ {0,3}(`{3,}|~{3,})/);
@@ -85,10 +116,11 @@ function fenceMatch(line) {
   return { char: m[1][0], length: m[1].length };
 }
 
-// Only its own consumer (the heredoc sub-assertion) needs fence boundaries, so it lives here.
 // Tracks fence character and run length (not just "inside a fence") because the corpus has
 // four-backtick fences containing nested three-backtick fences — a length-blind scanner would
-// close on the inner fence and mis-split the region.
+// close on the inner fence and mis-split the region. A fence still open at EOF still yields a
+// region (start..EOF, terminated: false) so a heredoc opener inside it is recognized as "in a
+// fence" rather than misreported as bare prose — the fence's own UNKNOWN already covers it.
 function fencedRegions(lines) {
   const regions = [];
   const unterminated = [];
@@ -105,51 +137,23 @@ function fencedRegions(lines) {
       trimmed.length >= open.length &&
       [...trimmed].every((c) => c === open.char);
     if (isCloser) {
-      regions.push({ start: open.start, end: i });
+      regions.push({ start: open.start, end: i, terminated: true });
       open = null;
     }
   }
-  if (open) unterminated.push(open.start);
+  if (open) {
+    unterminated.push(open.start);
+    regions.push({ start: open.start, end: lines.length, terminated: false });
+  }
   return { regions, unterminated };
 }
 
-function loadCorpus(opts, dirs) {
-  const files = [];
-  const errorRecords = [];
-  for (const dir of dirs) {
-    const res = walkMarkdown(opts.root, dir);
-    if (res.error) {
-      errorRecords.push({
-        invariant: 'sentinels',
-        file: dir,
-        line: null,
-        verdict: 'UNKNOWN',
-        message: `cannot list directory: ${res.error}`,
-      });
-      continue;
-    }
-    files.push(...res.files);
-  }
-  return { files, errorRecords };
-}
-
-function autoScoreKeywordAgreement(opts, corpus) {
+function autoScoreKeywordAgreement(entries) {
   const records = [];
   const participants = [];
-  for (const file of corpus) {
-    const lr = readLines(opts.root, file);
-    if (lr.error) {
-      records.push({
-        invariant: 'sentinels',
-        file,
-        line: null,
-        verdict: 'UNKNOWN',
-        message: `cannot read file: ${lr.error}`,
-      });
-      continue;
-    }
+  for (const { file, lines } of entries) {
     const keywords = new Map();
-    lr.lines.forEach((line, idx) => {
+    lines.forEach((line, idx) => {
       const re = /\[AUTO-SCORE:\s*([a-z]+)/g;
       let m;
       while ((m = re.exec(line))) {
@@ -160,26 +164,22 @@ function autoScoreKeywordAgreement(opts, corpus) {
   }
 
   if (participants.length < 2) {
-    records.push({
-      invariant: 'sentinels',
-      file: SENTINEL_CORPUS_DIRS.join(', '),
-      line: null,
-      verdict: 'UNKNOWN',
-      message: `expected an emitter and a parser, found ${participants.length}`,
-    });
+    records.push(
+      makeRecord(
+        'sentinels',
+        PROMPT_SURFACE_DIRS.join(', '),
+        null,
+        'UNKNOWN',
+        `expected an emitter and a parser, found ${participants.length}`,
+      ),
+    );
     return { records, participantCount: participants.length };
   }
 
   for (const p of participants) {
     for (const [kw, line] of p.keywords) {
       if (!ALLOWED_AUTO_SCORE_KEYWORDS.has(kw)) {
-        records.push({
-          invariant: 'sentinels',
-          file: p.file,
-          line,
-          verdict: 'FAIL',
-          message: `[AUTO-SCORE: ${kw}] is outside {clean, weak, error}`,
-        });
+        records.push(makeRecord('sentinels', p.file, line, 'FAIL', `[AUTO-SCORE: ${kw}] is outside {clean, weak, error}`));
       }
     }
   }
@@ -189,13 +189,15 @@ function autoScoreKeywordAgreement(opts, corpus) {
       if (a === b) continue;
       for (const [kw, bLine] of b.keywords) {
         if (!a.keywords.has(kw)) {
-          records.push({
-            invariant: 'sentinels',
-            file: a.file,
-            line: bLine,
-            verdict: 'FAIL',
-            message: `keyword set differs from ${b.file}: missing '${kw}' (present at ${b.file}:${bLine})`,
-          });
+          records.push(
+            makeRecord(
+              'sentinels',
+              a.file,
+              bLine,
+              'FAIL',
+              `keyword set differs from ${b.file}: missing '${kw}' (present at ${b.file}:${bLine})`,
+            ),
+          );
         }
       }
     }
@@ -204,69 +206,62 @@ function autoScoreKeywordAgreement(opts, corpus) {
   return { records, participantCount: participants.length };
 }
 
-function heredocFencePairing(opts, corpus) {
+function heredocFencePairing(entries) {
   const records = [];
   let openerCount = 0;
-  for (const file of corpus) {
-    const lr = readLines(opts.root, file);
-    if (lr.error) continue; // already reported by autoScoreKeywordAgreement's read of the same file
-    const { regions, unterminated } = fencedRegions(lr.lines);
+  for (const { file, lines } of entries) {
+    const { regions, unterminated } = fencedRegions(lines);
     for (const startLine of unterminated) {
-      records.push({
-        invariant: 'sentinels',
-        file,
-        line: startLine + 1,
-        verdict: 'UNKNOWN',
-        message: 'fence opened here is never closed before EOF',
-      });
+      records.push(makeRecord('sentinels', file, startLine + 1, 'UNKNOWN', 'fence opened here is never closed before EOF'));
     }
-    lr.lines.forEach((line, idx) => {
+    const consumedTerminators = new Set();
+    lines.forEach((line, idx) => {
       const m = line.match(/<<'([^']+)'/);
       if (!m) return;
       openerCount++;
       const token = m[1];
       const region = regions.find((r) => idx > r.start && idx < r.end);
       if (!region) {
-        records.push({
-          invariant: 'sentinels',
-          file,
-          line: idx + 1,
-          verdict: 'FAIL',
-          message: `heredoc opener <<'${token}' is not inside a fenced code block`,
-        });
+        records.push(makeRecord('sentinels', file, idx + 1, 'FAIL', `heredoc opener <<'${token}' is not inside a fenced code block`));
         return;
       }
+      // An opener inside a fence that's still open at EOF isn't independently mis-terminated —
+      // the fence's own "never closed before EOF" UNKNOWN above already names the root cause.
+      if (!region.terminated) return;
       let terminators = 0;
+      let matchedLine = null;
       for (let i = region.start + 1; i < region.end; i++) {
-        if (lr.lines[i].trim() === token) terminators++;
+        if (consumedTerminators.has(i)) continue; // claimed by an earlier opener sharing this token+region
+        if (lines[i].trim() === token) {
+          terminators++;
+          if (matchedLine === null) matchedLine = i;
+        }
       }
-      if (terminators !== 1) {
-        records.push({
-          invariant: 'sentinels',
-          file,
-          line: idx + 1,
-          verdict: 'FAIL',
-          message: `heredoc opener <<'${token}' has ${terminators} terminator(s) in its fence, expected exactly 1`,
-        });
+      if (terminators === 1) {
+        consumedTerminators.add(matchedLine);
+      } else {
+        records.push(
+          makeRecord(
+            'sentinels',
+            file,
+            idx + 1,
+            'FAIL',
+            `heredoc opener <<'${token}' has ${terminators} terminator(s) in its fence, expected exactly 1`,
+          ),
+        );
       }
     });
   }
   if (openerCount === 0) {
-    records.push({
-      invariant: 'sentinels',
-      file: SENTINEL_CORPUS_DIRS.join(', '),
-      line: null,
-      verdict: 'UNKNOWN',
-      message: 'no heredoc openers found in the corpus',
-    });
+    records.push(makeRecord('sentinels', PROMPT_SURFACE_DIRS.join(', '), null, 'UNKNOWN', 'no heredoc openers found in the corpus'));
   }
   return { records, openerCount };
 }
 
 function sentinelsCheck(opts) {
-  const { files: corpus, errorRecords } = loadCorpus(opts, SENTINEL_CORPUS_DIRS);
-  const a = autoScoreKeywordAgreement(opts, corpus);
-  const b = heredocFencePairing(opts, corpus);
+  const { entries, errorRecords } = loadCorpus(opts, PROMPT_SURFACE_DIRS, 'sentinels');
+  const a = autoScoreKeywordAgreement(entries);
+  const b = heredocFencePairing(entries);
   const records = [...errorRecords, ...a.records, ...b.records];
   return {
     subjectCount: a.participantCount + b.openerCount,
@@ -275,8 +270,6 @@ function sentinelsCheck(opts) {
     records,
   };
 }
-
-const REFERENCES_SEARCH_DIRS = ['commands', 'agents'];
 
 // Top-level only — references/ is flat, and recursing would need walkMarkdown, whose recursion
 // this directory has no use for.
@@ -293,58 +286,54 @@ function referencesCheck(opts) {
   const records = [];
   const refRes = listReferenceFiles(opts.root);
   if (refRes.error) {
+    const message = `cannot list references/: ${refRes.error}`;
     return {
       subjectCount: 0,
       subjectNoun: 'reference files',
-      reason: `cannot list references/: ${refRes.error}`,
-      records: [
-        { invariant: 'references', file: 'references', line: null, verdict: 'UNKNOWN', message: `cannot list references/: ${refRes.error}` },
-      ],
+      reason: message,
+      records: [makeRecord('references', 'references', null, 'UNKNOWN', message)],
     };
   }
-  const { files: corpus, errorRecords } = loadCorpus(opts, REFERENCES_SEARCH_DIRS);
-  records.push(...errorRecords.map((r) => ({ ...r, invariant: 'references' })));
+  const { entries, errorRecords } = loadCorpus(opts, PROMPT_SURFACE_DIRS, 'references');
+  records.push(...errorRecords);
 
-  if (refRes.files.length === 0 || corpus.length === 0) {
-    records.push({
-      invariant: 'references',
-      file: 'references',
-      line: null,
-      verdict: 'UNKNOWN',
-      message: `empty references/ glob (${refRes.files.length}) or empty search corpus (${corpus.length})`,
-    });
+  if (refRes.files.length === 0 || entries.length === 0) {
+    records.push(
+      makeRecord(
+        'references',
+        'references',
+        null,
+        'UNKNOWN',
+        `empty references/ glob (${refRes.files.length}) or empty search corpus (${entries.length})`,
+      ),
+    );
     return { subjectCount: refRes.files.length, subjectNoun: 'reference files', reason: 'no subjects to check', records };
   }
-
-  const corpusText = corpus.map((file) => {
-    const lr = readLines(opts.root, file);
-    return lr.error ? [] : lr.lines;
-  });
 
   for (const refFile of refRes.files) {
     const basename = path.basename(refFile);
     const needle = `\`references/${basename}\``;
-    const cited = corpusText.some((lines) => lines.some((line) => line.includes(needle)));
+    const cited = entries.some(({ lines }) => lines.some((line) => line.includes(needle)));
     if (!cited) {
-      records.push({
-        invariant: 'references',
-        file: refFile,
-        line: null,
-        verdict: 'FAIL',
-        message: `no citation of ${needle} found in ${REFERENCES_SEARCH_DIRS.join('/, ')}/`,
-      });
+      records.push(
+        makeRecord(
+          'references',
+          refFile,
+          null,
+          'FAIL',
+          `no citation of ${needle} found in ${PROMPT_SURFACE_DIRS.join('/, ')}/`,
+        ),
+      );
     }
   }
 
   return {
     subjectCount: refRes.files.length,
     subjectNoun: 'reference files',
-    reason: `${refRes.files.length} reference file(s) checked against ${corpus.length} corpus file(s)`,
+    reason: `${refRes.files.length} reference file(s) checked against ${entries.length} corpus file(s)`,
     records,
   };
 }
-
-const VERSION_BUMP_WATCHED_PREFIXES = ['commands/', 'agents/', 'references/'];
 
 function gitRead(root, args, label) {
   try {
@@ -373,9 +362,7 @@ function versionBumpCheck(opts) {
     subjectCount: 0,
     subjectNoun: 'comparison inputs',
     reason: message,
-    records: [
-      { invariant: 'version-bump', file: '.claude-plugin/plugin.json', line: null, verdict: 'UNKNOWN', message },
-    ],
+    records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'UNKNOWN', message)],
   });
 
   const base = gitRead(opts.root, ['rev-parse', '--verify', 'HEAD~1^{commit}'], 'git rev-parse HEAD~1');
@@ -387,19 +374,12 @@ function versionBumpCheck(opts) {
   const touchesWatched = changedPaths.some((p) => VERSION_BUMP_WATCHED_PREFIXES.some((prefix) => p.startsWith(prefix)));
 
   if (!touchesWatched) {
+    const reason = 'not applicable — no prompt-surface paths changed';
     return {
       subjectCount: 3,
       subjectNoun: 'comparison inputs',
-      reason: 'not applicable — no prompt-surface paths changed',
-      records: [
-        {
-          invariant: 'version-bump',
-          file: '.claude-plugin/plugin.json',
-          line: null,
-          verdict: 'PASS',
-          message: 'not applicable — no prompt-surface paths changed',
-        },
-      ],
+      reason,
+      records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'PASS', reason)],
     };
   }
 
@@ -419,9 +399,7 @@ function versionBumpCheck(opts) {
       subjectCount: 3,
       subjectNoun: 'comparison inputs',
       reason: message,
-      records: [
-        { invariant: 'version-bump', file: '.claude-plugin/plugin.json', line: null, verdict: 'FAIL', message },
-      ],
+      records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'FAIL', message)],
     };
   }
 
@@ -430,26 +408,7 @@ function versionBumpCheck(opts) {
     subjectCount: 3,
     subjectNoun: 'comparison inputs',
     reason,
-    records: [
-      { invariant: 'version-bump', file: '.claude-plugin/plugin.json', line: null, verdict: 'PASS', message: reason },
-    ],
-  };
-}
-
-function notImplemented(id) {
-  return {
-    subjectCount: 0,
-    subjectNoun: 'subjects',
-    reason: 'check not implemented yet',
-    records: [
-      {
-        invariant: id,
-        file: 'scripts/check-invariants.mjs',
-        line: null,
-        verdict: 'UNKNOWN',
-        message: 'check not implemented yet',
-      },
-    ],
+    records: [makeRecord('version-bump', '.claude-plugin/plugin.json', null, 'PASS', reason)],
   };
 }
 
