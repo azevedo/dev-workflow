@@ -533,12 +533,10 @@ classification) — route it through the spec-decision resolution below, never w
 
 **Scope-boundary anchor.** The plan's own exclusions section (the `What We're NOT Doing` /
 `scope-boundaries` row in `references/plan-sections.md`, matched by heading text or `id=""` per the
-anchor rule above) bounds what resolution may apply. Two things are a **spec decision** in the sense
-of the classifier below — regardless of bucket, Must Address included: a fix that **adds to, narrows,
-or qualifies that section**; and any finding whose resolution requires **arguing** that its remedy
-does not cross a stated exclusion — that argument *is* the scope-change conversation, so surface it
-rather than writing it into the plan. Disposition these **before** any bulk apply, and name them in
-the "Plan updated" confirmation so a skipped finding is never silently absent. Quote the exclusion in
+anchor rule above) bounds what resolution may apply. A fix that **adds to, narrows, or qualifies
+that section** is always a **spec decision** in the sense of the classifier below — regardless of
+bucket, Must Address included. Disposition these **before** any bulk apply, and name them in the
+"Plan updated" confirmation so a skipped finding is never silently absent. Quote the exclusion in
 the plan's own words; never adjudicate whether it was user-approved or self-minted. Prefer the
 cheapest remedy that resolves the finding in bounds; where none exists, the conflict is itself the
 decision. Classify a merged finding from its contributing bodies, not its summary line. Absent,

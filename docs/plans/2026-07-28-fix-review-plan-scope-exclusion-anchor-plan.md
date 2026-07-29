@@ -244,7 +244,7 @@ Test scenarios:
   Consider-only framing (Covers AC1)
 - Inserted block is ≤15 lines (Covers AC12)
 
-Verify: `grep -q 'Scope-boundary anchor' commands/ba/review-plan.md && grep -q 'plan-sections.md' commands/ba/review-plan.md && grep -q 'scope-boundaries' commands/ba/review-plan.md && grep -q 'routed as a scope decision by the Scope-boundary anchor below' commands/ba/review-plan.md && grep -q 'routed here by the Scope-boundary anchor above' commands/ba/review-plan.md && grep -q 'requires \*\*arguing\*\*' commands/ba/review-plan.md && grep -q 'before\*\* any bulk apply' commands/ba/review-plan.md` — seven conjuncts spanning all three edit sites plus both triggers and the ordering clause. Fails on a partial edit, on an edit that ships only the boundary-edit trigger, and on one that drops the bulk-apply ordering requirement. Behavioral evidence lives in U2, not here — a grep over prose this change just wrote confirms authorship, not behavior.
+Verify: `grep -q 'Scope-boundary anchor' commands/ba/review-plan.md && grep -q 'plan-sections.md' commands/ba/review-plan.md && grep -q 'scope-boundaries' commands/ba/review-plan.md && grep -q 'routed as a scope decision by the Scope-boundary anchor below' commands/ba/review-plan.md && grep -q 'routed here by the Scope-boundary anchor above' commands/ba/review-plan.md && grep -q 'before\*\* any bulk apply' commands/ba/review-plan.md` — six conjuncts spanning all three edit sites plus the boundary-edit trigger and the ordering clause. **Post-ship narrowing (see closing note below): the seventh conjunct, `requires **arguing**`, was dropped along with trigger 2 itself** — the A/B in U2 could not show it fires beyond what pre-existing mechanisms already caught, so it was removed as unproven prompt weight rather than shipped on the strength of the objection alone. Fails on a partial edit or on one that drops the bulk-apply ordering requirement. Behavioral evidence lives in U2, not here — a grep over prose this change just wrote confirms authorship, not behavior.
 
 ---
 
@@ -403,3 +403,15 @@ the cheapest in-bounds alternative instead — the behavior this plan exists to 
 
 Left unapplied by the chosen resolution: U3's README `Verify:` false-green (Consider — 2 of 3
 conjuncts pass at HEAD, **verified**; recorded in Dependencies & Risks) and 5 suppressed findings.
+
+**Post-ship narrowing (after PR #68 was opened).** U2's A/B (`docs/research/2026-07-28-review-plan-scope-anchor-ab-research.md`)
+could not demonstrate trigger 2 ("resolution requires **arguing** the remedy doesn't cross a stated
+exclusion") fires in any case that `main`'s pre-existing mechanisms (the `:540` generic spec-decision
+clause, or general escalation habit) didn't already catch, across three fixture attempts. Surfaced to
+the user as a scope decision rather than resolved unilaterally; the user chose to strip trigger 2 and
+ship only trigger 1 (editing the exclusion section — the mechanically-verified case that matches the
+actual incident this plan fixes), on the grounds that unproven prompt weight has a real cost per
+`.claude/agent_docs/prompt-authoring.md`. **AC3 is dropped** (it existed solely to cover trigger 2).
+**AC1 is narrowed**: "a remedy that crosses a stated exclusion" now means specifically "a remedy that
+edits/narrows/qualifies the exclusion section," not the broader "requires arguing" case. U1's `Verify:`
+and README bullet were both amended to match; U2's research doc stands as the record of why.

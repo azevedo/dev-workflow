@@ -149,3 +149,11 @@ user, not something to resolve unilaterally inside this document.
   than the bare Step 5 text would produce standalone.
 - n=1 per fixture/condition cell (n=3 for F1 after retries) — no statistical power, consistent with the
   fixture-A/B method's "roughly ten minutes of evidence" framing rather than a large-sample claim.
+
+## Outcome
+
+Surfaced to the user post-ship (PR #68 already open) as a scope decision rather than resolved here:
+trigger 2 showed no evidence of firing beyond `main`'s pre-existing mechanisms in any fixture tried.
+The user chose to strip trigger 2 from the shipped rule, keeping only trigger 1 (edits the exclusion
+section) — the mechanically-verified case that matches the actual incident. See the plan's closing
+"Post-ship narrowing" note for the resulting AC1/AC3 changes.
