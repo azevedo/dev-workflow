@@ -512,7 +512,7 @@ Use **AskUserQuestion**:
 **Question:** "How would you like to handle the findings?"
 
 **Options:**
-1. **Apply all fixes** — Update the plan with all main-section Must Address + Consider items
+1. **Apply all fixes** — Update the plan with all main-section Must Address + Consider items, except any routed as a scope decision by the Scope-boundary anchor below
 2. **Apply must-address only** — Fix only the blocking items
 3. **Review one by one** — Go through each finding and decide
 4. **Done** — Acknowledge findings, don't modify the plan
@@ -531,9 +531,21 @@ finding that deletes, relocates, or renames them — consistent with the Step 3 
 the merged finding as a **spec decision** if *any* contributor is a spec decision (the stricter, safer
 classification) — route it through the spec-decision resolution below, never write it as an open question.
 
+**Scope-boundary anchor.** The plan's own exclusions section (the `What We're NOT Doing` /
+`scope-boundaries` row in `references/plan-sections.md`, matched by heading text or `id=""` per the
+anchor rule above) bounds what resolution may apply. A fix that **adds to, narrows, or qualifies
+that section** is always a **spec decision** in the sense of the classifier below — regardless of
+bucket, Must Address included. Disposition these **before** any bulk apply, and name them in the
+"Plan updated" confirmation so a skipped finding is never silently absent. Quote the exclusion in
+the plan's own words; never adjudicate whether it was user-approved or self-minted. Prefer the
+cheapest remedy that resolves the finding in bounds; where none exists, the conflict is itself the
+decision. Classify a merged finding from its contributing bodies, not its summary line. Absent,
+empty, or unfalsifiably vague exclusions do not fire this rule and add no prompt; Suppressed findings
+stay suppressed.
+
 ### Handling "Consider" items
 
-Before writing any "Consider" fix into the plan, classify it:
+Before writing any "Consider" fix — or any fix routed here by the Scope-boundary anchor above — into the plan, classify it:
 
 **Implementation decision** — something the implementer can resolve with full context during execution (e.g., which utility to use, how to structure a helper). Write it into the plan as concrete guidance: a decision already made, not a question left open.
 
