@@ -141,6 +141,7 @@ This catches issues at plan time — where fixing things is cheap — instead of
 - **Plan-anchored findings** — each finding anchors to a plan **section heading**, a `### U<n>` unit, or a keyed `AC<n>`; anchors that don't resolve in the plan are dropped and counted
 - **Plan-aware framing** — tells each reviewer it's evaluating a proposal, not finished code
 - **Auto-runs in `/ba:plan`** — at the end of planning, a self-suppressing section-scoring pass runs automatically: on a clean plan it stays silent (no widgets, "no weak sections"); on weak sections it surfaces the ledger and asks before dispatching
+- **Scope-boundary anchor** — a remedy that adds to, narrows, or qualifies the plan's own `What We're NOT Doing` section, or whose resolution requires arguing it doesn't cross a stated exclusion, is never auto-applied as an ordinary fix — it routes through the spec-decision resolution (Decide now / Iterate the plan), quoting the exclusion in the plan's own words
 
 ### `/ba:execute [plan]`
 
