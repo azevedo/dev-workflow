@@ -84,6 +84,15 @@ const PROMPT_SURFACE_DIRS = ['skills', 'agents'];
 const VERSION_BUMP_WATCHED_PREFIXES = [...PROMPT_SURFACE_DIRS, 'references'].map((d) => `${d}/`);
 const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
 
+// A stale colon invocation does not throw — it burns a round-trip while the model narrates "run it
+// yourself" — so only a standing check catches a reintroduction. docs/ keeps thousands of the old
+// form by design and learnings-researcher reads docs/solutions/ into future planning sessions, so
+// the reintroduction path is live rather than theoretical.
+const RETIRED_INVOCATION_NEEDLES = ['/ba:', 'commands/ba/'];
+// docs/ is excluded by construction, not by allowlist; scripts/ so this cannot flag the line above.
+const RETIRED_INVOCATION_DIRS = [...PROMPT_SURFACE_DIRS, 'references', '.claude/agent_docs'];
+const RETIRED_INVOCATION_FILES = ['README.md', 'CLAUDE.md'];
+
 // Reads the corpus once — both dir listing and file contents — so every check that needs the
 // same prompt-surface text shares one read and one error-reporting path, rather than each
 // sub-check re-reading files and trusting a sibling to have reported a read failure.
@@ -343,6 +352,45 @@ function referencesCheck(opts) {
   };
 }
 
+function retiredInvocationsCheck(opts) {
+  const { entries, errorRecords } = loadCorpus(opts, RETIRED_INVOCATION_DIRS, 'retired-invocations');
+  const records = [...errorRecords];
+
+  for (const relPath of RETIRED_INVOCATION_FILES) {
+    const lr = readLines(opts.root, relPath);
+    if (lr.error) {
+      records.push(makeRecord('retired-invocations', relPath, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    entries.push({ file: relPath, lines: lr.lines });
+  }
+
+  if (entries.length === 0) {
+    const message = 'empty scan corpus';
+    records.push(makeRecord('retired-invocations', RETIRED_INVOCATION_DIRS.join(', '), null, 'UNKNOWN', message));
+    return { subjectCount: 0, subjectNoun: 'scanned files', reason: message, records };
+  }
+
+  for (const { file, lines } of entries) {
+    lines.forEach((line, idx) => {
+      for (const needle of RETIRED_INVOCATION_NEEDLES) {
+        if (line.includes(needle)) {
+          records.push(
+            makeRecord('retired-invocations', file, idx + 1, 'FAIL', `retired invocation string '${needle}' — use the hyphen form`),
+          );
+        }
+      }
+    });
+  }
+
+  return {
+    subjectCount: entries.length,
+    subjectNoun: 'scanned files',
+    reason: `${entries.length} file(s) scanned for ${RETIRED_INVOCATION_NEEDLES.join(' and ')}`,
+    records,
+  };
+}
+
 function gitRead(root, args, label) {
   try {
     return { value: execFileSync('git', args, { cwd: root, encoding: 'utf8' }) };
@@ -423,6 +471,7 @@ function versionBumpCheck(opts) {
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
+  { id: 'retired-invocations', run: retiredInvocationsCheck },
   { id: 'version-bump', run: versionBumpCheck },
 ];
 

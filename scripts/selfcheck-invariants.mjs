@@ -299,7 +299,65 @@ const CASES = [
     env: { PATH: '' },
   },
   {
-    name: 'no --only: all three checks run and their verdicts fold with FAIL outranking UNKNOWN',
+    name: 'retired-invocations FAIL — planted colon form under skills/ is reported with file:line',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'run `/ba:plan` to start\n');
+      write(root, 'agents/b.md', 'clean\n');
+      write(root, 'references/foo.md', 'clean\n');
+      write(root, '.claude/agent_docs/c.md', 'clean\n');
+      write(root, 'README.md', 'clean\n');
+      write(root, 'CLAUDE.md', 'clean\n');
+    },
+    expectExit: 1,
+    expectSubstrings: ['skills/a.md:1', "retired invocation string '/ba:'"],
+  },
+  {
+    name: 'retired-invocations FAIL — planted commands/ba/ path citation is reported',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'clean\n');
+      write(root, 'agents/b.md', 'see `commands/ba/plan.md` for the rubric\n');
+      write(root, 'references/foo.md', 'clean\n');
+      write(root, '.claude/agent_docs/c.md', 'clean\n');
+      write(root, 'README.md', 'clean\n');
+      write(root, 'CLAUDE.md', 'clean\n');
+    },
+    expectExit: 1,
+    expectSubstrings: ['agents/b.md:1', "retired invocation string 'commands/ba/'"],
+  },
+  {
+    name: 'retired-invocations PASS — clean tree with only hyphen forms',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'run `/ba-plan` to start\n');
+      write(root, 'agents/b.md', 'see `skills/ba-review/SKILL.md` §4\n');
+      write(root, 'references/foo.md', 'composed by /ba-plan\n');
+      write(root, '.claude/agent_docs/c.md', 'surface is `skills/ba-*/SKILL.md`\n');
+      write(root, 'README.md', '`/ba-execute [plan]`\n');
+      write(root, 'CLAUDE.md', 'invoke as `/ba-<name>`\n');
+    },
+    expectExit: 0,
+    expectSubstring: 'retired-invocations: PASS',
+  },
+  {
+    name: 'retired-invocations PASS — a colon form under docs/ is out of corpus by construction',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'clean\n');
+      write(root, 'agents/b.md', 'clean\n');
+      write(root, 'references/foo.md', 'clean\n');
+      write(root, '.claude/agent_docs/c.md', 'clean\n');
+      write(root, 'README.md', 'clean\n');
+      write(root, 'CLAUDE.md', 'clean\n');
+      write(root, 'docs/plans/old-plan.md', 'historical: run `/ba:plan` then `/ba:execute`\n');
+      write(root, 'docs/solutions/x/note.md', 'we fixed it via `commands/ba/review.md`\n');
+    },
+    expectExit: 0,
+    expectSubstring: 'retired-invocations: PASS',
+  },
+  {
+    name: 'no --only: all four checks run and their verdicts fold with FAIL outranking UNKNOWN',
     checkId: null,
     build(root) {
       write(
