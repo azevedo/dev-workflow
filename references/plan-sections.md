@@ -1,13 +1,13 @@
 # Plan Section Contract
 
-This is the section contract for `/ba:plan` — it defines **what** a plan artifact contains.
+This is the section contract for `/ba-plan` — it defines **what** a plan artifact contains.
 It is paired at compose time with `references/html-rendering.md` which defines **how** the
 artifact is rendered in HTML. This file is authoritative for the HTML path only. The
-existing inline markdown templates in `commands/ba/plan.md` remain the canonical source for
+existing inline markdown templates in `skills/ba-plan/SKILL.md` remain the canonical source for
 the markdown path.
 
 **Sync obligation:** when the section set changes (a section added, removed, or renamed), both
-this contract and the corresponding inline template in `commands/ba/plan.md` must be updated
+this contract and the corresponding inline template in `skills/ba-plan/SKILL.md` must be updated
 together. This file captures only the slow-changing skeleton (section list + ID registries +
 header fields) to keep the sync surface minimal.
 
@@ -23,7 +23,7 @@ equivalent — see `references/html-rendering.md` Section Anatomy). All fields a
 | `title` | Descriptive artifact title |
 | `type` | `feat` \| `fix` \| `refactor` |
 | `plan_schema` | `2` (integer) |
-| `status` | `active` (human-authored; `/ba:execute` ignores this — progress is git-derived) |
+| `status` | `active` (human-authored; `/ba-execute` ignores this — progress is git-derived) |
 | `date` | `YYYY-MM-DD` |
 | `origin` | Path to origin brainstorm, or omit if standalone |
 | `detail_level` | `minimal` \| `standard` \| `comprehensive` |
@@ -93,7 +93,7 @@ silent extraction failure.
 ### U-IDs — Implementation units
 
 - **Format:** `U<n>` where `<n>` is a positive integer, monotonic from 1.
-- **Grammar owner:** `commands/ba/execute.md` — `## U-ID & Git-Derived State Convention`.
+- **Grammar owner:** `skills/ba-execute/SKILL.md` — `## U-ID & Git-Derived State Convention`.
 - **Minting:** each `### U<n> — <title>` heading in markdown; each `<article id="u<n>">` unit card with a visible `U<n>` chip in HTML (id on the container, **not** the heading — see `references/html-rendering.md` Section Anatomy).
 - **Rules:** monotonic; strike-don't-renumber (a struck unit's `<n>` is never reused); plan-scoped not globally unique; attach to implementation units only — never to `AC<N>` or `Test scenarios:`.
 - **HTML rendering:** `<article id="u<n>" class="unit-card">` with a visible `<span class="id-chip">U<n></span>` (see `references/html-rendering.md` Section Anatomy).
@@ -102,7 +102,7 @@ silent extraction failure.
 ### AC-IDs — Acceptance criteria
 
 - **Format:** `AC<N>` where `<N>` is a positive integer, monotonic from 1.
-- **Grammar owner:** `commands/ba/plan.md` (minted here); consumed by `commands/ba/review-plan.md`.
+- **Grammar owner:** `skills/ba-plan/SKILL.md` (minted here); consumed by `skills/ba-review-plan/SKILL.md`.
 - **Minting:** each `- AC<N>:` bullet in markdown; each `<li id="ac<n>">` in HTML.
 - **Rules:** plan-owned — minted here, not inherited from the origin ticket; each item is a user-observable "done" statement.
 
@@ -116,7 +116,7 @@ be readable as text (not stripped). Render inside the relevant unit card's `<div
 
 ## Notes for HTML Compose
 
-- The section contract is what `/ba:plan`'s convention-compliance gate validates against when
+- The section contract is what `/ba-plan`'s convention-compliance gate validates against when
   producing an HTML artifact.
 - Every heading in the artifact's `<body>` must match the section vocabulary above or be a
   sub-heading of a listed section.
