@@ -54,7 +54,7 @@ function readLines(root, relPath) {
   }
 }
 
-// Recursive so one helper serves both the flat agents/ and the nested commands/ba/;
+// Recursive so one helper serves both the flat agents/ and the nested skills/ba-*/SKILL.md;
 // returns an error result rather than throwing on a missing relDir.
 function walkMarkdown(root, relDir) {
   const files = [];
@@ -80,7 +80,7 @@ function walkMarkdown(root, relDir) {
   return { files };
 }
 
-const PROMPT_SURFACE_DIRS = ['commands', 'agents'];
+const PROMPT_SURFACE_DIRS = ['skills', 'agents'];
 const VERSION_BUMP_WATCHED_PREFIXES = [...PROMPT_SURFACE_DIRS, 'references'].map((d) => `${d}/`);
 const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
 
@@ -399,7 +399,7 @@ function versionBumpCheck(opts) {
   if (newVersion.error) return unknown(newVersion.error);
 
   if (oldVersion.value === newVersion.value) {
-    const message = `version unchanged (${oldVersion.value}) while commands/, agents/, or references/ changed`;
+    const message = `version unchanged (${oldVersion.value}) while ${VERSION_BUMP_WATCHED_PREFIXES.join(', ')} changed`;
     return {
       subjectCount: 3,
       subjectNoun: 'comparison inputs',

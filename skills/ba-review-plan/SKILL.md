@@ -1,5 +1,5 @@
 ---
-name: ba:review-plan
+name: ba-review-plan
 description: Review a plan with available agents and skills before implementation
 argument-hint: "[path to plan file, or leave empty to auto-detect latest]"
 ---

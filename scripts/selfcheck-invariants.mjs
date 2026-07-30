@@ -50,7 +50,7 @@ const CASES = [
     name: 'sentinels FAIL — differing AUTO-SCORE keyword sets',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
     },
     expectExit: 1,
@@ -60,7 +60,7 @@ const CASES = [
     name: 'sentinels FAIL — [AUTO-SCORE: warn] outside allowed set',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: warn]\n');
     },
     expectExit: 1,
@@ -70,9 +70,9 @@ const CASES = [
     name: 'sentinels FAIL — heredoc opener with no terminator in its fence',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
-      write(root, 'commands/c.md', "```bash\ncat <<'TOKEN'\nno terminator here\n```\n");
+      write(root, 'skills/c.md', "```bash\ncat <<'TOKEN'\nno terminator here\n```\n");
     },
     expectExit: 1,
     expectSubstring: 'terminator(s) in its fence, expected exactly 1',
@@ -81,11 +81,11 @@ const CASES = [
     name: 'sentinels PASS — heredoc paired across a nested fence via run-length',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(
         root,
-        'commands/c.md',
+        'skills/c.md',
         "````bash\ncat <<'TOKEN'\n```\nnested three-backtick fence\n```\nTOKEN\n````\n",
       );
     },
@@ -96,11 +96,11 @@ const CASES = [
     name: 'sentinels PASS — bare-line token outside any fence is not a terminator',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(
         root,
-        'commands/c.md',
+        'skills/c.md',
         "```bash\ncat <<'TOKEN'\nbody\nTOKEN\n```\n\nTOKEN\n",
       );
     },
@@ -111,7 +111,7 @@ const CASES = [
     name: 'sentinels UNKNOWN — fewer than two AUTO-SCORE participants',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', 'no sentinel here\n');
     },
     expectExit: 2,
@@ -121,7 +121,7 @@ const CASES = [
     name: 'sentinels UNKNOWN — no heredoc openers in the corpus',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
     },
     expectExit: 2,
@@ -131,9 +131,9 @@ const CASES = [
     name: 'sentinels UNKNOWN — fence left open at EOF',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
-      write(root, 'commands/c.md', '```bash\necho hi\n');
+      write(root, 'skills/c.md', '```bash\necho hi\n');
     },
     expectExit: 2,
     expectSubstring: 'never closed before EOF',
@@ -143,7 +143,7 @@ const CASES = [
     checkId: 'references',
     build(root) {
       write(root, 'references/foo.md', 'content\n');
-      write(root, 'commands/a.md', 'no citation here\n');
+      write(root, 'skills/a.md', 'no citation here\n');
     },
     expectExit: 1,
     expectSubstring: 'no citation of `references/foo.md`',
@@ -154,7 +154,7 @@ const CASES = [
     build(root) {
       write(root, 'references/foo.md', 'content\n');
       write(root, 'references/other.md', 'cross-cite `references/foo.md`\n');
-      write(root, 'commands/a.md', 'no citation here\n');
+      write(root, 'skills/a.md', 'no citation here\n');
     },
     expectExit: 1,
     expectSubstring: 'no citation of `references/foo.md`',
@@ -165,7 +165,7 @@ const CASES = [
     build(root) {
       write(root, 'references/foo.md', 'content\n');
       write(root, 'agents/b.md', 'see `references/foo.md` for details\n');
-      write(root, 'commands/a.md', 'no citation here\n');
+      write(root, 'skills/a.md', 'no citation here\n');
     },
     expectExit: 0,
     expectSubstring: 'references: PASS',
@@ -175,20 +175,20 @@ const CASES = [
     checkId: 'references',
     build(root) {
       fs.mkdirSync(path.join(root, 'references'), { recursive: true });
-      write(root, 'commands/a.md', 'nothing to cite\n');
+      write(root, 'skills/a.md', 'nothing to cite\n');
     },
     expectExit: 2,
     expectSubstring: 'empty references/ glob',
   },
   {
-    name: 'version-bump FAIL — commands/ touched, version unchanged',
+    name: 'version-bump FAIL — skills/ touched, version unchanged',
     checkId: 'version-bump',
     build(root) {
       gitInit(root);
       write(root, '.claude-plugin/plugin.json', '{"version": "1.0.0"}\n');
-      write(root, 'commands/a.md', 'initial\n');
+      write(root, 'skills/a.md', 'initial\n');
       gitCommit(root, 'init');
-      write(root, 'commands/a.md', 'changed\n');
+      write(root, 'skills/a.md', 'changed\n');
       gitCommit(root, 'change');
     },
     expectExit: 1,
@@ -200,10 +200,10 @@ const CASES = [
     build(root) {
       gitInit(root);
       write(root, '.claude-plugin/plugin.json', '{"version": "1.0.0"}\n');
-      write(root, 'commands/a.md', 'initial\n');
+      write(root, 'skills/a.md', 'initial\n');
       gitCommit(root, 'init');
       write(root, '.claude-plugin/plugin.json', '{"version": "1.0.0 "}\n');
-      write(root, 'commands/a.md', 'changed\n');
+      write(root, 'skills/a.md', 'changed\n');
       gitCommit(root, 'change');
     },
     expectExit: 1,
@@ -215,10 +215,10 @@ const CASES = [
     build(root) {
       gitInit(root);
       write(root, '.claude-plugin/plugin.json', '{"version": "1.0.0"}\n');
-      write(root, 'commands/a.md', 'initial\n');
+      write(root, 'skills/a.md', 'initial\n');
       gitCommit(root, 'init');
       write(root, '.claude-plugin/plugin.json', '{"version": "1.1.0"}\n');
-      write(root, 'commands/a.md', 'changed\n');
+      write(root, 'skills/a.md', 'changed\n');
       gitCommit(root, 'change');
     },
     expectExit: 0,
@@ -230,7 +230,7 @@ const CASES = [
     build(root) {
       gitInit(root);
       write(root, '.claude-plugin/plugin.json', '{"version": "1.0.0"}\n');
-      write(root, 'commands/a.md', 'initial\n');
+      write(root, 'skills/a.md', 'initial\n');
       gitCommit(root, 'init');
       write(root, 'docs/notes.md', 'unrelated\n');
       gitCommit(root, 'docs change');
@@ -257,7 +257,7 @@ const CASES = [
     expectSubstring: 'git rev-parse HEAD~1 failed',
   },
   {
-    name: 'sentinels UNKNOWN — --root with no commands/ directory yields a named record',
+    name: 'sentinels UNKNOWN — --root with no skills/ directory yields a named record',
     checkId: 'sentinels',
     build(root) {
       fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
@@ -266,7 +266,7 @@ const CASES = [
     expectSubstring: 'cannot list directory',
   },
   {
-    name: 'references UNKNOWN — --root with no commands/ directory yields a named record too',
+    name: 'references UNKNOWN — --root with no skills/ directory yields a named record too',
     checkId: 'references',
     build(root) {
       fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
@@ -279,11 +279,11 @@ const CASES = [
     name: 'sentinels PASS — an over-indented closer (>3 spaces) does not prematurely end the fence',
     checkId: 'sentinels',
     build(root) {
-      write(root, 'commands/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
+      write(root, 'skills/a.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(
         root,
-        'commands/c.md',
+        'skills/c.md',
         "```bash\ncat <<'TOKEN'\nbody\n            ```\nTOKEN\n```\n",
       );
     },
@@ -304,7 +304,7 @@ const CASES = [
     build(root) {
       write(
         root,
-        'commands/a.md',
+        'skills/a.md',
         "[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n```bash\ncat <<'TOKEN'\nbody\nTOKEN\n```\n",
       );
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');

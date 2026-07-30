@@ -1,7 +1,8 @@
 ---
-name: ba:review
+name: ba-review
 description: Run post-implementation code review with built-in and discovered reviewers
 argument-hint: "[MR URL, !N, #N, git ref range, --local, or empty]"
+disable-model-invocation: true
 ---
 
 # Post-Implementation Code Review

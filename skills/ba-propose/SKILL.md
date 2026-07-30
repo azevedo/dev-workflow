@@ -1,7 +1,8 @@
 ---
-name: ba:propose
+name: ba-propose
 description: Commit, push, and open a PR/MR with a composed title and body — apply-by-default (--review to restore confirmation), host-detected dispatch for GitHub and GitLab.
 argument-hint: "[--describe-only] [--review] [--issue <ID>] [optional: free-text hint]"
+disable-model-invocation: true
 ---
 
 # Propose Changes for Review

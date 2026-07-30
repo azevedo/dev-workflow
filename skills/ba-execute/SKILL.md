@@ -1,7 +1,8 @@
 ---
-name: ba:execute
+name: ba-execute
 description: Execute an approved implementation plan — implement changes, test continuously, track progress
 argument-hint: "[path to plan file]"
+disable-model-invocation: true
 ---
 
 # Execute an Implementation Plan

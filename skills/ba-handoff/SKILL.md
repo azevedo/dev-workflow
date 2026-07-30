@@ -1,7 +1,8 @@
 ---
-name: ba:handoff
+name: ba-handoff
 description: "Compact the current conversation into a handoff document for a fresh or parallel session to continue from — captures git state, references in-repo artifacts by path, and suggests exact next steps, saved to $TMPDIR."
 argument-hint: "[what the next session will focus on]"
+disable-model-invocation: true
 ---
 
 Write a handoff document that compacts the current conversation so another agent — or a fresh session of your own — can continue the work without re-reading the transcript. Save it to the user's OS temporary directory, never the workspace.

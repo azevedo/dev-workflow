@@ -1,5 +1,5 @@
 ---
-name: ba:compound
+name: ba-compound
 description: "Document a recently solved problem to docs/solutions/ so future brainstorm/plan sessions can reuse it; use after solving a non-trivial, verified problem."
 argument-hint: "[optional: brief context about the fix]"
 ---

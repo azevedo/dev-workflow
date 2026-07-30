@@ -1,7 +1,8 @@
 ---
-name: ba:research
+name: ba-research
 description: "Conduct comprehensive codebase research with parallel sub-agents"
 argument-hint: "[research question or area of interest]"
+disable-model-invocation: true
 ---
 
 # Codebase Research

@@ -1,5 +1,5 @@
 ---
-name: ba:plan
+name: ba-plan
 description: Transform feature descriptions into well-structured implementation plans following project conventions
 argument-hint: "[feature description, bug report, or improvement idea]"
 ---
