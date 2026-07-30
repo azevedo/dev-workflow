@@ -16,7 +16,7 @@ Issue **#29 (`[meta] dev-workflow roadmap`)** is the living map — and the answ
 
 ## The flow
 
-idea → `needs-brainstorm` → `/ba:brainstorm` → `/ba:plan` → build → close, updating #29 as items move. A shipped item moves to #29's "Recently resolved".
+idea → `needs-brainstorm` → `/ba-brainstorm` → `/ba-plan` → build → close, updating #29 as items move. A shipped item moves to #29's "Recently resolved".
 
 ## Evidence, not competing roadmaps
 

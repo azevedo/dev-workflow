@@ -1,6 +1,6 @@
 # Authoring and changing prompt surface
 
-This repo's product *is* prompt text — `commands/ba/*.md`, `agents/*.md`, `references/*.md`. Every
+This repo's product *is* prompt text — `skills/ba-*/SKILL.md`, `agents/*.md`, `references/*.md`. Every
 line ships into someone's context window on every invocation. These are the two rules that govern
 adding to it and the method that governs changing it.
 
@@ -26,7 +26,7 @@ rather than as a list of what the current model does and doesn't need.
 
 A command body loads in full on every invocation, whether or not a given branch runs. Material that
 only matters in one branch belongs in `references/`, loaded at a named load site — the pattern
-`references/html-rendering.md` establishes and `plan.md` / `brainstorm.md` consume.
+`references/html-rendering.md` establishes and `ba-plan` / `ba-brainstorm` consume.
 
 Two habits that quietly add weight with no reader: duplicating a rule across a command body, an
 agent file, and `CLAUDE.md` "for safety"; and leaving authoring residue in shipped prose — review-fix
@@ -35,7 +35,7 @@ of that addresses the model. It competes with the text that does.
 
 ## Reviewing a prompt change
 
-A diff touching `commands/ba/*.md`, `agents/*.md`, or `references/*.md` changes runtime behavior,
+A diff touching `skills/ba-*/SKILL.md`, `agents/*.md`, or `references/*.md` changes runtime behavior,
 not documentation. Read the whole changed file, not just the hunks — weight and duplication are
 properties of the file, and a hunk can look fine while pushing an already-heavy command past what
 its job needs.
@@ -59,7 +59,7 @@ Flag:
 - **Unevaluable conditions** — a branch predicated on state with no defined way to detect it. Reads
   as specified behavior; is dead.
 - **Verification that only proves the text exists** — a `Verify:` line grepping for prose the same
-  change just wrote confirms authorship, not behavior. `commands/ba/plan.md`'s own `Verify:` minting
+  change just wrote confirms authorship, not behavior. `skills/ba-plan/SKILL.md`'s own `Verify:` minting
   rules already classify presence-only greps as false-greens.
 
 Do not flag: machine-boundary contracts specified exactly — that precision is correct, and the
