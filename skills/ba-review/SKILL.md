@@ -777,7 +777,7 @@ reviewers: [<reviewer-1>, <reviewer-2>, ...]
 
 ## Run Metadata
 
-- Command: `/ba:review <original arguments including --persist>`
+- Command: `/ba-review <original arguments including --persist>`
 - Timestamp: <TIMESTAMP> (local time)
 - HEAD SHA: <short SHA or N/A for mr scope>
 

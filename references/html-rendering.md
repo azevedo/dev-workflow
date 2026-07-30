@@ -44,7 +44,7 @@ of these is non-conforming.
    extraction path that differs between a human reader and an agent reader.
 
 4. **Composition-signal footer.** Include a visible `<footer>` naming the compose timestamp and
-   source artifact. Example: `Composed 2026-06-28 by /ba:plan from
+   source artifact. Example: `Composed 2026-06-28 by /ba-plan from
    docs/brainstorms/2026-06-28-topic-brainstorm.md`. The footer is mandatory and visible — it is
    one of the three signals in the **HTML conformance preflight** (see below).
 
@@ -55,14 +55,14 @@ of these is non-conforming.
 6. **`strike-don't-renumber` in HTML.** A struck (superseded) unit is shown with a **visible**
    marker — e.g. `<del>` wrapping the heading text, or a `(superseded)` caption beside the
    heading — never a hidden attribute or CSS-only strikethrough. The visible marker is how
-   `/ba:review-plan`'s "a struck `U<n>` does not resolve" rule knows the unit is inert during
+   `/ba-review-plan`'s "a struck `U<n>` does not resolve" rule knows the unit is inert during
    anchor resolution. A struck unit's `<n>` is never reused (monotonic rule preserved).
 
 ---
 
 ## Named HTML Conformance Preflight
 
-**Single source — cited by `/ba:execute`, `/ba:review-plan`, and `/ba:handoff`. Do not
+**Single source — cited by `/ba-execute`, `/ba-review-plan`, and `/ba-handoff`. Do not
 re-derive this signal list in any consumer; cite it by name here. Do not rename this heading
 — consumers cite it by this exact title.**
 
@@ -293,7 +293,7 @@ same way they read markdown — by scanning structure, not by parsing a hidden d
   a silent extraction failure.
 - Stable `id=""` values on every section and unit. Prefer `id="acceptance-criteria"` over
   `id="section-3"`. IDs must be stable across edits — they are the anchor namespace for
-  `/ba:review-plan` findings.
+  `/ba-review-plan` findings.
 
 ---
 
