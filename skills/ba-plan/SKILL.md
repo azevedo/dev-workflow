@@ -1,6 +1,6 @@
 ---
 name: ba-plan
-description: Transform feature descriptions into well-structured implementation plans following project conventions
+description: 'Produce a dated implementation plan in docs/plans/ for a scoped change the user has decided to build. Use when asked to plan a feature, bug fix, or refactor, or to turn a brainstorm into a plan. Not for answering "how would we do X" or "what would it take" in conversation — answer directly, or suggest /ba-research for a codebase question.'
 argument-hint: "[output:html|output:md] [feature description, bug report, or improvement idea]"
 ---
 

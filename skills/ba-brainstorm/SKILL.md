@@ -147,6 +147,8 @@ permitted.
 
 After writing the artifact, **immediately invoke `/ba-plan`** with the feature description. Do NOT ask the user to run it manually — the whole point of FAST-TRACK is speed.
 
+Keep this confirmation non-conversational — `ba-plan`'s description sheds conversational cues, so a conversational rewrite here would silently stop this chain from dispatching.
+
 Announce: "Brainstorm captured. Proceeding to plan."
 
 ---

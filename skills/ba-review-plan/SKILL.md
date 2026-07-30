@@ -1,6 +1,6 @@
 ---
 name: ba-review-plan
-description: Review a plan with available agents and skills before implementation
+description: "Score a plan's sections with the built-in reviewers and, on approval, edit that plan file in place. Use when explicitly asked to review, critique, or strengthen a specific plan before implementing it. Not for general discussion of a plan or of planning."
 argument-hint: "[path to plan file, or leave empty to auto-detect latest]"
 ---
 
@@ -29,6 +29,10 @@ behavior (Auto-invoke contract) — there is no other way to detect auto mode, s
 ```bash
 ls -t docs/plans/*.{md,html} 2>/dev/null | head -1
 ```
+
+**Caution:** the newest file in `docs/plans/` need not be the plan under discussion — a plan written
+for unrelated work, or one produced by a stray `/ba-plan` fire, sorts to the top just the same. An
+approved review edits that file in place, so confirm the match before proceeding.
 
 For `.html` files, apply the **named HTML conformance preflight** (from
 `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`) before proceeding — the same three-signal check as
