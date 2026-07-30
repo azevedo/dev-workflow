@@ -102,13 +102,13 @@ Claude Code plugin providing brainstorm and plan skills with triage, convention 
 
 ## Invocation history
 
-These nine shipped as commands under a directory-derived colon namespace until Claude Code
-2.1.216 stopped resolving that derivation for plugin commands. The short form broke outright and
-nothing the plugin could ship restored it, so the `ba` identity moved into the skill name. Nearly
-all of `docs/` predates the change and still spells the retired form; those artifacts are the
-record of what the commands were called when written and are deliberately not rewritten.
+These nine shipped as commands whose invocation joined `ba` to the command name with a **colon**
+instead of today's hyphen, under a namespace derived from their parent directory. Claude Code
+2.1.216 stopped resolving that derivation for plugin commands, the short form broke outright, and
+nothing the plugin could ship restored it — so the `ba` identity moved into the skill name.
 
-```
-/ba:<name>     retired — unresolvable from Claude Code 2.1.216 onward
-/ba-<name>     current
-```
+Nearly all of `docs/` predates the change and still spells the retired colon form. Those artifacts
+are the record of what the commands were called when written and are deliberately not rewritten;
+read a colon there as today's hyphen. Outside `docs/` the colon form must not appear at all — CI
+fails on it, with `scripts/check-invariants.mjs` the single exception, since the check has to name
+the string it forbids.
