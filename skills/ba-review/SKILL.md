@@ -131,7 +131,7 @@ only own-MR fix-local routing is affected.
 **For `local-auto`:** run this bash block to detect scope:
 
 Base detection for the **branch** case is owned by the `## Stack-Base Resolution
-Convention` section in `commands/ba/execute.md` — call `resolve-stack-base(git)` (no
+Convention` section in `skills/ba-execute/SKILL.md` — call `resolve-stack-base(git)` (no
 `host_signal`; review does not resume execution or make a trust decision) and read
 `r.base`/`r.parent`. **Execute the owner spec, don't approximate it:** open that section
 and run its detection / degrade-abort steps verbatim — the full algorithm (ref scope,
@@ -139,7 +139,7 @@ self-exclusion, fetch policy) lives only there; the bash block below is a placeh
 consumes `r.base`/`r.parent`, not a reimplementation of the detector. This supersedes
 review.md's former local-only `main → master → symbolic-ref` `DEFAULT_BRANCH` ladder and
 local-only nearest-ancestor loop; the canonical ladder (including origin-ref scope and
-self-exclusion) now lives in that one owner. **`/ba:review` does not surface `warning`/`confidence`** — unlike
+self-exclusion) now lives in that one owner. **`/ba-review` does not surface `warning`/`confidence`** — unlike
 execute/handoff/propose, it consumes only `r.base`/`r.parent` for a diff range, so the
 anti-skip / warning-surfacing behavior does not apply here (this is a deliberate
 exemption, not an accidental omission). The Step 2 never-hide selection ledger and the
@@ -189,7 +189,7 @@ echo "---DIFF---"
 git diff $DIFF_RANGE
 ```
 
-If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba:review !123` or `/ba:review abc123..def456`" and exit. **When `PERSIST=true`, the `NO_CHANGES` exit takes precedence — no persist directory is created.**
+If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba-review !123` or `/ba-review abc123..def456`" and exit. **When `PERSIST=true`, the `NO_CHANGES` exit takes precedence — no persist directory is created.**
 
 ---
 
@@ -988,7 +988,7 @@ Use **AskUserQuestion**:
 
 **Options:**
 1. **Create MR/PR** — Generate merge/pull request
-2. **Re-run review** — Run `/ba:review` again (e.g., after manual fixes)
+2. **Re-run review** — Run `/ba-review` again (e.g., after manual fixes)
 3. **Done** — Exit
 
 **When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
@@ -1018,7 +1018,7 @@ Announce one line before the menu:
 - mine → "This MR is authored by you — fixing locally is available."
 - theirs → "This MR is authored by `<MR_AUTHOR>` — resolution is posting-only."
 - undetermined → "Could not confirm MR authorship (`<reason>`) — treating as not-yours; to fix locally,
-  re-run `/ba:review --local` on the checked-out branch."
+  re-run `/ba-review --local` on the checked-out branch."
 
 **When `MR_AUTHORSHIP == mine`**, use **AskUserQuestion** — "How would you like to handle the findings?"
 1. **Fix locally** *(Recommended — it's your MR)* — Apply fixes to your local checkout
@@ -1083,7 +1083,7 @@ On failure, surface the reason and offer reason-specific fallbacks (each via Ask
   **Checkout** (`gh pr checkout <N>` / `glab mr checkout <N>`, which fetches a fork too; then re-run the
   precondition) / **Post comment** / **Patch** (emit the reviewer-suggested fixes as a `git apply`-able patch).
 - **Head moved** (on the branch but SHA ≠ reviewed; rebased/squashed/updated) → do **not** silently
-  checkout onto a stale diff. **Re-review** (`/ba:review <N>` to capture a fresh diff against the current
+  checkout onto a stale diff. **Re-review** (`/ba-review <N>` to capture a fresh diff against the current
   head) / **Post comment** / **Patch**.
 - **Dirty changed files** → **Stash or commit** the changed files then re-run / **Post comment** / **Patch**.
 

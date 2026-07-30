@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Brainstorm a Feature or Improvement
 
-Brainstorming answers **WHAT** to build through collaborative dialogue. It precedes `/ba:plan`, which answers **HOW** to build it.
+Brainstorming answers **WHAT** to build through collaborative dialogue. It precedes `/ba-plan`, which answers **HOW** to build it.
 
 ## Feature Description
 
@@ -21,7 +21,7 @@ Do not proceed until you have a feature description from the user.
 
 ## Phase 0.0: Resolve Output Format
 
-The resolution uses the same precedence stack as `/ba:plan` Step 0.0 — see that step for
+The resolution uses the same precedence stack as `/ba-plan` Step 0.0 — see that step for
 the full enumeration (in-prompt `output:` token → session/memory preference → default `md`).
 
 **Brainstorm-specific addition — wireframe affordance (HTML path only):**
@@ -82,7 +82,7 @@ At any point during brainstorming, escalate if:
 
 ### De-escalation Rules
 
-- **User says "just do it"**: Capture current understanding, confirm once, proceed to `/ba:plan`
+- **User says "just do it"**: Capture current understanding, confirm once, proceed to `/ba-plan`
 - **User provides detailed spec mid-conversation**: Downshift level, but still confirm understanding
 
 ---
@@ -97,7 +97,7 @@ When triage result is FAST-TRACK:
 2. State your understanding in 2-3 sentences.
 
 3. Use **AskUserQuestion** to confirm: "I understand [X], using the [Y] pattern. Sound right?"
-   - If confirmed → write the FAST-TRACK artifact, then **auto-chain to `/ba:plan`** (see below)
+   - If confirmed → write the FAST-TRACK artifact, then **auto-chain to `/ba-plan`** (see below)
    - If user adds nuance → **escalate to STANDARD**
 
 ### FAST-TRACK Artifact
@@ -145,7 +145,7 @@ permitted.
 
 ### FAST-TRACK Auto-Chain
 
-After writing the artifact, **immediately invoke `/ba:plan`** with the feature description. Do NOT ask the user to run it manually — the whole point of FAST-TRACK is speed.
+After writing the artifact, **immediately invoke `/ba-plan`** with the feature description. Do NOT ask the user to run it manually — the whole point of FAST-TRACK is speed.
 
 Announce: "Brainstorm captured. Proceeding to plan."
 
@@ -304,7 +304,7 @@ tags: [feature, component-names]
 [Appended by convention-checker — see Phase 3.5]
 
 ## Next Steps
-→ `/ba:plan` to create implementation plan
+→ `/ba-plan` to create implementation plan
 ```
 
 **Scaling:**
@@ -380,18 +380,18 @@ Use **AskUserQuestion** to present next steps:
 **Question:** "Brainstorm captured! What would you like to do next?"
 
 **Options:**
-1. **Proceed to planning** — Run `/ba:plan` in this session (will auto-detect this brainstorm)
+1. **Proceed to planning** — Run `/ba-plan` in this session (will auto-detect this brainstorm)
 2. **Fresh-context planning** — Clear context and plan with only the brainstorm loaded (saves tokens)
 3. **Review and refine** — Revisit and improve specific sections
 4. **Ask more questions** — I'll probe deeper on edge cases and constraints
 5. **Done for now** — Return later
 
 **Based on selection:**
-- **Proceed to planning** → Invoke `/ba:plan <feature_description>` directly in this session.
+- **Proceed to planning** → Invoke `/ba-plan <feature_description>` directly in this session.
 - **Fresh-context planning** → Tell the user the exact command to copy-paste after clearing:
   ```
   Run `/clear`, then paste this:
-  /ba:plan — read docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.[md|html] and plan that feature
+  /ba-plan — read docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.[md|html] and plan that feature
   ```
   Use the **actual filename** of the brainstorm just written — not a placeholder.
 - **Review and refine** → Ask which section to improve, make changes, return to Phase 4
@@ -412,7 +412,7 @@ Key decisions:
 - [Decision 1]
 - [Decision 2]
 
-Next: Run `/ba:plan` when ready to create the implementation plan.
+Next: Run `/ba-plan` when ready to create the implementation plan.
 ```
 
 ## Important Guidelines

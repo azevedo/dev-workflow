@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Execute an Implementation Plan
 
-Take a plan produced by `/ba:plan` and implement it systematically: make code changes, run tests, track progress via git-derived state, handle deviations, and commit at logical boundaries.
+Take a plan produced by `/ba-plan` and implement it systematically: make code changes, run tests, track progress via git-derived state, handle deviations, and commit at logical boundaries.
 
 ## Plan File
 
@@ -37,7 +37,7 @@ From the results, **branch on extension**:
   `.md`-absent case only). A conforming `.html` is treated as `plan_schema: 2`-equivalent.
 
 Select the most recent conforming file across both extensions. If found, announce: "Found plan: `[filename]`. Executing this one."
-If not found, ask the user: "No actionable plans found in `docs/plans/`. Which file should I execute? Or run `/ba:plan` to create one."
+If not found, ask the user: "No actionable plans found in `docs/plans/`. Which file should I execute? Or run `/ba-plan` to create one."
 
 ### Read & Validate the Plan
 
@@ -46,7 +46,7 @@ Read the plan file thoroughly. **Branch on extension** for validation:
 #### `.md` plans
 
 **Validate `plan_schema`** (read from YAML frontmatter only; a file with no `---` block is the absent case):
-- **Absent** — stop and say: "This plan predates the git-derived execution model. Re-plan with `/ba:plan` to regenerate it under `plan_schema: 2`." Point at the `origin:` brainstorm path when present. Optional preflight: if the file has neither `plan_schema` nor any recognizable plan structure (no `## Acceptance Criteria`, no `### U<n>`), say "this doesn't look like a plan file" instead.
+- **Absent** — stop and say: "This plan predates the git-derived execution model. Re-plan with `/ba-plan` to regenerate it under `plan_schema: 2`." Point at the `origin:` brainstorm path when present. Optional preflight: if the file has neither `plan_schema` nor any recognizable plan structure (no `## Acceptance Criteria`, no `### U<n>`), say "this doesn't look like a plan file" instead.
 - **Present, an integer ≠ 2** (e.g. `plan_schema: 1`) — stop and say: "This plan has `plan_schema: <value>`. Expected `plan_schema: 2`. Check that your dev-workflow plugin version matches the plan's schema (upgrade or downgrade as needed)."
 - **Present but not an integer** (a quoted string like `"two"`, a list, a map) **or unparseable YAML** — stop and say: "Frontmatter malformed near `plan_schema` (expected the integer `2`). Fix the YAML and retry." A wrong *type* is a malformed-frontmatter case, not a version mismatch.
 
@@ -71,7 +71,7 @@ Extract:
    - Has "Changes Required" sections → STANDARD
    - Otherwise → MINIMAL
 
-2. **Resume state**: Call `resolve-stack-base(git)` once, early (see `## Stack-Base Resolution Convention`; `/ba:execute` passes **no** `host_signal` — zero host calls), then run `derive-state(plan, git, run_verify: true, base: r.base)` (see `## U-ID & Git-Derived State Convention`), threading the resolved base into the read. Surface `r.warning` when non-null. **Empty-window (per the Stack-Base empty-window contract):** when `r.window == ""`, do **not** construct `r.base..HEAD` (it would form the invalid `..HEAD` range) — skip tier-a and resolve every unit via the `Verify:` tier, surfacing the empty-window `low` warning. Count units with verdict `done` vs `pending`. If any are `done`, this is a resume.
+2. **Resume state**: Call `resolve-stack-base(git)` once, early (see `## Stack-Base Resolution Convention`; `/ba-execute` passes **no** `host_signal` — zero host calls), then run `derive-state(plan, git, run_verify: true, base: r.base)` (see `## U-ID & Git-Derived State Convention`), threading the resolved base into the read. Surface `r.warning` when non-null. **Empty-window (per the Stack-Base empty-window contract):** when `r.window == ""`, do **not** construct `r.base..HEAD` (it would form the invalid `..HEAD` range) — skip tier-a and resolve every unit via the `Verify:` tier, surfacing the empty-window `low` warning. Count units with verdict `done` vs `pending`. If any are `done`, this is a resume.
 
 3. **Task list**: Extract the discrete executable tasks based on detail level — **format-neutral**:
    - **MINIMAL**: Each implementation unit anchor (markdown `### U<n> — <title>` heading, or HTML `U<n>` visible-text heading with `id=""`) is a task.
@@ -80,21 +80,21 @@ Extract:
 
 4. **Already complete**: If every unit is `done` (via either path), announce "This plan is already complete — no pending units." For a fully-merged/squashed plan whose units all read `done-via-verify`, announce "already complete (verified against code); no pending units" and use **AskUserQuestion** with options: Re-verify (run `Verify:` checks to confirm), Review changes (`git diff` against base), Done.
 
-**Legacy slice artifacts**: Some older plans carry `sliced: true`, a `## Slices` table, or `<!-- slice:N -->` markers from the retired `/ba:slice` command. Ignore them — execute the full plan as a single run. Do not branch on, refuse, or warn about these inert artifacts.
+**Legacy slice artifacts**: Some older plans carry `sliced: true`, a `## Slices` table, or `<!-- slice:N -->` markers from the retired slice command. Ignore them — execute the full plan as a single run. Do not branch on, refuse, or warn about these inert artifacts.
 
 ---
 
 ## U-ID & Git-Derived State Convention
 
 This section is the single owner of the U-ID grammar and the derive-state read.
-`/ba:plan` mints anchors per (1); `/ba:execute` writes (2) and runs (3) with
-`run_verify: true`; `/ba:propose`, `/ba:handoff`, and `/ba:review-plan` cite this
-section; `/ba:handoff` calls (3) with `run_verify: false`.
+`/ba-plan` mints anchors per (1); `/ba-execute` writes (2) and runs (3) with
+`run_verify: true`; `/ba-propose`, `/ba-handoff`, and `/ba-review-plan` cite this
+section; `/ba-handoff` calls (3) with `run_verify: false`.
 
 The grammar and derive-state operation are **format-neutral**: they apply identically to
 markdown plans (`.md`) and HTML plans (`.html`).
 
-**(1) U-ID anchor** (minted by `/ba:plan`): each implementation unit has a
+**(1) U-ID anchor** (minted by `/ba-plan`): each implementation unit has a
 format-neutral anchor — a `### U<n> — <title>` heading in markdown **or** an HTML
 `U<n>` unit element carrying a matching `id="u<n>"` attribute with the visible
 `U<n>` text inside it (e.g.
@@ -108,7 +108,7 @@ plan per branch.
 **(2) Commit-subject grammar** (the only durable write during execution):
 `<type>(<scope>): U<n> <description>`, exactly one U-ID per commit. Scope: this
 grammar governs **execution-time per-unit commits only** — it does NOT govern
-the single summary commit `/ba:propose` may author from its composed body. An
+the single summary commit `/ba-propose` may author from its composed body. An
 optional transient `Deviation (U<n>): …` trailer may appear in the commit body.
 
 **(3) `derive-state(plan, git, run_verify, base) → per-unit verdict`** — the only read.
@@ -165,7 +165,7 @@ operation runs the subject scan only and is **guaranteed side-effect-free** — 
 never executes a `Verify:` command, so it returns only `done-via-subject` or
 `pending` and cannot observe `done-via-verify`. With `run_verify: true` (execute
 resume) `Verify:` commands run and must be read-only per the `Verify:` minting
-rules in `commands/ba/plan.md` ("Key rules for all templates").
+rules in `skills/ba-plan/SKILL.md` ("Key rules for all templates").
 
 **`<base>`** is `resolve-stack-base(git).base`; base derivation and the
 degrade/abort ladder are owned by `## Stack-Base Resolution Convention`.
@@ -175,9 +175,9 @@ degrade/abort ladder are owned by `## Stack-Base Resolution Convention`.
 ## Stack-Base Resolution Convention
 
 This section is the **single owner of stack-base** resolution. Consumers cite this
-section and do not re-derive base detection: `/ba:execute` (base for `derive-state`
-+ guard), `/ba:handoff` (same, `run_verify: false`), `/ba:propose` (`DIFF_BASE` + MR
-target, layers `host_signal`), `/ba:review` (branch-base detection). Format-neutral
+section and do not re-derive base detection: `/ba-execute` (base for `derive-state`
++ guard), `/ba-handoff` (same, `run_verify: false`), `/ba-propose` (`DIFF_BASE` + MR
+target, layers `host_signal`), `/ba-review` (branch-base detection). Format-neutral
 (git-side; identical for `.md`/`.html` plans).
 
 **Interface** — `resolve-stack-base(git, opts) → resolution`. The bare
@@ -202,7 +202,7 @@ empty window before** constructing or running any `<base>..HEAD` range — an em
 empty window. Git-first consumers (execute, handoff) treat `window == ""` as "no
 subject-scan window → every unit resolves via the `Verify:` tier only" (handoff, with
 no `Verify:` tier, reports every unit `pending` and surfaces the empty-window `low`
-warning). `/ba:propose` treats it as `CompositionInputError`. This rule is restated at
+warning). `/ba-propose` treats it as `CompositionInputError`. This rule is restated at
 each wiring site so no consumer forms `..HEAD` by omission.
 
 **Ref scope + self-exclusion.**
@@ -306,7 +306,7 @@ a typo isn't reported as a semantic override rejection. **`target_override`
 validation** (parity with `base_override`): validate it resolves to an existing local
 or `origin/` ref (`git rev-parse --verify`); a nonexistent target aborts here with a
 clear error rather than surfacing only later as a host-specific failure at
-`/ba:propose` Step 5.
+`/ba-propose` Step 5.
 
 **Degrade/abort ladder — moved verbatim** from the former `<base>` definition in the
 `## U-ID & Git-Derived State Convention` section: degrade order (no upstream/remote →
@@ -339,7 +339,7 @@ still runs advisory. Abort is raised, never returned.
 and re-deriving it from prose would plausibly produce a wrong structure (dropping the
 `origin/HEAD` exclusion, missing the tie-detection that yields `ambiguous`, or not
 skipping per-candidate failures) — it anchors to the loop absorbed from
-`commands/ba/review.md` and the brainstorm `## Locked Design`.*
+`skills/ba-review/SKILL.md` and the brainstorm `## Locked Design`.*
 
 ```bash
 # Nearest-ancestor stack-parent detection (absorbs review.md's local-only loop, extended to origin/ refs).
@@ -539,9 +539,9 @@ When implementation diverges from the plan (different file path, changed API, mi
      2. **Update the plan** — Modify the plan to match reality, then continue
      3. **Pause execution** — Stop and let the user decide
 
-3. **Record** the deviation via an optional `Deviation (U<n>):` trailer in the commit body for the affected unit (see `## U-ID & Git-Derived State Convention`). `/ba:propose` rolls these trailers up into the MR/PR body and the Linear ticket when linked.
+3. **Record** the deviation via an optional `Deviation (U<n>):` trailer in the commit body for the affected unit (see `## U-ID & Git-Derived State Convention`). `/ba-propose` rolls these trailers up into the MR/PR body and the Linear ticket when linked.
 
-   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. If that commit **fails** (pre-commit hook rejection, disk full, pre-push policy), do **not** silently pause — surface the commit error verbatim and ask the user to resolve it (fix the hook, free space, etc.) so the deviation is recorded before pausing; never drop to the pause with the trailer unpersisted, and never `--no-verify` around a hook to force it through. Once committed, fire a reminder: "Run `/ba:propose` to persist deviation(s) to the MR/ticket; they are not durable until then."
+   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. If that commit **fails** (pre-commit hook rejection, disk full, pre-push policy), do **not** silently pause — surface the commit error verbatim and ask the user to resolve it (fix the hook, free space, etc.) so the deviation is recorded before pausing; never drop to the pause with the trailer unpersisted, and never `--no-verify` around a hook to force it through. Once committed, fire a reminder: "Run `/ba-propose` to persist deviation(s) to the MR/ticket; they are not durable until then."
 
 ---
 
@@ -563,7 +563,7 @@ When all tasks are done:
 
 If verification fails, report and let the user decide before claiming completion.
 
-**Deviation-trailer reminder** (fire on any exit path — clean completion, "Pause execution", or early exit — when any `Deviation (U<n>):` trailer was written during this run): "Run `/ba:propose` to persist N deviation(s) to the MR/ticket; they are not durable until then. **Do not squash these commits before `/ba:propose` — squashing buries the `Deviation (U<n>):` trailers before propose can roll them up.**"
+**Deviation-trailer reminder** (fire on any exit path — clean completion, "Pause execution", or early exit — when any `Deviation (U<n>):` trailer was written during this run): "Run `/ba-propose` to persist N deviation(s) to the MR/ticket; they are not durable until then. **Do not squash these commits before `/ba-propose` — squashing buries the `Deviation (U<n>):` trailers before propose can roll them up.**"
 
 ### Summary
 
@@ -575,7 +575,7 @@ Execution complete!
 Plan: docs/plans/[filename]
 Tasks: [N]/[M] completed
 Commits: [N] commits made
-Deviation trailers: [N] (run /ba:propose to persist)
+Deviation trailers: [N] (run /ba-propose to persist)
 Test suite: passing ✓
 
 Commits made:
@@ -590,15 +590,15 @@ Use **AskUserQuestion**:
 **Question:** "All tasks complete. What would you like to do next?"
 
 **Options:**
-1. **Review code** — Run `/ba:review` for post-implementation code quality review
+1. **Review code** — Run `/ba-review` for post-implementation code quality review
 2. **Create MR/PR** — Generate a merge/pull request for the implemented changes
 3. **Review changes** — Show `git diff` against the base branch
 4. **Continue working** — Open-ended mode for additional changes beyond the plan
 5. **Done** — Wrap up
 
 **Based on selection:**
-- **Review code** → Invoke `/ba:review` directly. The review command will auto-detect scope from the current branch.
-- **Create MR/PR** → Prefer `/ba:propose` — it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, and creates or updates the PR/MR as appropriate. Invoke `/ba:propose` directly. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. **Fallback** — if `/ba:propose` is unavailable or the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command the user prefers.
+- **Review code** → Invoke `/ba-review` directly. The review command will auto-detect scope from the current branch.
+- **Create MR/PR** → Prefer `/ba-propose` — it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, and creates or updates the PR/MR as appropriate. Invoke `/ba-propose` directly. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. **Fallback** — if `/ba-propose` is unavailable or the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command the user prefers.
 - **Review changes** → Show the diff, then return to options.
 - **Continue working** → Ask what they want to work on. Exit structured execution flow.
 - **Done** → Display final summary and exit.

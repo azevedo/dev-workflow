@@ -53,7 +53,7 @@ Parse `REMOTE_URL` to classify:
 
 This replaces an earlier ladder design (`gh api /meta` probe → `glab config get` probe → unknown). The probe ladder was rejected at plan-review time as YAGNI for v0.18.0 — the repo has no documented GHES / self-hosted GitLab users today, the probes have unspecified failure semantics (CLI-missing vs probe-error), and probe #2 had the side effect of mutating `GH_HOST` in the caller's environment. Re-add auto-detection in a future plan when a real user reports the escape hatch is insufficient.
 
-If `HOST=unknown`, announce: "Remote `<URL>` is not GitHub or GitLab. `ba:propose` will still commit and push, but cannot open the PR/MR — paste the composed body into your platform's web UI when prompted. (Self-hosted? Set `BA_PROPOSE_HOST=ghes` or `BA_PROPOSE_HOST=gitlab-self`.)"
+If `HOST=unknown`, announce: "Remote `<URL>` is not GitHub or GitLab. `ba-propose` will still commit and push, but cannot open the PR/MR — paste the composed body into your platform's web UI when prompted. (Self-hosted? Set `BA_PROPOSE_HOST=ghes` or `BA_PROPOSE_HOST=gitlab-self`.)"
 
 ### 0b. Resolve ACTION
 
@@ -145,7 +145,7 @@ Each sub-step materializes one field of `CompositionInputs`. None of this happen
 approximate it:** open that section and run its detection / degrade-abort / guard steps
 verbatim — the full algorithm (ref scope, self-exclusion, fetch policy, confidence
 precedence, foreign-U-ID guard, override validation) lives only there; this step supplies
-the `host_signal` and reads the resulting `resolution` fields. `/ba:propose` is the one
+the `host_signal` and reads the resulting `resolution` fields. `/ba-propose` is the one
 consumer that layers a `host_signal`:
 
 - `r = resolve-stack-base(git, host_signal: open-mr-probe, base_override: <--base>, target_override: <--target>)`
@@ -261,7 +261,7 @@ Default for the typical case (1–3 entries) is "Include all" — that's what th
 
 `solutions = (<accepted entries>...)`. Empty tuple is normal.
 
-If `docs/solutions/` does not exist or returns no entries, set `solutions = ()` silently. The directory does not exist in the repo today — this code path is dormant until `/ba:compound` creates the first entry.
+If `docs/solutions/` does not exist or returns no entries, set `solutions = ()` silently. The directory does not exist in the repo today — this code path is dormant until `/ba-compound` creates the first entry.
 
 ### 2d. Preserved blocks from existing PR/MR description
 
@@ -298,7 +298,7 @@ Scan `diff.file_stats` + `diff.file_status` (both captured in 2a) and derive `pr
 
 `Manual` (repro/QA notes) is **non-materializing**: no gather step ever sets `proof.kind = manual`. It exists only as help/prose vocabulary describing what a human may add by hand via the `--review` Edit-body path (Step 4) — it is not a code-representable `proof` value, and no registry branch renders it.
 
-### 2f. Deviation trailers (`/ba:execute` rollup)
+### 2f. Deviation trailers (`/ba-execute` rollup)
 
 Scan commit bodies over the **same `DIFF_BASE..HEAD` window** materialized in 2a (this is the `<base>..HEAD` window; `<base>` derivation is owned by the `## Stack-Base Resolution Convention` section in `execute.md` — `DIFF_BASE` *is* that `<base>` (`resolve-stack-base(git, host_signal: open-mr-probe).base`); do not re-derive it). The plan being preserved may be `.md` or `.html` — this step reads only git commit bodies, never the plan file, so the format is irrelevant here:
 
@@ -312,7 +312,7 @@ For each matched line, capture the trailer **text only** — the content after t
 
 **Near-matches**: a line that almost fits the trailer form but doesn't match the exact `Deviation (U<n>):` grammar (e.g. `Deviations:`, a missing `U<n>`, lowercase `deviation`) is **skipped** from `deviation_trailers` but recorded in orchestrator-side state as a near-match so Step 4's preview can warn the author to correct it before the MR/PR opens. Near-match warnings are orchestrator-side only — they never flow into `CompositionInputs`.
 
-If no trailers (and no near-matches) are found, set `deviation_trailers = ()` silently. Note: local squashing before `/ba:propose` drops trailers in non-final commits (documented residual).
+If no trailers (and no near-matches) are found, set `deviation_trailers = ()` silently. Note: local squashing before `/ba-propose` drops trailers in non-final commits (documented residual).
 
 ### 2g. Shared classification facts (runs before 2h)
 
@@ -436,7 +436,7 @@ The tier from 3.1 sets a **soft** target shape. These are editorial guidance, no
 
 One declarative table replaces the earlier three-step pipeline (tier→sections → filter-by-availability → per-section generator). Each row owns one section: the minimum tier at which it activates, the input that must be present for it to appear, and the rule for generating its body. To add a new section, add one row. To add a new tier, raise/lower thresholds in this column only. Reviewers maintaining the spec read one place to see what each section depends on.
 
-Reference numbers #1–#14 are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*). **Rows #15–#17 (Proof, Risk lead-line, Where to look) are `/ba:propose`-specific additions layered past Lynch's original 1–16 numbering, not citations of Lynch's own #15/#16** (which are "Rants and stories" and "tempted to explain outside the commit message," respectively) — a reader following the citation should not expect rows #15–#17 to match the source doc. "Activates at" uses the tier order `typo < small < medium < large`; `perf` is a tier-modifier (see 3.1 note below) that activates rows tagged with `perf` regardless of size threshold.
+Reference numbers #1–#14 are Lynch's menu (see `docs/research/2026-05-17-shipping-skill-source-material-research.md` *Source 4*). **Rows #15–#17 (Proof, Risk lead-line, Where to look) are `/ba-propose`-specific additions layered past Lynch's original 1–16 numbering, not citations of Lynch's own #15/#16** (which are "Rants and stories" and "tempted to explain outside the commit message," respectively) — a reader following the citation should not expect rows #15–#17 to match the source doc. "Activates at" uses the tier order `typo < small < medium < large`; `perf` is a tier-modifier (see 3.1 note below) that activates rows tagged with `perf` regardless of size threshold.
 
 | # | Section | Activates at | Required input (drop section if missing) | Body rule |
 |---|---|---|---|---|
@@ -472,7 +472,7 @@ Cross-cutting omissions that apply regardless of which sections activate (Lynch'
 
 #### 3.3 Title rewriting
 
-**U-ID preservation:** `/ba:propose` must not author a commit that strips or masks execute's existing U-tagged subjects in `DIFF_BASE..HEAD`. The U-tagged commit subjects (grammar: `<type>(<scope>): U<n> <description>` — owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`) are the durable state record; rewriting them would break `derive-state` on resume. The plan whose U-IDs are being preserved may be `.md` or `.html` — propose reads only git subjects, never the plan file, so the format is irrelevant. The title rewriting below applies to the **PR/MR title only**, which is U-ID-free by design. Step 5a–5b's commit (the `/ba:propose` summary commit, if authored) uses the composed PR/MR title — it does not carry a `U<n>` token.
+**U-ID preservation:** `/ba-propose` must not author a commit that strips or masks execute's existing U-tagged subjects in `DIFF_BASE..HEAD`. The U-tagged commit subjects (grammar: `<type>(<scope>): U<n> <description>` — owned by the `## U-ID & Git-Derived State Convention` section in `execute.md`) are the durable state record; rewriting them would break `derive-state` on resume. The plan whose U-IDs are being preserved may be `.md` or `.html` — propose reads only git subjects, never the plan file, so the format is irrelevant. The title rewriting below applies to the **PR/MR title only**, which is U-ID-free by design. Step 5a–5b's commit (the `/ba-propose` summary commit, if authored) uses the composed PR/MR title — it does not carry a `U<n>` token.
 
 Draft a title from `diff.commit_log[0]` or the user's free-text hint if provided.
 
@@ -540,10 +540,10 @@ Tier observability is deliberately omitted from the preview — exposing the sea
 Pre-prefix the block with warnings if any:
 
 - `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
-- `⚠ Stack-base: <r.warning>` (printed verbatim when the `r.warning` captured in Step 2a is non-null — e.g. `⚠ Stack-base: target A came from the open-MR host signal; git's commit-count metric picked C (ambiguous)` or `⚠ Stack-base: FOREIGN_UID_IN_WINDOW — <detail>`. Surfacing this is why `/ba:propose` reads `r.confidence`/`r.warning` at all: an `ambiguous`/`low` base resolution must be visible before the MR opens against it. Never blocks — informational, like the size and MCP warnings.)
+- `⚠ Stack-base: <r.warning>` (printed verbatim when the `r.warning` captured in Step 2a is non-null — e.g. `⚠ Stack-base: target A came from the open-MR host signal; git's commit-count metric picked C (ambiguous)` or `⚠ Stack-base: FOREIGN_UID_IN_WINDOW — <detail>`. Surfacing this is why `/ba-propose` reads `r.confidence`/`r.warning` at all: an `ambiguous`/`low` base resolution must be visible before the MR opens against it. Never blocks — informational, like the size and MCP warnings.)
 - `⚠ <result.size_warning>` (printed verbatim when `result.size_warning is not None` — e.g. `⚠ Composed body is longer than typical for a change this size (target: ~one screen) — consider trimming`. The phrase names the target shape only; it never surfaces the tier label or the "Lynch's soft cap" source vocabulary.)
 
-**`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer command `/ba:review --local` follows the same rule.)
+**`describe_only` short-circuit.** When `ACTION=describe_only`, the preview block IS the output — print it and exit zero. Do NOT ask `AskUserQuestion`; a dry-run flag must not require the user to navigate a confirmation menu before delivering its result. (Peer command `/ba-review --local` follows the same rule.)
 
 **Apply-by-default (U2).** For every other `ACTION`, branch on `REVIEW_MODE` (resolved in Arguments, U1, from `--review`/`--interactive` OR `BA_PROPOSE_REVIEW`):
 
@@ -584,7 +584,7 @@ Identify the changed files from Step 2a's `--numstat` output. Stage all of them 
 git add path/to/file1 path/to/file2 path/to/file3
 ```
 
-The command always produces one commit per run. Users who want multiple commits run `/ba:propose` twice on separately-staged subsets — the user already controls the grouping by deciding what to stage before the run. A heuristic split-by-subdirectory was considered and rejected as YAGNI: same lens as the brainstorm's *2026-05-19 Addendum — `--diverge` dropped*.
+The command always produces one commit per run. Users who want multiple commits run `/ba-propose` twice on separately-staged subsets — the user already controls the grouping by deciding what to stage before the run. A heuristic split-by-subdirectory was considered and rejected as YAGNI: same lens as the brainstorm's *2026-05-19 Addendum — `--diverge` dropped*.
 
 ### 5b. Commit
 
@@ -603,13 +603,13 @@ git commit -F "$COMMIT_MSG_FILE"
 
 The quoted sentinel `'__BA_PROPOSE_COMMIT_END__'` blocks `$VAR`, backticks, and literal `EOF` expansion.
 
-**Single-call invariant (load-bearing).** The `mktemp`, the heredoc write, and `git commit -F` above **must run in the same Bash tool call** — as shown, one block. Each `/ba:propose` Bash call is a fresh shell, so `$COMMIT_MSG_FILE` does not survive into a later call. Never recover the path in a separate call via `find`/`glob`/`ls` over `${TMPDIR:-/tmp}`: that directory is shared across every concurrent session on the machine, so such a match can silently pick up a *different* session's leftover `ba-propose-commit.*` file and commit the wrong message. If the message is needed again, re-derive it (composition is deterministic) and write a **fresh** temp file inside that same call. Same rule applies to 5d's `BODY_FILE`.
+**Single-call invariant (load-bearing).** The `mktemp`, the heredoc write, and `git commit -F` above **must run in the same Bash tool call** — as shown, one block. Each `/ba-propose` Bash call is a fresh shell, so `$COMMIT_MSG_FILE` does not survive into a later call. Never recover the path in a separate call via `find`/`glob`/`ls` over `${TMPDIR:-/tmp}`: that directory is shared across every concurrent session on the machine, so such a match can silently pick up a *different* session's leftover `ba-propose-commit.*` file and commit the wrong message. If the message is needed again, re-derive it (composition is deterministic) and write a **fresh** temp file inside that same call. Same rule applies to 5d's `BODY_FILE`.
 
 **Hook failure recovery.** If `git commit` returns non-zero:
 
 - Print the hook output verbatim.
 - Leave the working tree exactly as the hook left it.
-- Exit with message: "Hook failed — fix the reported issue and re-run `/ba:propose`. Composition outputs are deterministic; re-running re-derives them. Never re-run with `--no-verify` unless you've audited the hook and have an explicit reason."
+- Exit with message: "Hook failed — fix the reported issue and re-run `/ba-propose`. Composition outputs are deterministic; re-running re-derives them. Never re-run with `--no-verify` unless you've audited the hook and have an explicit reason."
 - Do NOT pass `--no-verify`. Never.
 
 ### 5c. Push
@@ -639,7 +639,7 @@ Never `git push --force` without lease. Never silent.
 If `HOST=unknown`:
 
 - Skip this step.
-- Print: "Host `<URL>` not supported by `ba:propose`. Composed body:" followed by the body.
+- Print: "Host `<URL>` not supported by `ba-propose`. Composed body:" followed by the body.
 - Print: "Paste into your platform's UI manually. Commits were pushed successfully."
 - Exit zero (commit + push succeeded).
 
@@ -674,7 +674,7 @@ Surface a one-line notice in 5d's output when the published body's preserved blo
 
 **Write body to temp file** (always — no stdin, no pipes). GitHub: use `--body-file "$BODY_FILE"`. GitLab: `glab` has no `--description-file`; use `--description "$(cat "$BODY_FILE")"` instead.
 
-**Single-call invariant (load-bearing).** The `mktemp`, the heredoc write, and the one applicable dispatch command below **must run in the same Bash tool call** — that is why the write and the dispatch are one block, not two. Each `/ba:propose` Bash call is a fresh shell, so `$BODY_FILE` does not survive into a later call. **Never** recover the path in a separate call via `find`/`glob`/`ls` over `${TMPDIR:-/tmp}` (e.g. `find "$TMPDIR" -name 'ba-propose-body.*' -newer …`): that directory is shared across every concurrent session on the machine, so such a match can silently pick up a *different* session's leftover file and ship the wrong PR/MR body — a confirmed, repeated production incident. If the body is needed again (the fetch-before-write re-composition above splices fresh preserved blocks), re-run `compose_body` and write a **fresh** temp file inside that same call — do not reach for the earlier path. `${TMPDIR:-/tmp}` is used because no session-scoped temp path is portably exposed to the command; the same-call rule, not the path, is what prevents the cross-session collision.
+**Single-call invariant (load-bearing).** The `mktemp`, the heredoc write, and the one applicable dispatch command below **must run in the same Bash tool call** — that is why the write and the dispatch are one block, not two. Each `/ba-propose` Bash call is a fresh shell, so `$BODY_FILE` does not survive into a later call. **Never** recover the path in a separate call via `find`/`glob`/`ls` over `${TMPDIR:-/tmp}` (e.g. `find "$TMPDIR" -name 'ba-propose-body.*' -newer …`): that directory is shared across every concurrent session on the machine, so such a match can silently pick up a *different* session's leftover file and ship the wrong PR/MR body — a confirmed, repeated production incident. If the body is needed again (the fetch-before-write re-composition above splices fresh preserved blocks), re-run `compose_body` and write a **fresh** temp file inside that same call — do not reach for the earlier path. `${TMPDIR:-/tmp}` is used because no session-scoped temp path is portably exposed to the command; the same-call rule, not the path, is what prevents the cross-session collision.
 
 **Dispatch** — in one Bash tool call: `mktemp` + heredoc write, then run **exactly one** dispatch command matching (`HOST`, create-vs-edit):
 
@@ -714,7 +714,7 @@ glab mr update "$OPEN_PR_URL" \
 **Post-push PR-create failure.** If push succeeded in 5c but the `gh pr create` / `glab mr create` call fails:
 
 - Surface the platform's exact error message.
-- Print: "Push succeeded; PR/MR creation failed. Re-run `/ba:propose` after fixing the platform issue — commits are already pushed, so staging/commit/push are no-ops, and Step 5d will create the PR."
+- Print: "Push succeeded; PR/MR creation failed. Re-run `/ba-propose` after fixing the platform issue — commits are already pushed, so staging/commit/push are no-ops, and Step 5d will create the PR."
 - Exit non-zero. Do not retry automatically. Do not rewind the push.
 
 ### 5e. Output
@@ -746,7 +746,7 @@ change, and re-deriving it from prose alone plausibly produces a *wrong* structu
 paths, tracing the unreachable enum guard, folding the reachable empty-URL case into the traceless
 bucket, or letting a compound failure taint the ship). The exact predicate + ordering + per-path
 trace is fixed by this sketch; the failure-isolation boundary is drawn around the `try` body
-(assessment + prompt + `/ba:compound` invocation), not just the `/ba:compound` call — the guards
+(assessment + prompt + `/ba-compound` invocation), not just the `/ba-compound` call — the guards
 above the `try` cannot breach the exit-status guarantee (their `print`s are infallible per the
 **Print failure model** below). It is a shape sketch, not literal command text — the file is a prose
 spec — and the paragraphs below elaborate each branch.
@@ -757,7 +757,7 @@ spec — and the paragraphs below elaborate each branch.
 # `5f: capture offer suppressed — <reason>` line, then returns. The offer path is exempt from that
 # count — it traces via the AskUserQuestion itself, plus one bounded outcome line on accept.
 # Genuinely-unreachable actions (the first guard) stay traceless. The try/except isolates the
-# assessment, prompt, and /ba:compound invocation: any exception there degrades to the "PR is live"
+# assessment, prompt, and /ba-compound invocation: any exception there degrades to the "PR is live"
 # message. Every print here is infallible (see the print-failure model below), so nothing —
 # including the two guards above the try — can change the ship's exit status.
 if ACTION != commit_push_create:   # CREATED_PR_URL captured in 5d, printed by 5e
@@ -780,7 +780,7 @@ try:
     answer = AskUserQuestion("Document this learning?", options=[Yes, No])  # the offer IS its trace
     if answer != Yes:
         return                  # decline → no closing line; offer already fired (not a silent path)
-    result = run("/ba:compound", context_hint=seed(motivation, deviation_trailers, risk, proof, diff_summary))
+    result = run("/ba-compound", context_hint=seed(motivation, deviation_trailers, risk, proof, diff_summary))
     # NOTE: compound prints its OWN completion summary AND its own Step 4 menu —
     # a possible second insufficient-context prompt is also compound's, not propose's.
     # compound's soft-fail (Step 0 insufficient-context abort, a failed subagent) exits WITHOUT
@@ -789,9 +789,9 @@ try:
     if result.wrote_file:
         print("captured — doc is uncommitted and NOT in this PR")
     else:
-        print("no doc written (compound aborted, e.g. insufficient context) — run /ba:compound manually.")
+        print("no doc written (compound aborted, e.g. insufficient context) — run /ba-compound manually.")
 except Exception:
-    print("PR is live; capture failed — run /ba:compound manually.")   # ship stays successful
+    print("PR is live; capture failed — run /ba-compound manually.")   # ship stays successful
 ```
 
 **Gate — split into two guards.** (1) `ACTION != commit_push_create` → **traceless** return: 5f is
@@ -843,18 +843,18 @@ learning?" — Yes / No, with **No** as the recommended-neutral default (one key
 The `AskUserQuestion` **is** this path's trace — the offer path emits no `5f: …suppressed` line (it
 wasn't suppressed), and a decline needs no closing line (the offer already fired, so it is not a
 silent path). On accept, exactly one bounded outcome line follows (`captured` | `no doc written`);
-`/ba:compound`'s own summary/menu are compound's, not 5f's.
+`/ba-compound`'s own summary/menu are compound's, not 5f's.
 
 - **Decline** → proceed to normal completion. Nothing remains to print; success already printed.
-- **Accept** → invoke `/ba:compound` on its explicit (proceed-directly) path, passing a **seeded
+- **Accept** → invoke `/ba-compound` on its explicit (proceed-directly) path, passing a **seeded
   context hint** — composed motivation + deviation-trailer texts + `risk`/`proof` + a one-line
   diff summary — so compound's Step 0 insufficient-context guard passes even in a resumed/handoff
-  session whose conversation arc is absent. `/ba:compound` then surfaces its **own** completion
+  session whose conversation arc is absent. `/ba-compound` then surfaces its **own** completion
   summary and its **own** Step 4 menu (Continue / View / Other), and — if the seeded hint is judged
   thin — may still hit compound's retained Step 0 guard (a possible second round-trip). These are
   compound's prompts, not propose's.
 
-**Post-hoc summary on accept.** `/ba:compound` can end two ways, and only one is a capture: it may
+**Post-hoc summary on accept.** `/ba-compound` can end two ways, and only one is a capture: it may
 write a `docs/solutions/` file, or it may **soft-fail** — abort on its own Step 0 insufficient-context
 guard, or lose a research subagent — which exits *without* writing a file and is **not** an exception
 the `try` catches. Branch the message on whether a doc was actually written, never on
@@ -862,17 +862,17 @@ absence-of-exception alone:
 
 - **Doc written** → surface compound's completion summary and **explicitly note the created doc is
   uncommitted and NOT in this PR**. It was written after the push, so **commit it yourself** — it will
-  **not** ride your next `/ba:propose` automatically: Step 5a stages from
+  **not** ride your next `/ba-propose` automatically: Step 5a stages from
   `git diff --numstat "$DIFF_BASE..HEAD"`, a diff between committed refs that never includes an
   untracked file. The doc stays untracked in your working tree until you `git add` and commit it.
 - **Soft-fail (no doc written)** → say so and point at the escape hatch ("no doc written — run
-  `/ba:compound` manually when you have more context"); do **not** print "captured".
+  `/ba-compound` manually when you have more context"); do **not** print "captured".
 
 **Failure isolation (the `try` body — assessment, prompt, and invoke).** The ship is already
 reported successful; nothing in 5f may change its exit status. Any exception *inside the `try`* — in
-the assessment, in the `AskUserQuestion` itself, or in the `/ba:compound` invocation — degrades
+the assessment, in the `AskUserQuestion` itself, or in the `/ba-compound` invocation — degrades
 identically to a single note and leaves the ship successful: "PR is live; capture failed — run
-`/ba:compound` manually." The `try` boundary is unchanged by the trace additions: it still wraps
+`/ba-compound` manually." The `try` boundary is unchanged by the trace additions: it still wraps
 only the assessment, prompt, and invoke — no `print` site needs to move. **Print failure model
 (all trace/outcome sites).** Every `print` in 5f — the four `5f:` trace lines (`ship-url-unresolved`
 and `non-interactive` above the `try`, `already-captured` and `judged-not-reusable` inside it) and
@@ -882,7 +882,7 @@ That is why the two above-`try` guards need no wrapping (an unwrapped `print` th
 breach the "never changes exit status" guarantee) and why the in-`try` traces need no special catch
 (a stray relabel to "capture failed" is unreachable for the same reason).
 Each reachable silent path now leaves a one-line reasoned trace, so a **skip** (which prints
-nothing) is distinguishable from a **correct silence**. Manual `/ba:compound` remains the escape
+nothing) is distinguishable from a **correct silence**. Manual `/ba-compound` remains the escape
 hatch for a **false-negative judgment** — a `judged-not-reusable` trace that should have been an
 offer — the assessment's precision, not its observability, is the accepted residual.
 
@@ -898,14 +898,14 @@ offer — the assessment's precision, not its observability, is the accepted res
 | Body overshoots its tier's soft target (3.1a) | Step 4 | Warn at preview with a phrase naming the target shape; user decides. No auto-trim. |
 | Hook failure on commit | Step 5b | Surface output, exit, never `--no-verify`. |
 | Non-fast-forward push | Step 5c | Offer `--force-with-lease` or abort. |
-| PR-create after-push fails | Step 5d | Surface error; instruct user to re-run `/ba:propose` (commits already pushed, so 5a-5c are no-ops, 5d retries the create). |
-| PR closed between Step 0b probe and Step 5d apply | Step 5d | The `gh pr edit` / `glab mr update` call against the cached `OPEN_PR_URL` will fail with a not-found error. Surface the platform error verbatim; instruct the user to re-run `/ba:propose` (the next probe will see no open PR and take the create path). |
+| PR-create after-push fails | Step 5d | Surface error; instruct user to re-run `/ba-propose` (commits already pushed, so 5a-5c are no-ops, 5d retries the create). |
+| PR closed between Step 0b probe and Step 5d apply | Step 5d | The `gh pr edit` / `glab mr update` call against the cached `OPEN_PR_URL` will fail with a not-found error. Surface the platform error verbatim; instruct the user to re-run `/ba-propose` (the next probe will see no open PR and take the create path). |
 
 ## Important Guidelines
 
 - Composition is a pure contract — it consumes the value objects in `CompositionInputs` and reaches out to nothing. Add I/O? Add it to Step 2.
 - Never `git add -A` / `git add .`. Explicit paths only.
-- `/ba:propose` itself never writes source files outside the staged diff. The sole exception is the user-accepted `/ba:compound` **hand-off exception** (Step 5f): after the PR/MR is open, an accepted capture offer hands off to `/ba:compound`, which writes only to `docs/solutions/` — after the push, never in the pushed diff (mirrors the owning convention at `CLAUDE.md`; `README.md`'s `/ba:propose` feature list carries a user-facing summary of the same behavior — keep all three in sync).
+- `/ba-propose` itself never writes source files outside the staged diff. The sole exception is the user-accepted `/ba-compound` **hand-off exception** (Step 5f): after the PR/MR is open, an accepted capture offer hands off to `/ba-compound`, which writes only to `docs/solutions/` — after the push, never in the pushed diff (mirrors the owning convention at `CLAUDE.md`; `README.md`'s `/ba-propose` feature list carries a user-facing summary of the same behavior — keep all three in sync).
 - Never `--no-verify` unless the user has explicitly asked, with an audited reason.
 - Never silent force-push. `--force-with-lease` only, with explicit confirmation.
 - `--body-file` always points at a temp file written by a quoted-sentinel heredoc. Never `--body "$(cat ...)"`, never stdin, never pipes.

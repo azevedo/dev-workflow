@@ -14,9 +14,9 @@ Run a judged section-scoring review against a plan document using the seven buil
 
 ### Invocation mode
 
-Scan the arguments for an `--auto` token. If present, this is the **auto path** (invoked by `/ba:plan`
+Scan the arguments for an `--auto` token. If present, this is the **auto path** (invoked by `/ba-plan`
 Step 7 per the **Auto-invoke contract** below); strip the token and treat the remainder as the plan path.
-If absent, this is the **manual path** (the user ran `/ba:review-plan` directly). The mode is the single
+If absent, this is the **manual path** (the user ran `/ba-review-plan` directly). The mode is the single
 signal that drives the entry-point-conditional empty-`✓` invariant (Step 2) and the verdict-sentinel
 behavior (Auto-invoke contract) — there is no other way to detect auto mode, so it must be read here.
 
@@ -32,7 +32,7 @@ ls -t docs/plans/*.{md,html} 2>/dev/null | head -1
 
 For `.html` files, apply the **named HTML conformance preflight** (from
 `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`) before proceeding — the same three-signal check as
-`/ba:execute`. A non-conforming `.html` is rejected as "doesn't look like a plan file";
+`/ba-execute`. A non-conforming `.html` is rejected as "doesn't look like a plan file";
 do not enumerate it as zero units.
 
 If found, announce: "Found latest plan: `[filename]`. Reviewing this one."
@@ -65,7 +65,7 @@ Adjust pick-list.**
 review-plan does **no** external-reviewer discovery: there is no Glob sweep across agent/skill
 directories. The 7 built-ins are the roster; a rare plan-relevant external stays reachable only via
 the Adjust "Other" free-text option (Step 2). review-plan is a **third mirror site** of the never-hide
-ledger convention (alongside `commands/ba/review.md` Step 2 and `README.md`).
+ledger convention (alongside `skills/ba-review/SKILL.md` Step 2 and `README.md`).
 
 ### 1b. Judge each reviewer against the plan
 
@@ -133,12 +133,12 @@ review-plan was entered**:
 
 - **Manual path** (no `--auto` token, the user explicitly asked for a review) — an empty `✓` set offers
   Adjust/Cancel (below). The user asked; do not silently do nothing.
-- **Auto path** (`--auto` token present — invoked by `/ba:plan` Step 7, per the **Auto-invoke contract**
+- **Auto path** (`--auto` token present — invoked by `/ba-plan` Step 7, per the **Auto-invoke contract**
   below) — an empty `✓` set **self-suppresses**: zero widgets, print the clean sentinel, return control to
   the caller.
 
 This is one named invariant with two behaviors keyed off the `--auto` token (read in **Invocation mode**);
-it is resolved concretely in the **Auto-invoke contract** section below and `commands/ba/plan.md` Step 7.
+it is resolved concretely in the **Auto-invoke contract** section below and `skills/ba-plan/SKILL.md` Step 7.
 
 **When the `✓` set is empty on the manual path** — question: "No section was judged weak in any
 reviewer's domain. Pick reviewers manually, or cancel?" Drop the "Run" option (per the
@@ -190,7 +190,7 @@ silent run:
 This grammar is a **parser contract**: every dispatched reviewer (Step 3) and the Step 4 parser must
 agree on it exactly. It is written here as the literal authority — do not re-derive it from prose
 elsewhere, or a divergent token shape (line-numbered vs key-based) will be silently dropped at parse.
-It adapts `commands/ba/review.md`'s `**<path>:<line>**` bullet grammar to plan anchors; line numbers do
+It adapts `skills/ba-review/SKILL.md`'s `**<path>:<line>**` bullet grammar to plan anchors; line numbers do
 **not** appear (plans are edited freely and line anchors would rot).
 
 **Anchor namespaces.** A finding's anchor is exactly one of three forms, written verbatim as the bold
@@ -199,8 +199,8 @@ token at the head of the bullet:
 | Namespace | Anchor token | Example | Owned by |
 |---|---|---|---|
 | **Section heading** | the normalized heading text | `**Overview**`, `**Technical Approach**` | the plan's section structure |
-| implementation unit | the `U<n>` key | `**U3**` | `commands/ba/execute.md` (consumed here) |
-| keyed acceptance criterion | the `AC<n>` key | `**AC2**` | `commands/ba/plan.md` (consumed here) |
+| implementation unit | the `U<n>` key | `**U3**` | `skills/ba-execute/SKILL.md` (consumed here) |
+| keyed acceptance criterion | the `AC<n>` key | `**AC2**` | `skills/ba-plan/SKILL.md` (consumed here) |
 
 review-plan **consumes** the U-ID grammar (owned by `execute.md`) and the keyed-`AC<n>` grammar
 (owned by `plan.md`). It does **not** mint or redefine either.
@@ -493,7 +493,7 @@ For single-reviewer findings, pass through without attribution: `- **<anchor>** 
 ## Step 5: Apply Fixes
 
 This is the plan-native resolution menu. It edits **only the plan artifact** (`.md` or `.html`
-depending on the artifact's extension) — it does **not** drag in `/ba:review`'s auto-revert /
+depending on the artifact's extension) — it does **not** drag in `/ba-review`'s auto-revert /
 bidirectional-reconciliation / baseline-test harness (there are no tests to run on a plan).
 
 **HTML-specific apply rules:**
@@ -567,7 +567,7 @@ one-by-one walk once the last finding is dispositioned. The exit target depends 
 entered (the `--auto` token, read in **Invocation mode**):
 
 - **Manual path** (no `--auto`) — the terminal path ends the command, as today.
-- **Auto path** (`--auto` present, invoked from `/ba:plan` Step 7 per the **Auto-invoke contract** below) —
+- **Auto path** (`--auto` present, invoked from `/ba-plan` Step 7 per the **Auto-invoke contract** below) —
   the terminal path returns control to `plan.md` Step 7's handoff menu rather than ending. This is the
   mechanism that honors the contract's "→ proceed to the handoff menu". **Without this hook the auto path
   strands in resolution and never shows the handoff menu** — and it must hold for an apply-and-confirm exit
@@ -577,12 +577,12 @@ entered (the `--auto` token, read in **Invocation mode**):
 
 ## Auto-invoke contract
 
-review-plan **owns** this contract; `commands/ba/plan.md` Step 7 **cites** it. It defines how `/ba:plan`
+review-plan **owns** this contract; `skills/ba-plan/SKILL.md` Step 7 **cites** it. It defines how `/ba-plan`
 invokes this engine in **auto mode** at the end of planning, and — critically — **how the verdict is
 signaled back**. review-plan is invoked as a command, not a typed function, so the channel must be
 explicit: two implementors would otherwise invent it differently.
 
-**How auto mode is entered.** `/ba:plan` invokes `/ba:review-plan <plan-path> --auto`. The `--auto` token
+**How auto mode is entered.** `/ba-plan` invokes `/ba-review-plan <plan-path> --auto`. The `--auto` token
 (read in **Invocation mode**) is the only signal that distinguishes the two paths.
 
 **Verdict signal.** An auto-mode pass ends by printing exactly **one** sentinel line:
@@ -612,7 +612,7 @@ ledger or confirm itself. This prevents a double-widget before dispatch.
    **caller-context-aware exit** (which covers *every* Step 5 exit, not just "Done").
 4. **Error** → print `[AUTO-SCORE: error — <reason>]` and return control to the caller.
 
-A failed or empty auto-mode pass must **still** return control to the caller — never strand `/ba:plan`
+A failed or empty auto-mode pass must **still** return control to the caller — never strand `/ba-plan`
 without its handoff menu.
 
 The **manual** path (no `--auto` token) and the auto path share this one engine but differ only at the

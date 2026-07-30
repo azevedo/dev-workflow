@@ -49,7 +49,7 @@ and ask the user** which format to use for this write — the existing file is n
 **Resume format continuity:**
 If resuming an in-flight plan (a plan file already exists on disk), preserve the existing
 artifact's format. A mid-run `output:` switch to a different format is refused — git-committed
-`U<n>` subjects are anchored to the original artifact's stem. A fresh `/ba:plan` run is required
+`U<n>` subjects are anchored to the original artifact's stem. A fresh `/ba-plan` run is required
 to emit the plan in a different format.
 
 Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) for use in Step 7.
@@ -233,7 +233,7 @@ For **markdown** artifacts, render as a YAML frontmatter block:
 title: [Descriptive Title]
 type: feat | fix | refactor
 plan_schema: 2
-status: active  # human-authored only — /ba:execute ignores this for control flow (including status: completed); progress is git-derived
+status: active  # human-authored only — /ba-execute ignores this for control flow (including status: completed); progress is git-derived
 date: YYYY-MM-DD
 origin: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md  # if originated from brainstorm, otherwise omit
 detail_level: minimal | standard | comprehensive
@@ -471,7 +471,7 @@ Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file
 **Key rules for all templates:**
 - Include **exact file paths** — never placeholders
 - **Default to decisions, not code** — approach, exact file paths, patterns to follow, pseudo-code for shape, and test scenarios. Include a literal code block ONLY under a `**Code-shape decision:** <why the shape is non-obvious>` label.
-- Each implementation unit anchor is format-neutral (per the `## U-ID & Git-Derived State Convention` owner in `commands/ba/execute.md`): a `### U<n> — <title>` heading in markdown; an `<article id="u<n>">` unit card carrying a visible `U<n>` chip in HTML (id on the container, **not** the heading tag). Both must carry the visible U-ID text alongside the unit title. Every unit carries `Test scenarios:` bullets and exactly one `Verify:` line.
+- Each implementation unit anchor is format-neutral (per the `## U-ID & Git-Derived State Convention` owner in `skills/ba-execute/SKILL.md`): a `### U<n> — <title>` heading in markdown; an `<article id="u<n>">` unit card carrying a visible `U<n>` chip in HTML (id on the container, **not** the heading tag). Both must carry the visible U-ID text alongside the unit title. Every unit carries `Test scenarios:` bullets and exactly one `Verify:` line.
 - Phase gates in COMPREHENSIVE: an automated checkpoint — all units `done` → proceed; no manual pause
 - Always include "What We're NOT Doing"
 
@@ -483,7 +483,7 @@ Verify: [one code-matchable, read-only check — a grep-able symbol/path, a file
 
 **`Verify:` minting rules** (the authoring half of the contract the `execute.md` convention's `Verify:` tier reads; cite `## U-ID & Git-Derived State Convention` in `execute.md` for the resolution rules). Every minted `Verify:` must be:
 - **(a) Code-matchable**: a grep-able symbol/path, a file-existence claim (`test -f path/to/file`), or a runnable read-only command.
-- **(b) Read-only**: no state mutation — so `/ba:handoff` (which calls `derive-state` with `run_verify: false`) stays side-effect-free, and `/ba:execute` resume doesn't corrupt state.
+- **(b) Read-only**: no state mutation — so `/ba-handoff` (which calls `derive-state` with `run_verify: false`) stays side-effect-free, and `/ba-execute` resume doesn't corrupt state.
 - **(c) Source state, not build output**: prefer a repo symbol (`grep -q 'FunctionName' src/`)  over a dist artifact (`dist/bundle.js`) so the check stays stable across clean builds.
 - **(d) Wiring, not presence**: when a unit adds a *consumer* that depends on a newly introduced input (a struct field, gather step, config key, template variable), the `Verify:` must assert the input is **produced and connected** — not merely that the consumer's string exists. A presence-only grep (`grep 'consumerName'`) is a false-green: it passes the moment the consumer is typed, even if nothing produces its input. Assert every link as a conjunction (declaration **AND** producer **AND** consumer), or expect ≥2 hits for an input that is both produced and read — a single hit means a dangling endpoint.
 
@@ -664,15 +664,15 @@ Confirm: "Plan written to `docs/plans/[filename]`"
 
 ### Auto-score pass (self-suppressing)
 
-After the disk-write and **before** the handoff menu, run `/ba:review-plan`'s **section-scoring pass** in
-**auto mode** against the just-written plan by invoking `/ba:review-plan <plan-path> --auto` (the `--auto`
+After the disk-write and **before** the handoff menu, run `/ba-review-plan`'s **section-scoring pass** in
+**auto mode** against the just-written plan by invoking `/ba-review-plan <plan-path> --auto` (the `--auto`
 token is how review-plan detects the auto path). See the **Auto-invoke contract** in
-`commands/ba/review-plan.md` for the full judge/pipeline state machine — it is the authority; this step
+`skills/ba-review-plan/SKILL.md` for the full judge/pipeline state machine — it is the authority; this step
 only reads the verdict sentinel and branches. review-plan **owns** every widget on the auto path (its
 ledger and ask-before-dispatch confirm); this step never presents them itself. The state machine:
 
 1. Write plan to disk (above).
-2. Invoke `/ba:review-plan <plan-path> --auto`; read the verdict from its sentinel line
+2. Invoke `/ba-review-plan <plan-path> --auto`; read the verdict from its sentinel line
    (`[AUTO-SCORE: clean]`, `[AUTO-SCORE: weak — <reviewer list>]`, or `[AUTO-SCORE: error — <reason>]`).
 3. **Clean (`[AUTO-SCORE: clean]`)** — **do NOT ask.** Print a one-line "**no weak sections** — plan looks
    solid" status (no AskUserQuestion widget; a courtesy "proceed?" confirm here would violate the
@@ -696,15 +696,15 @@ Use **AskUserQuestion** to present next steps:
 **Options:**
 1. **Start implementation** — Begin executing this plan in the current session
 2. **Fresh-context implementation** — Clear context and implement with only the plan loaded (saves tokens)
-3. **Re-review plan (full pass)** — Run a full `/ba:review-plan` pass over the built-in reviewers. An auto-score pass already ran above, so this is the deliberate manual re-loop (e.g. after applying fixes), not a redundant first review.
+3. **Re-review plan (full pass)** — Run a full `/ba-review-plan` pass over the built-in reviewers. An auto-score pass already ran above, so this is the deliberate manual re-loop (e.g. after applying fixes), not a redundant first review.
 4. **Review and refine** — Manually improve specific sections of the plan
 5. **Create issue** — Create issue in project tracker (GitHub/Linear)
 6. **Done for now** — Return later
 
 **Based on selection:**
-- **Start implementation** → Invoke `/ba:execute docs/plans/[filename]` to implement the plan.
-- **Fresh-context implementation** → Tell the user: "Run `/clear`, then in the new session run `/ba:execute docs/plans/[filename]`". This gives a clean context window with only the plan loaded, no brainstorm/research token overhead.
-- **Re-review plan (full pass)** → Invoke `/ba:review-plan docs/plans/[filename]` to run a full judged-ledger pass over the built-in reviewers against the plan.
+- **Start implementation** → Invoke `/ba-execute docs/plans/[filename]` to implement the plan.
+- **Fresh-context implementation** → Tell the user: "Run `/clear`, then in the new session run `/ba-execute docs/plans/[filename]`". This gives a clean context window with only the plan loaded, no brainstorm/research token overhead.
+- **Re-review plan (full pass)** → Invoke `/ba-review-plan docs/plans/[filename]` to run a full judged-ledger pass over the built-in reviewers against the plan.
 - **Review and refine** → Ask which section, make changes, return to options.
 - **Create issue** → Detect tracker from CLAUDE.md and create:
   - GitHub: `gh issue create --title "<type>: <title>" --body-file <plan_path>`
@@ -730,7 +730,7 @@ Key sections:
 Convention compliance: [N aligned, N overrides, N debt items]
 ```
 
-**IMPORTANT:** The plan is DONE. Do NOT suggest running `/ba:plan` again — it just ran. The only forward options are: implement, refine, create issue, or stop.
+**IMPORTANT:** The plan is DONE. Do NOT suggest running `/ba-plan` again — it just ran. The only forward options are: implement, refine, create issue, or stop.
 
 ## Important Guidelines
 
