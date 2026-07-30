@@ -1,10 +1,10 @@
 # dev-workflow
 
-A Claude Code plugin that adds structured research, brainstorm, plan, and execute commands to your development workflow.
+A Claude Code plugin that adds structured research, brainstorm, plan, and execute skills to your development workflow.
 
 ## Why
 
-The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: investigate the codebase (`/ba:research`), explore what to build (`/ba:brainstorm`), define how to build it (`/ba:plan`), review before writing code (`/ba:review-plan`), then implement (`/ba:execute`). Post-implementation review (`/ba:review`) and knowledge compounding (`/ba:compound`) close the loop so the same mistakes aren't repeated.
+The #1 failure mode in AI-assisted development is jumping straight to implementation. This plugin enforces a think-first workflow: investigate the codebase (`/ba-research`), explore what to build (`/ba-brainstorm`), define how to build it (`/ba-plan`), review before writing code (`/ba-review-plan`), then implement (`/ba-execute`). Post-implementation review (`/ba-review`) and knowledge compounding (`/ba-compound`) close the loop so the same mistakes aren't repeated.
 
 The design synthesizes patterns from three production agent workflow systems ([compound-engineering](https://github.com/EveryInc/compound-engineering-plugin), [humanlayer](https://github.com/humanlayer/12-factor-agents), [superpowers](https://github.com/obra/superpowers)), taking the best ideas from each and closing gaps they all share.
 
@@ -12,7 +12,7 @@ The design synthesizes patterns from three production agent workflow systems ([c
 
 In Birgitta Böckeler's [framing of spec-driven development](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html), SDD tools sit at one of three levels: **spec-first** (write the spec before the code), **spec-anchored** (keep the spec in sync with the code after shipping, and use it to drive evolution), and **spec-as-source** (the spec is the only thing humans edit; code is fully derived output).
 
-`dev-workflow` is firmly spec-first. Plans drive implementation and are read-only at execute time — progress is git-derived (U-tagged commit subjects + per-unit `Verify:` checks), not tracked by mutating the plan file. There is no regeneration step and no drift detection between plan and code. Durable knowledge survives via `/ba:compound` to `docs/solutions/` rather than by keeping old plans live. This is a deliberate cost trade-off: spec-anchored and spec-as-source tooling is heavy, and most of the maintenance value can be captured with named learnings surfaced by `learnings-researcher` in the next plan. The plugin's answer to Böckeler's main critique (review overload for small features) is the triage tiers in `/ba:brainstorm` and `/ba:plan` — not a spec-as-source escape hatch.
+`dev-workflow` is firmly spec-first. Plans drive implementation and are read-only at execute time — progress is git-derived (U-tagged commit subjects + per-unit `Verify:` checks), not tracked by mutating the plan file. There is no regeneration step and no drift detection between plan and code. Durable knowledge survives via `/ba-compound` to `docs/solutions/` rather than by keeping old plans live. This is a deliberate cost trade-off: spec-anchored and spec-as-source tooling is heavy, and most of the maintenance value can be captured with named learnings surfaced by `learnings-researcher` in the next plan. The plugin's answer to Böckeler's main critique (review overload for small features) is the triage tiers in `/ba-brainstorm` and `/ba-plan` — not a spec-as-source escape hatch.
 
 ## Facts vs. specs
 
@@ -29,7 +29,7 @@ claude plugin install dev-workflow
 
 Updates are pulled automatically from the marketplace; no manual step required.
 
-## Commands
+## Skills
 
 ### Starting a flow
 
@@ -37,36 +37,36 @@ Two valid entry points — choose based on how well you understand the codebase 
 
 ```
 Do you understand the codebase area well enough to start a design conversation?
-    YES → /ba:brainstorm   (runs its own research internally)
+    YES → /ba-brainstorm   (runs its own research internally)
     NO  → Why not?
 
-        Unfamiliar or large codebase area?               → /ba:research first
-        Findings needed independently (team/stakeholders)?→ /ba:research first
-        Same research will feed multiple features?       → /ba:research first
-        Just need to explore an idea?                    → /ba:brainstorm (it'll guide you)
+        Unfamiliar or large codebase area?               → /ba-research first
+        Findings needed independently (team/stakeholders)?→ /ba-research first
+        Same research will feed multiple features?       → /ba-research first
+        Just need to explore an idea?                    → /ba-brainstorm (it'll guide you)
 
-After planning, implement with /ba:execute.
+After planning, implement with /ba-execute.
 ```
 
-`/ba:brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba:research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
+`/ba-brainstorm` always runs lightweight internal research (repo-researcher + learnings-researcher). Use `/ba-research` first when you need the full 5-agent parallel investigation — or when the findings should live outside the design conversation. Research docs within 14 days are auto-detected and carried forward as supplementary context by both brainstorm and plan.
 
-**After `/ba:research`, should you brainstorm or plan next?**
+**After `/ba-research`, should you brainstorm or plan next?**
 
 ```
 After reading the research doc, do you know exactly what to do?
-    YES → /ba:plan   (plan also auto-detects the research doc)
-    NO  → /ba:brainstorm first
+    YES → /ba-plan   (plan also auto-detects the research doc)
+    NO  → /ba-brainstorm first
 
-        Research surfaced multiple approaches?           → /ba:brainstorm (pick one)
-        Scope or acceptance criteria still unclear?      → /ba:brainstorm (define them)
-        Single obvious fix, no design decisions?         → /ba:plan directly
+        Research surfaced multiple approaches?           → /ba-brainstorm (pick one)
+        Scope or acceptance criteria still unclear?      → /ba-brainstorm (define them)
+        Single obvious fix, no design decisions?         → /ba-plan directly
 ```
 
 Brainstorm produces scope boundaries and acceptance criteria that plan relies on. For a clear, single-approach fix that's well-understood, plan can consume the research doc directly and those artifacts aren't needed.
 
 ---
 
-### `/ba:research [question]`
+### `/ba-research [question]`
 
 Conducts comprehensive codebase investigation using 5 parallel specialized agents, then writes a persistent research document.
 
@@ -75,9 +75,9 @@ Conducts comprehensive codebase investigation using 5 parallel specialized agent
 - **Follow-up support** — additional questions append to the same document with timestamps; prior research detected across sessions
 - **Auto-detected by brainstorm/plan** — matching research docs within 14 days are surfaced as supplementary context automatically
 
-Research docs are gitignored ephemeral artifacts. Findings worth preserving permanently graduate to `docs/solutions/` via `/ba:compound`.
+Research docs are gitignored ephemeral artifacts. Findings worth preserving permanently graduate to `docs/solutions/` via `/ba-compound`.
 
-### `/ba:brainstorm [idea]`
+### `/ba-brainstorm [idea]`
 
 Explores requirements and approaches through collaborative dialogue before planning.
 
@@ -95,7 +95,7 @@ Brainstorm docs are saved to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`
 
 **HTML output:** pass `output:html` in the brainstorm request to produce a self-contained HTML5 file instead. For UI-shaped requirements, the HTML path adds a wireframe affordance (low-fidelity gray-box layout with a mandatory "directional, not the spec" caption). See "Choosing `md` vs `html`" below.
 
-### `/ba:plan [feature]`
+### `/ba-plan [feature]`
 
 Transforms feature descriptions into implementation plans with exact file paths and decisions (literal code only under a `**Code-shape decision:**` label, where the code's shape is the design decision).
 
@@ -129,7 +129,7 @@ Prefer **`html`** when:
 
 **The mode is exclusive:** `md` and `html` are mutually exclusive per artifact — never both. The format is locked on first write and preserved on resume. HTML *fixes reading* but *worsens git review* — choose per artifact.
 
-### `/ba:review-plan [path]`
+### `/ba-review-plan [path]`
 
 Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery.
 
@@ -140,10 +140,10 @@ This catches issues at plan time — where fixing things is cheap — instead of
 - **Confidence soft gate** — per-finding confidence with cross-reviewer dedup and per-tier floors (Must-Address ≥ 50, Consider ≥ 75); below-floor findings move to a separate `Suppressed` section, not lost
 - **Plan-anchored findings** — each finding anchors to a plan **section heading**, a `### U<n>` unit, or a keyed `AC<n>`; anchors that don't resolve in the plan are dropped and counted
 - **Plan-aware framing** — tells each reviewer it's evaluating a proposal, not finished code
-- **Auto-runs in `/ba:plan`** — at the end of planning, a self-suppressing section-scoring pass runs automatically: on a clean plan it stays silent (no widgets, "no weak sections"); on weak sections it surfaces the ledger and asks before dispatching
+- **Auto-runs in `/ba-plan`** — at the end of planning, a self-suppressing section-scoring pass runs automatically: on a clean plan it stays silent (no widgets, "no weak sections"); on weak sections it surfaces the ledger and asks before dispatching
 - **Scope-boundary anchor** — a remedy that adds to, narrows, or qualifies the plan's own `What We're NOT Doing` section is never auto-applied as an ordinary fix — it routes through the spec-decision resolution (Decide now / Iterate the plan), quoting the exclusion in the plan's own words
 
-### `/ba:execute [plan]`
+### `/ba-execute [plan]`
 
 Implements an approved plan systematically: code changes, targeted testing, progress tracking, deviation reporting, and atomic commits.
 
@@ -151,21 +151,21 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Three plan detail levels** — MINIMAL (per unit), STANDARD (per unit), COMPREHENSIVE (per phase with automated checkpoints)
 - **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
 - **Resume across sessions via git** — U-ID commit subjects + per-unit `Verify:` against code; no plan-file mutations
-- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding; deviations surface in the MR/PR body and Linear ticket via `Deviation (U<n>):` commit trailers rolled up by `/ba:propose`, never the plan file
+- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding; deviations surface in the MR/PR body and Linear ticket via `Deviation (U<n>):` commit trailers rolled up by `/ba-propose`, never the plan file
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
-### `/ba:review [ref range]`
+### `/ba-review [ref range]`
 
 Runs post-implementation code review using seven built-in review agents plus any additional reviewers discovered in the environment.
 
-### `/ba:compound [context]`
+### `/ba-compound [context]`
 
 Documents solved problems into `docs/solutions/` so the `learnings-researcher` agent surfaces them in future brainstorm and plan sessions. Closes the knowledge compounding loop.
 
 - **5 parallel subagents** — Context Analyzer, Solution Extractor, Related-Docs Finder, Prevention Strategist, Category Classifier
 - **Frictionless manual / model-proactive** — a deliberate run proceeds directly once a problem/solution pair is identifiable (no confirmation gate); best invoked right after solving a non-trivial, verified problem
-- **Ship-time capture offer** — after a successful create, `/ba:propose` may offer to run `/ba:compound` when the change looks like it carried a reusable learning; otherwise it stays quiet, emitting a one-line suppression trace naming why (see the `/ba:propose` entry)
-- **Explicit invocation** — `/ba:compound` or `/ba:compound [context hint]` for immediate documentation
+- **Ship-time capture offer** — after a successful create, `/ba-propose` may offer to run `/ba-compound` when the change looks like it carried a reusable learning; otherwise it stays quiet, emitting a one-line suppression trace naming why (see the `/ba-propose` entry)
+- **Explicit invocation** — `/ba-compound` or `/ba-compound [context hint]` for immediate documentation
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
 
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
@@ -180,43 +180,43 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
   **bidirectional reconciliation** of accepted-vs-applied and then a **verify-then-keep** targeted-test
   pass that **auto-reverts + resurfaces** any fix that fails. Reviewing **someone else's** MR stays
   posting-only. See
-  `commands/ba/review.md` §5 for the authoritative resolution flow.
-- **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The command does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
+  `skills/ba-review/SKILL.md` §5 for the authoritative resolution flow.
+- **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The skill does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
 
-### /ba:propose [--describe-only] [--review] [--issue <ID>]
+### /ba-propose [--describe-only] [--review] [--issue <ID>]
 
 Commit, push, and open a PR/MR with a composed title and body.
 
 - Pure-function body composition: orchestrator gathers inputs (diff, branch, Linear, docs/solutions, preserved blocks, proof, risk, focus areas) → composition reads value objects and returns title + body
 - Host-detected dispatch: GitHub `gh`, GitLab `glab`, graceful fallback for unknown hosts (compose + push only)
 - Body composition selects from Michael Lynch's 16-section menu, sized to the diff — the size-tier vocabulary is hidden behind the composition seam (no flag, no preview surface)
-- **U-ID preservation** — never strips or rewrites `/ba:execute`'s U-tagged commit subjects (`U<n>` per the convention in `execute.md`); PR/MR title is U-ID-free by design
+- **U-ID preservation** — never strips or rewrites `/ba-execute`'s U-tagged commit subjects (`U<n>` per the convention in `execute.md`); PR/MR title is U-ID-free by design
 - **Proof** — always-on one-line signal, auto-detected from the diff (test file touched, visual evidence preserved from the PR body, docs-only, or pending); no blocking question
 - **Risk lead-line** — an always-on, un-headed `**Risk:** low/medium/high — <reason>` line at the top of the body, deterministically derived from sensitive paths, size, and breaking-change signals; absent at typo tier
 - **Where to look** — an earned `## Where to look` section naming 1–2 hotspot areas on medium+ diffs, omitted when there's no dominant hotspot
 - **Deviation fold** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and folds genuinely reviewer-relevant substance into the Impact prose (no standalone header, no `U<n>` shown); the commit trailer and Linear ticket rollup (when linked) are unchanged; warns on near-matches at preview
-- **Stacked-branch aware** — on a stacked branch (a feature branch built on another unmerged feature branch), `DIFF_BASE` and the MR/PR target come from `resolve-stack-base`, so the MR targets the parent branch and shows only this plan's commits; `--base`/`--target` override the resolution. `/ba:execute` and `/ba:handoff` resume correctly on stacked branches too — the parent plan's commits fall outside the resume window, so their U-IDs no longer swallow the current plan's units
+- **Stacked-branch aware** — on a stacked branch (a feature branch built on another unmerged feature branch), `DIFF_BASE` and the MR/PR target come from `resolve-stack-base`, so the MR targets the parent branch and shows only this plan's commits; `--base`/`--target` override the resolution. `/ba-execute` and `/ba-handoff` resume correctly on stacked branches too — the parent plan's commits fall outside the resume window, so their U-IDs no longer swallow the current plan's units
 - Linear MCP optional with diff-derived fallback; clear preview warning when MCP is unavailable
 - `docs/solutions/` auto-detection on current-branch-touched entries; per-entry confirm to splice as "What I learned"
 - Cursor BugBot block and existing `## Demo` / `## Screenshots` preserved byte-identical
 - Commit message and PR/MR body share the same composed markdown — no separate render path
 - `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
 - **Apply-by-default** — every `ACTION` applies without a confirmation prompt by default; pass `--review` (alias `--interactive`) or set `BA_PROPOSE_REVIEW=1` to restore the Apply / edit / regenerate-with-hint / exit menu and the Step 0b edit-only confirm
-- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba:compound` on the just-shipped learning; silent on routine, uncertain, already-captured, and non-interactive ships (each now emits a one-line suppression trace naming why), and never on edit/describe-only/unknown-host paths
+- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba-compound` on the just-shipped learning; silent on routine, uncertain, already-captured, and non-interactive ships (each now emits a one-line suppression trace naming why), and never on edit/describe-only/unknown-host paths
 
-### `/ba:handoff [focus]`
+### `/ba-handoff [focus]`
 
 Compacts the current conversation into a handoff document saved to your OS temp directory (`$TMPDIR`), so a fresh or parallel session can pick up the work without re-reading the transcript.
 
 - **Git-state aware** — records branch, dirty/clean, and pushed/unpushed so the next session knows where the code stands
 - **References, doesn't restate** — points at in-repo artifacts by path (`docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, `docs/reviews/`) instead of duplicating them
-- **Execution-aware** — if you're mid-`/ba:execute`, names the plan path and narrates U-resolution via `derive-state` (subject scan only, no `Verify:` side effects): units are `done-via-subject` (committed) or `pending`
+- **Execution-aware** — if you're mid-`/ba-execute`, names the plan path and narrates U-resolution via `derive-state` (subject scan only, no `Verify:` side effects): units are `done-via-subject` (committed) or `pending`
 - **Suggested next steps** — lists exact slash invocations for the next agent to run, not prose hints
 - **Verified facts only** — redacts secrets and never fabricates paths, IDs, or test results
 
-### Severity ladder and confidence anchors (`/ba:review`)
+### Severity ladder and confidence anchors (`/ba-review`)
 
-All `/ba:review` reviewers — built-in and external — emit findings under a four-level ladder + a positive bucket:
+All `/ba-review` reviewers — built-in and external — emit findings under a four-level ladder + a positive bucket:
 
 | Heading | Meaning |
 |---|---|
@@ -238,11 +238,11 @@ Each non-`Looks Good` finding carries a confidence anchor from `{0, 25, 50, 75, 
 
 A **soft confidence gate** at consolidation suppresses (not drops) findings below `Critical@50` and `High`/`Medium`/`Low@75`. Cross-reviewer agreement at the same `file:line` merges findings and promotes confidence by `+25` per additional reviewer (capped at 100), so corroboration can lift a finding past the gate. Legacy `Must Address` / `Consider` outputs from external reviewers are mapped to `High` / `Medium`.
 
-> **Source of truth for the rubric:** `commands/ba/review.md` §4 is authoritative for the ladder, the anchor set, the floors, the merge math, and the legacy mapping. This README section is a user-facing summary — when in doubt, consult the command file.
+> **Source of truth for the rubric:** `skills/ba-review/SKILL.md` §4 is authoritative for the ladder, the anchor set, the floors, the merge math, and the legacy mapping. This README section is a user-facing summary — when in doubt, consult the skill file.
 
 ## Convention Compliance
 
-Both brainstorm and plan commands run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
+Both brainstorm and plan skills run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
 
 The `convention-checker` agent reads your CLAUDE.md and project conventions, compares them against the draft, and classifies each as:
 
@@ -257,11 +257,11 @@ Research docs (`docs/research/`) are exempt from compliance checks — they are 
 
 ### U-ID & git-derived state convention
 
-The **U-ID & Git-Derived State Convention** (owned by the `## U-ID & Git-Derived State Convention` section in `commands/ba/execute.md`) is the single source of the implementation-unit anchor grammar, commit-subject grammar, and `derive-state` operation. The grammar is **format-neutral**: a unit anchor is a `### U<n> — <title>` heading in markdown or an HTML `U<n>` visible-text heading with a matching `id=""` attribute. All five citation sites must be updated together when the convention changes: `commands/ba/plan.md` (mints unit anchors), `commands/ba/execute.md` Step 2e (applies the grammar), `commands/ba/propose.md` (preserves U-tagged subjects + rolls up `Deviation (U<n>):` trailers), `commands/ba/handoff.md` (calls `derive-state` with `run_verify: false`), `commands/ba/review-plan.md` (anchors findings to U-IDs and keyed `AC<n>`).
+The **U-ID & Git-Derived State Convention** (owned by the `## U-ID & Git-Derived State Convention` section in `skills/ba-execute/SKILL.md`) is the single source of the implementation-unit anchor grammar, commit-subject grammar, and `derive-state` operation. The grammar is **format-neutral**: a unit anchor is a `### U<n> — <title>` heading in markdown or an HTML `U<n>` visible-text heading with a matching `id=""` attribute. All six citation sites must be updated together when the convention changes: `skills/ba-plan/SKILL.md` (mints unit anchors), `skills/ba-execute/SKILL.md` Step 2e (applies the grammar), `skills/ba-propose/SKILL.md` (preserves U-tagged subjects + rolls up `Deviation (U<n>):` trailers), `skills/ba-handoff/SKILL.md` (calls `derive-state` with `run_verify: false`), `skills/ba-review-plan/SKILL.md` (anchors findings to U-IDs and keyed `AC<n>`), `references/plan-sections.md` (names the grammar owner and its minter/consumer).
 
 ### Stack-base resolution convention
 
-The **Stack-Base Resolution Convention** (owned by the `## Stack-Base Resolution Convention` section in `commands/ba/execute.md`) is the single source of `resolve-stack-base(git, opts) → resolution`, which computes `<base>` correctly on **stacked branches** by narrowing to the detected stack parent (so a parent plan's commits fall outside `<base>..HEAD`). It owns the `<base>` derivation and the degrade/abort ladder (relocated from the U-ID convention). Its four citation sites — a list **distinct** from the U-ID five-site list — must be updated together when the convention changes: `commands/ba/execute.md` (base for `derive-state` + guard), `commands/ba/handoff.md` (same, `run_verify: false`), `commands/ba/propose.md` (`DIFF_BASE` + MR target, layers `host_signal`), `commands/ba/review.md` (branch-base detection).
+The **Stack-Base Resolution Convention** (owned by the `## Stack-Base Resolution Convention` section in `skills/ba-execute/SKILL.md`) is the single source of `resolve-stack-base(git, opts) → resolution`, which computes `<base>` correctly on **stacked branches** by narrowing to the detected stack parent (so a parent plan's commits fall outside `<base>..HEAD`). It owns the `<base>` derivation and the degrade/abort ladder (relocated from the U-ID convention). Its four citation sites — a list **distinct** from the U-ID six-site list — must be updated together when the convention changes: `skills/ba-execute/SKILL.md` (base for `derive-state` + guard), `skills/ba-handoff/SKILL.md` (same, `run_verify: false`), `skills/ba-propose/SKILL.md` (`DIFF_BASE` + MR target, layers `host_signal`), `skills/ba-review/SKILL.md` (branch-base detection).
 
 ## Agents
 
@@ -283,13 +283,13 @@ The **Stack-Base Resolution Convention** (owned by the `## Stack-Base Resolution
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
 | `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
 | `complexity-reviewer` | Reviews code changes for Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer) |
-| `interface-design-generator` | Generates one alternative interface design under a named Ousterhout-flavored constraint (deepest-module / common-case / info-hiding); dispatched in parallel by `/ba:brainstorm` Phase 2 when the brainstorm proposes a new module or interface |
+| `interface-design-generator` | Generates one alternative interface design under a named Ousterhout-flavored constraint (deepest-module / common-case / info-hiding); dispatched in parallel by `/ba-brainstorm` Phase 2 when the brainstorm proposes a new module or interface |
 
 ## Knowledge Compounding
 
-The plugin includes a `docs/solutions/` knowledge base and the `/ba:compound` command to populate it. When you solve a problem, run `/ba:compound` to document the solution (or accept the ship-time offer `/ba:propose` may surface). The `learnings-researcher` agent surfaces relevant learnings during future brainstorm and plan sessions, so the same mistakes aren't repeated.
+The plugin includes a `docs/solutions/` knowledge base and the `/ba-compound` skill to populate it. When you solve a problem, run `/ba-compound` to document the solution (or accept the ship-time offer `/ba-propose` may surface). The `learnings-researcher` agent surfaces relevant learnings during future brainstorm and plan sessions, so the same mistakes aren't repeated.
 
-Research docs in `docs/research/` form a second, ephemeral layer: raw investigations that inform current work. Findings worth keeping permanently graduate to `docs/solutions/` via `/ba:compound`.
+Research docs in `docs/research/` form a second, ephemeral layer: raw investigations that inform current work. Findings worth keeping permanently graduate to `docs/solutions/` via `/ba-compound`.
 
 ## Artifact Paths
 
@@ -300,7 +300,7 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 | Plan docs | `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` or `.html` |
 | Learnings | `docs/solutions/<category>/<filename>.md` |
 | Review run artifacts (opt-in via `--persist`; not auto-ignored — user-managed) | `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` |
-| Format-rendering references + per-command section contracts | `references/` |
+| Format-rendering references + per-skill section contracts | `references/` |
 
 ## Roadmap
 

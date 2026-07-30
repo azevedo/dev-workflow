@@ -54,7 +54,7 @@ function readLines(root, relPath) {
   }
 }
 
-// Recursive so one helper serves both the flat agents/ and the nested commands/ba/;
+// Recursive so one helper serves both the flat agents/ and the nested skills/ba-*/SKILL.md;
 // returns an error result rather than throwing on a missing relDir.
 function walkMarkdown(root, relDir) {
   const files = [];
@@ -80,9 +80,16 @@ function walkMarkdown(root, relDir) {
   return { files };
 }
 
-const PROMPT_SURFACE_DIRS = ['commands', 'agents'];
+const PROMPT_SURFACE_DIRS = ['skills', 'agents'];
 const VERSION_BUMP_WATCHED_PREFIXES = [...PROMPT_SURFACE_DIRS, 'references'].map((d) => `${d}/`);
 const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
+
+// A stale colon invocation does not throw — it burns a round-trip while the model narrates "run it
+// yourself" — so only a standing check catches a reintroduction.
+const RETIRED_INVOCATION_NEEDLES = ['/ba:', 'commands/ba/'];
+// docs/ is excluded by construction, not by allowlist; scripts/ so this cannot flag the line above.
+const RETIRED_INVOCATION_DIRS = [...PROMPT_SURFACE_DIRS, 'references', '.claude/agent_docs'];
+const RETIRED_INVOCATION_FILES = ['README.md', 'CLAUDE.md'];
 
 // Reads the corpus once — both dir listing and file contents — so every check that needs the
 // same prompt-surface text shares one read and one error-reporting path, rather than each
@@ -317,7 +324,9 @@ function referencesCheck(opts) {
 
   for (const refFile of refRes.files) {
     const basename = path.basename(refFile);
-    const needle = `\`references/${basename}\``;
+    // Leading backtick omitted: `references/…` follows a '/' where skill bodies anchor to the plugin
+    // root and a backtick where agents/ cite bare — pinning either spelling fails the other.
+    const needle = `references/${basename}\``;
     const cited = entries.some(({ lines }) => lines.some((line) => line.includes(needle)));
     if (!cited) {
       records.push(
@@ -326,7 +335,7 @@ function referencesCheck(opts) {
           refFile,
           null,
           'FAIL',
-          `no citation of ${needle} found in ${PROMPT_SURFACE_DIRS.join('/, ')}/`,
+          `no citation of \`${refFile}\` found in ${PROMPT_SURFACE_DIRS.join('/, ')}/`,
         ),
       );
     }
@@ -336,6 +345,48 @@ function referencesCheck(opts) {
     subjectCount: refRes.files.length,
     subjectNoun: 'reference files',
     reason: `${refRes.files.length} reference file(s) checked against ${entries.length} corpus file(s)`,
+    records,
+  };
+}
+
+function retiredInvocationsCheck(opts) {
+  const { entries: dirEntries, errorRecords } = loadCorpus(opts, RETIRED_INVOCATION_DIRS, 'retired-invocations');
+  const records = [...errorRecords];
+  const fileEntries = [];
+
+  for (const relPath of RETIRED_INVOCATION_FILES) {
+    const lr = readLines(opts.root, relPath);
+    if (lr.error) {
+      records.push(makeRecord('retired-invocations', relPath, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    fileEntries.push({ file: relPath, lines: lr.lines });
+  }
+
+  const entries = [...dirEntries, ...fileEntries];
+
+  if (entries.length === 0) {
+    const message = 'empty scan corpus';
+    records.push(makeRecord('retired-invocations', RETIRED_INVOCATION_DIRS.join(', '), null, 'UNKNOWN', message));
+    return { subjectCount: 0, subjectNoun: 'scanned files', reason: message, records };
+  }
+
+  for (const { file, lines } of entries) {
+    lines.forEach((line, idx) => {
+      for (const needle of RETIRED_INVOCATION_NEEDLES) {
+        if (line.includes(needle)) {
+          records.push(
+            makeRecord('retired-invocations', file, idx + 1, 'FAIL', `retired invocation string '${needle}' — use the hyphen form`),
+          );
+        }
+      }
+    });
+  }
+
+  return {
+    subjectCount: entries.length,
+    subjectNoun: 'scanned files',
+    reason: `${entries.length} file(s) scanned for ${RETIRED_INVOCATION_NEEDLES.join(' and ')}`,
     records,
   };
 }
@@ -362,6 +413,9 @@ function parsePluginVersion(blobText, label) {
   return { value: version.trim() };
 }
 
+// HEAD~1..HEAD is per-commit locally but per-PR in CI, where pull_request checks out a merge commit
+// whose first parent is the base tip (see .github/workflows/invariants.yml). So a mid-branch local run
+// FAILs on any commit touching a watched path without its own bump — expected, not a defect.
 function versionBumpCheck(opts) {
   const unknown = (message) => ({
     subjectCount: 0,
@@ -399,7 +453,7 @@ function versionBumpCheck(opts) {
   if (newVersion.error) return unknown(newVersion.error);
 
   if (oldVersion.value === newVersion.value) {
-    const message = `version unchanged (${oldVersion.value}) while commands/, agents/, or references/ changed`;
+    const message = `version unchanged (${oldVersion.value}) while ${VERSION_BUMP_WATCHED_PREFIXES.join(', ')} changed`;
     return {
       subjectCount: 3,
       subjectNoun: 'comparison inputs',
@@ -420,6 +474,7 @@ function versionBumpCheck(opts) {
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
+  { id: 'retired-invocations', run: retiredInvocationsCheck },
   { id: 'version-bump', run: versionBumpCheck },
 ];
 

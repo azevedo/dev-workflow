@@ -1,5 +1,5 @@
 ---
-name: ba:compound
+name: ba-compound
 description: "Document a recently solved problem to docs/solutions/ so future brainstorm/plan sessions can reuse it; use after solving a non-trivial, verified problem."
 argument-hint: "[optional: brief context about the fix]"
 ---
@@ -19,7 +19,7 @@ Check conversation context before dispatching subagents:
 2. If insufficient context: ask the user to provide more detail or a context hint.
    Do not proceed until a problem/solution pair is identifiable.
 3. Otherwise proceed directly: a deliberate invocation (manual or offer-driven from
-   `/ba:propose`) needs no confirmation once a problem/solution pair is identifiable.
+   `/ba-propose`) needs no confirmation once a problem/solution pair is identifiable.
 
 ## Step 1: Phase 1 — Parallel Research
 

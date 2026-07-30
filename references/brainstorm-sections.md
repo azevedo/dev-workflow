@@ -1,18 +1,18 @@
 # Brainstorm Section Contract
 
-This is the section contract for `/ba:brainstorm` — it defines **what** a brainstorm artifact
+This is the section contract for `/ba-brainstorm` — it defines **what** a brainstorm artifact
 contains. It is paired at compose time with `references/html-rendering.md` which defines
 **how** the artifact is rendered in HTML. This file is authoritative for the HTML path only.
-The existing inline markdown templates in `commands/ba/brainstorm.md` remain the canonical
+The existing inline markdown templates in `skills/ba-brainstorm/SKILL.md` remain the canonical
 source for the markdown path.
 
-**Artifact type:** `/ba:brainstorm` produces a **requirements-only** artifact. This is a
+**Artifact type:** `/ba-brainstorm` produces a **requirements-only** artifact. This is a
 brainstorm document, not an implementation plan. Brainstorm artifacts live in
 `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md` (`.md`) or
 `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html` (`.html`).
 
 **Sync obligation:** when the section set changes (a section added, removed, or renamed), both
-this contract and the corresponding inline template in `commands/ba/brainstorm.md` must be
+this contract and the corresponding inline template in `skills/ba-brainstorm/SKILL.md` must be
 updated together. This file captures only the slow-changing skeleton (section list + ID
 registries + header fields) to keep the sync surface minimal.
 
@@ -68,7 +68,7 @@ Sections in canonical order. The heading text is the **authoritative vocabulary*
 | `Acceptance Criteria` | `acceptance-criteria` | Measurable criteria |
 | `Open Questions` | `open-questions` | Must be empty before handoff to plan |
 | `Convention Compliance` | `convention-compliance` | Appended by convention-checker |
-| `Next Steps` | `next-steps` | Pointer to `/ba:plan` |
+| `Next Steps` | `next-steps` | Pointer to `/ba-plan` |
 | *(composition footer)* | *(footer element)* | Compose timestamp + source |
 
 ---
@@ -97,8 +97,8 @@ belongs to the plan). In HTML, render as a plain `<ol>` under `<section id="acce
 - The wireframe affordance is scoped to this artifact type (requirements-only). Implementation
   plan HTML artifacts must not include wireframes.
 - The `Locked Design` and `Rejected Designs` sections are conditional — include them only when
-  the design-it-twice path fired in `/ba:brainstorm` Phase 2.
+  the design-it-twice path fired in `/ba-brainstorm` Phase 2.
 - The `Open Questions` section must be empty (or contain only resolved items under a
-  "Resolved Questions" sub-section) before the artifact is valid for handoff to `/ba:plan`.
+  "Resolved Questions" sub-section) before the artifact is valid for handoff to `/ba-plan`.
 - The `references/html-rendering.md` post-compose audit applies in full, including the
   mandatory directional caption on any wireframe.

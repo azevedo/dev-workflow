@@ -1,10 +1,15 @@
 ---
-name: ba:handoff
+name: ba-handoff
 description: "Compact the current conversation into a handoff document for a fresh or parallel session to continue from — captures git state, references in-repo artifacts by path, and suggests exact next steps, saved to $TMPDIR."
 argument-hint: "[what the next session will focus on]"
+disable-model-invocation: true
 ---
 
 Write a handoff document that compacts the current conversation so another agent — or a fresh session of your own — can continue the work without re-reading the transcript. Save it to the user's OS temporary directory, never the workspace.
+
+<focus> #$ARGUMENTS </focus>
+
+When the focus above is non-empty, apply it per **Honour the argument** in the Guidelines. When it is empty, scope the handoff from the conversation itself.
 
 Create the file with `mktemp` so parallel sessions never collide on the name:
 
@@ -30,13 +35,13 @@ Name the branch, whether the tree is clean or dirty, and whether commits are pus
 
 **In-repo artifacts — reference, don't restate.** When a fact already lives in a file, point to it by path instead of copying its content. This includes dev-workflow artifacts: `docs/brainstorms/`, `docs/plans/`, `docs/research/`, `docs/solutions/`, and `docs/reviews/`. The same applies to PRDs, ADRs, issues, commits, and diffs — cite them, don't duplicate them.
 
-**`/ba:execute` progress.** If the session was executing a plan, detect the in-flight plan
+**`/ba-execute` progress.** If the session was executing a plan, detect the in-flight plan
 **with extension-first routing**:
 
 - Glob `docs/plans/*.{md,html}` to find candidate plan files in the working directory.
 - **`.md` plans:** recognized via `plan_schema: 2` in YAML frontmatter (unchanged).
 - **`.html` plans:** recognized by applying the **named HTML conformance preflight** from
-  `references/html-rendering.md` (three-signal check: visible-text header block + ≥1 `U<n>`
+  `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` (three-signal check: visible-text header block + ≥1 `U<n>`
   visible-text heading with `id=""` + composition footer). A conforming `.html` is treated as
   a valid `plan_schema: 2`-equivalent in-flight plan; a non-conforming `.html` is **not**
   mistaken for an in-flight plan. For a conforming `.html`, read the visible-text header block
@@ -50,7 +55,7 @@ section in `execute.md`). `<base>` for the subject scan comes from
 `resolve-stack-base(git)` (git-first — handoff passes **no** `host_signal`, so zero host
 calls; base derivation is owned by the `## Stack-Base Resolution Convention` section in
 `execute.md`). **Execute the owner spec, don't approximate it:** open
-`commands/ba/execute.md`'s `## Stack-Base Resolution Convention` section and run its
+`skills/ba-execute/SKILL.md`'s `## Stack-Base Resolution Convention` section and run its
 detection / degrade-abort / guard steps verbatim — the full algorithm (ref scope,
 self-exclusion, fetch policy, confidence precedence, foreign-U-ID guard) lives only
 there; this site consumes the resulting `resolution` fields and never re-derives them. `derive-state` is format-blind on the git side; the only format-specific step
@@ -68,19 +73,19 @@ artifact** — since `run_verify: false` gives no `Verify:` backstop, a console-
 lost when the next session reads the document. The receiving session must inherit the
 uncertainty.
 
-For each unit, the verdict is either `done-via-subject` (its `U<n>` appears in a commit subject in `<base>..HEAD`, where `<base>` = `resolve-stack-base(git).base`) or `pending`. Handoff **cannot** observe `done-via-verify` — a unit that is implemented but uncommitted reads `pending` here. Narrate pending units as: "uncommitted, not yet durable — commit and run `/ba:propose` to make it durable." State this limitation explicitly so the receiving session knows the progress report reflects **git durability**, not worktree state.
+For each unit, the verdict is either `done-via-subject` (its `U<n>` appears in a commit subject in `<base>..HEAD`, where `<base>` = `resolve-stack-base(git).base`) or `pending`. Handoff **cannot** observe `done-via-verify` — a unit that is implemented but uncommitted reads `pending` here. Narrate pending units as: "uncommitted, not yet durable — commit and run `/ba-propose` to make it durable." State this limitation explicitly so the receiving session knows the progress report reflects **git durability**, not worktree state.
 
 E.g. "mid-execute on `docs/plans/…-plan.md`: U1–U3 done-via-subject; U4–U5 pending (U4 may be implemented in working tree — verify before re-implementing)."
 
 **Suggested next steps.** Add a "Suggested next steps" section listing the *exact* slash invocations the next agent should run — not prose hints. For example:
 
-- `/ba:execute docs/plans/2026-06-04-feat-handoff-command-plan.md` — resume implementation
-- `/ba:review HEAD~3..HEAD` — review what landed
+- `/ba-execute docs/plans/2026-06-04-feat-handoff-command-plan.md` — resume implementation
+- `/ba-review HEAD~3..HEAD` — review what landed
 
 ## Always, regardless of the argument
 
 - **Redact sensitive information.** Strip API keys, tokens, passwords, `.env` contents, full auth headers, and PII. Redaction is best-effort by eye — there's no scrubber behind it, so don't claim the doc is guaranteed clean; just don't write a secret into it.
 - **State only verified facts.** Every path, branch, ID, and test result must come from something you actually observed this session. Don't fabricate file paths, commit SHAs, ticket IDs, or claims that tests passed. If you're summarizing from memory and aren't sure, label it "not verified this session" rather than asserting it.
-- **Honour the argument.** If the user passed an argument to `/ba:handoff`, treat it as the next session's focus and lead with what that session needs. The argument controls emphasis and ordering only — it never licenses dropping git state, in-flight execute context, redaction, or the verified-facts rule.
+- **Honour the argument.** If the user passed an argument to `/ba-handoff`, treat it as the next session's focus and lead with what that session needs. The argument controls emphasis and ordering only — it never licenses dropping git state, in-flight execute context, redaction, or the verified-facts rule.
 
 Structure the document however the session's actual content warrants — there is no fixed template. A short session needs a short handoff.

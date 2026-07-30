@@ -1,6 +1,6 @@
 ---
 name: simplification-reviewer
-description: "Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations. Use as a built-in reviewer in /ba:review."
+description: "Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations. Use as a built-in reviewer in /ba-review."
 model: sonnet
 ---
 
@@ -69,7 +69,7 @@ If no issues found for a severity level, write "None" under that heading.
 
 Confidence sits between `**file:line**` and `— body`. Do not place it elsewhere.
 
-> **Source of truth for the rubric:** `commands/ba/review.md` §4 (the consolidation pipeline). The severity ladder and confidence anchors are duplicated here for defence-in-depth — a reviewer reading only its own agent file still sees the rubric — but any change to the ladder, the anchor set, the floors, or the merge math MUST be made in `commands/ba/review.md` first and propagated here verbatim. If you find this file's rubric diverging from `commands/ba/review.md`, treat `commands/ba/review.md` as authoritative.
+> **Source of truth for the rubric:** `skills/ba-review/SKILL.md` §4 (the consolidation pipeline). The severity ladder and confidence anchors are duplicated here for defence-in-depth — a reviewer reading only its own agent file still sees the rubric — but any change to the ladder, the anchor set, the floors, or the merge math MUST be made in `skills/ba-review/SKILL.md` first and propagated here verbatim. If you find this file's rubric diverging from `skills/ba-review/SKILL.md`, treat `skills/ba-review/SKILL.md` as authoritative.
 
 ## Principles
 
