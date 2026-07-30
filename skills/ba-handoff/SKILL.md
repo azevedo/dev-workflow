@@ -7,6 +7,10 @@ disable-model-invocation: true
 
 Write a handoff document that compacts the current conversation so another agent — or a fresh session of your own — can continue the work without re-reading the transcript. Save it to the user's OS temporary directory, never the workspace.
 
+<focus> #$ARGUMENTS </focus>
+
+When the focus above is non-empty, apply it per **Honour the argument** in the Guidelines. When it is empty, scope the handoff from the conversation itself.
+
 Create the file with `mktemp` so parallel sessions never collide on the name:
 
 ```bash

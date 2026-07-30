@@ -9,9 +9,15 @@ disable-model-invocation: true
 
 You are tasked with conducting comprehensive research across the codebase to answer user questions by spawning parallel sub-agents and synthesizing their findings.
 
+## Research Query
+
+<research_query> #$ARGUMENTS </research_query>
+
 ## Initial Setup
 
-When this command is invoked, respond with:
+**If the research query above is non-empty**, treat it as the query and go straight to Step 0 — do not ask for it again.
+
+**If it is empty**, respond with:
 
 > I'm ready to research the codebase. Please provide your research question or area of interest, and I'll analyze it thoroughly by exploring relevant components and connections.
 
