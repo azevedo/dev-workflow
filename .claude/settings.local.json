@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git push:*)",
-      "Bash(gh repo:*)"
+      "Bash(gh repo:*)",
+      "Bash(node -e 'throw new Error\\(\"x\"\\)')"
     ]
   }
 }
