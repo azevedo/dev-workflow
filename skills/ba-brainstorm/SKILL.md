@@ -26,7 +26,7 @@ the full enumeration (in-prompt `output:` token → session/memory preference �
 
 **Brainstorm-specific addition — wireframe affordance (HTML path only):**
 Because brainstorm is a requirements-only artifact, the HTML path may include a low-fidelity
-wireframe for UI-shaped requirements. See `references/html-rendering.md` "Wireframe Mockups"
+wireframe for UI-shaped requirements. See `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` "Wireframe Mockups"
 for rules and the mandatory directional caption requirement. This affordance is absent from the
 markdown path and from implementation plan HTML artifacts.
 
@@ -135,9 +135,9 @@ tags: [component-names]
 - [Testable criteria extracted from the feature description]
 ```
 
-For **`html`**, follow the **canonical load-site pattern** from `references/html-rendering.md`:
-Read `references/html-rendering.md` at compose time, then load
-`references/brainstorm-sections.md`. Write `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html`
+For **`html`**, follow the **canonical load-site pattern** from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`:
+Read `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` at compose time, then load
+`${CLAUDE_PLUGIN_ROOT}/references/brainstorm-sections.md`. Write `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html`
 as a single self-contained HTML5 file with a visible-text header block, composition-signal
 footer, and all rendering invariants from the reference. Run the post-compose audit before
 returning. For a UI-shaped requirement, a wireframe with the mandatory directional caption is
@@ -260,13 +260,13 @@ Ensure `docs/brainstorms/` directory exists before writing.
 **Write based on `OUTPUT_FORMAT` (resolved in Phase 0.0):**
 
 For **`md`**, write `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`. For **`html`**, follow
-the **canonical load-site pattern**: Read `references/html-rendering.md` at compose time,
-then load `references/brainstorm-sections.md`. Write
+the **canonical load-site pattern**: Read `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` at compose time,
+then load `${CLAUDE_PLUGIN_ROOT}/references/brainstorm-sections.md`. Write
 `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html` as a single self-contained HTML5 file
 with a visible-text header block (structured metadata — no YAML), composition-signal footer,
-and all rendering invariants from `references/html-rendering.md`. For a UI-shaped requirement,
+and all rendering invariants from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`. For a UI-shaped requirement,
 a wireframe with the mandatory directional caption is permitted. Run the post-compose audit
-from `references/html-rendering.md` before returning.
+from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` before returning.
 
 **Markdown document template:**
 

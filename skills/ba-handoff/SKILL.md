@@ -37,7 +37,7 @@ Name the branch, whether the tree is clean or dirty, and whether commits are pus
 - Glob `docs/plans/*.{md,html}` to find candidate plan files in the working directory.
 - **`.md` plans:** recognized via `plan_schema: 2` in YAML frontmatter (unchanged).
 - **`.html` plans:** recognized by applying the **named HTML conformance preflight** from
-  `references/html-rendering.md` (three-signal check: visible-text header block + ≥1 `U<n>`
+  `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` (three-signal check: visible-text header block + ≥1 `U<n>`
   visible-text heading with `id=""` + composition footer). A conforming `.html` is treated as
   a valid `plan_schema: 2`-equivalent in-flight plan; a non-conforming `.html` is **not**
   mistaken for an in-flight plan. For a conforming `.html`, read the visible-text header block

@@ -30,7 +30,7 @@ From the results, **branch on extension**:
 - **`.md`** files: read YAML frontmatter. Select the most recent with `plan_schema: 2`. Skip
   files without `plan_schema: 2`.
 - **`.html`** files: apply the **named HTML conformance preflight** (see
-  `references/html-rendering.md` "Named HTML Conformance Preflight") — all three signals must
+  `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` "Named HTML Conformance Preflight") — all three signals must
   be present (visible-text header block + ≥1 `U<n>` visible-text heading with `id=""` +
   composition footer). A non-conforming `.html` is **not** a plan file — reject it with "doesn't
   look like a plan file" (not "predates the git-derived execution model", which is the
@@ -52,7 +52,7 @@ Read the plan file thoroughly. **Branch on extension** for validation:
 
 #### `.html` plans
 
-Apply the **named HTML conformance preflight** (from `references/html-rendering.md`) — all
+Apply the **named HTML conformance preflight** (from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`) — all
 three signals must be present (visible-text header block + ≥1 `U<n>` visible-text heading with
 `id=""` + composition footer). Do not re-derive the signal list here; cite it by name.
 

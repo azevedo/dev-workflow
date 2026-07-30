@@ -31,7 +31,7 @@ ls -t docs/plans/*.{md,html} 2>/dev/null | head -1
 ```
 
 For `.html` files, apply the **named HTML conformance preflight** (from
-`references/html-rendering.md`) before proceeding — the same three-signal check as
+`${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`) before proceeding — the same three-signal check as
 `/ba:execute`. A non-conforming `.html` is rejected as "doesn't look like a plan file";
 do not enumerate it as zero units.
 
@@ -222,7 +222,7 @@ where `<anchor>` is a section-heading text, a `U<n>` key, or an `AC<n>` key, and
 normalized heading text / key string (collapse internal whitespace, trim, drop surrounding
 markdown formatting; for HTML drop surrounding tags). A struck (`strike-don't-renumber`) `U<n>`
 does **not** resolve — in HTML, "struck" means the unit carries the visible `<del>` marker or
-`(superseded)` text per `references/html-rendering.md`. A non-resolving anchor is **dropped**
+`(superseded)` text per `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`. A non-resolving anchor is **dropped**
 by consolidation (Step 4) and counted in the surfaced **`dropped_off_plan`** counter.
 
 The drop reason must distinguish:
@@ -498,10 +498,10 @@ bidirectional-reconciliation / baseline-test harness (there are no tests to run 
 
 **HTML-specific apply rules:**
 - Prose fixes edit visible text in place using the Edit tool, guided by
-  `references/html-rendering.md`.
+  `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`.
 - **Structural fixes** (add/reorder/strike a unit) get the same caution as risky markdown fixes,
   plus an **HTML-specific post-apply re-validation**: after the edit, re-run the
-  `references/html-rendering.md` post-compose audit, asserting the `id=""`/visible-text pairing
+  `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` post-compose audit, asserting the `id=""`/visible-text pairing
   stays in sync and the footer is present. The no-duplicate-metadata invariant guarantees a fix
   never lands in two places.
 - Do **not** apply a fix that would create hidden metadata or break the conformance preflight
@@ -532,7 +532,7 @@ the merged finding as a **spec decision** if *any* contributor is a spec decisio
 classification) — route it through the spec-decision resolution below, never write it as an open question.
 
 **Scope-boundary anchor.** The plan's own exclusions section (the `What We're NOT Doing` /
-`scope-boundaries` row in `references/plan-sections.md`, matched by heading text or `id=""` per the
+`scope-boundaries` row in `${CLAUDE_PLUGIN_ROOT}/references/plan-sections.md`, matched by heading text or `id=""` per the
 anchor rule above) bounds what resolution may apply. A fix that **adds to, narrows, or qualifies
 that section** is always a **spec decision** in the sense of the classifier below — regardless of
 bucket, Must Address included. Disposition these **before** any bulk apply, and name them in the

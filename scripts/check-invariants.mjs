@@ -317,7 +317,10 @@ function referencesCheck(opts) {
 
   for (const refFile of refRes.files) {
     const basename = path.basename(refFile);
-    const needle = `\`references/${basename}\``;
+    // Leading backtick deliberately omitted: skill bodies anchor to the plugin root, agents/ cites
+    // bare, so the basename follows a '/' in one spelling and a backtick in the other. Re-adding it
+    // narrows the needle to one spelling and fails the other.
+    const needle = `references/${basename}\``;
     const cited = entries.some(({ lines }) => lines.some((line) => line.includes(needle)));
     if (!cited) {
       records.push(
@@ -326,7 +329,7 @@ function referencesCheck(opts) {
           refFile,
           null,
           'FAIL',
-          `no citation of ${needle} found in ${PROMPT_SURFACE_DIRS.join('/, ')}/`,
+          `no citation of \`${refFile}\` found in ${PROMPT_SURFACE_DIRS.join('/, ')}/`,
         ),
       );
     }

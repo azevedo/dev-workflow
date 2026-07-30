@@ -241,9 +241,9 @@ tags: [feature, component-names]
 ---
 ```
 
-For **HTML** artifacts, render as a visible-text header block per `references/plan-sections.md`
+For **HTML** artifacts, render as a visible-text header block per `${CLAUDE_PLUGIN_ROOT}/references/plan-sections.md`
 (the `<section id="header">` with a `<dl class="metadata-strip">`) — no YAML, no `---` block.
-See `references/html-rendering.md` Section Anatomy for the exact element shape.
+See `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` Section Anatomy for the exact element shape.
 
 ### MINIMAL Template
 
@@ -650,15 +650,15 @@ in `docs/plans/`. If so, ask the user which to keep before proceeding — never 
 - **`md`:** Use the Write tool to save the plan to
   `docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md`.
 
-- **`html`:** Follow the **canonical load-site pattern** from `references/html-rendering.md`:
-  Read `references/html-rendering.md` at compose time (before emitting any HTML), then load
-  `references/plan-sections.md`. Produce a single self-contained `.html` file at
+- **`html`:** Follow the **canonical load-site pattern** from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`:
+  Read `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` at compose time (before emitting any HTML), then load
+  `${CLAUDE_PLUGIN_ROOT}/references/plan-sections.md`. Produce a single self-contained `.html` file at
   `docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.html` with:
-  - A visible-text header block (frontmatter equivalent) per `references/plan-sections.md`.
+  - A visible-text header block (frontmatter equivalent) per `${CLAUDE_PLUGIN_ROOT}/references/plan-sections.md`.
   - Every U-ID and AC-ID rendered as both `id=""` and visible text per the rendering reference.
   - A composition-signal `<footer>` with compose timestamp and source path.
-  - All other rendering invariants from `references/html-rendering.md`.
-  - Run the post-compose audit from `references/html-rendering.md` before returning.
+  - All other rendering invariants from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`.
+  - Run the post-compose audit from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` before returning.
 
 Confirm: "Plan written to `docs/plans/[filename]`"
 
