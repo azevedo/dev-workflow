@@ -85,9 +85,7 @@ const VERSION_BUMP_WATCHED_PREFIXES = [...PROMPT_SURFACE_DIRS, 'references'].map
 const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
 
 // A stale colon invocation does not throw — it burns a round-trip while the model narrates "run it
-// yourself" — so only a standing check catches a reintroduction. docs/ keeps thousands of the old
-// form by design and learnings-researcher reads docs/solutions/ into future planning sessions, so
-// the reintroduction path is live rather than theoretical.
+// yourself" — so only a standing check catches a reintroduction.
 const RETIRED_INVOCATION_NEEDLES = ['/ba:', 'commands/ba/'];
 // docs/ is excluded by construction, not by allowlist; scripts/ so this cannot flag the line above.
 const RETIRED_INVOCATION_DIRS = [...PROMPT_SURFACE_DIRS, 'references', '.claude/agent_docs'];
@@ -326,9 +324,8 @@ function referencesCheck(opts) {
 
   for (const refFile of refRes.files) {
     const basename = path.basename(refFile);
-    // Leading backtick deliberately omitted: skill bodies anchor to the plugin root, agents/ cites
-    // bare, so the basename follows a '/' in one spelling and a backtick in the other. Re-adding it
-    // narrows the needle to one spelling and fails the other.
+    // Leading backtick omitted: `references/…` follows a '/' where skill bodies anchor to the plugin
+    // root and a backtick where agents/ cite bare — pinning either spelling fails the other.
     const needle = `references/${basename}\``;
     const cited = entries.some(({ lines }) => lines.some((line) => line.includes(needle)));
     if (!cited) {
@@ -353,8 +350,9 @@ function referencesCheck(opts) {
 }
 
 function retiredInvocationsCheck(opts) {
-  const { entries, errorRecords } = loadCorpus(opts, RETIRED_INVOCATION_DIRS, 'retired-invocations');
+  const { entries: dirEntries, errorRecords } = loadCorpus(opts, RETIRED_INVOCATION_DIRS, 'retired-invocations');
   const records = [...errorRecords];
+  const fileEntries = [];
 
   for (const relPath of RETIRED_INVOCATION_FILES) {
     const lr = readLines(opts.root, relPath);
@@ -362,8 +360,10 @@ function retiredInvocationsCheck(opts) {
       records.push(makeRecord('retired-invocations', relPath, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
       continue;
     }
-    entries.push({ file: relPath, lines: lr.lines });
+    fileEntries.push({ file: relPath, lines: lr.lines });
   }
+
+  const entries = [...dirEntries, ...fileEntries];
 
   if (entries.length === 0) {
     const message = 'empty scan corpus';
@@ -413,6 +413,9 @@ function parsePluginVersion(blobText, label) {
   return { value: version.trim() };
 }
 
+// HEAD~1..HEAD is per-commit locally but per-PR in CI, where pull_request checks out a merge commit
+// whose first parent is the base tip (see .github/workflows/invariants.yml). So a mid-branch local run
+// FAILs on any commit touching a watched path without its own bump — expected, not a defect.
 function versionBumpCheck(opts) {
   const unknown = (message) => ({
     subjectCount: 0,

@@ -254,6 +254,7 @@ Glob("**/*.md", path="~/.claude/agents/")
 Glob("**/*.md", path="~/.claude/skills/")
 Glob("**/*.md", path="~/.claude/commands/")
 Glob("**/*.md", path=".claude/agents/")
+Glob("**/*.md", path=".claude/skills/")
 Glob("**/*.md", path=".claude/commands/")
 Glob("**/*.md", path=".agents/")
 Glob("**/*.md", path=".agents/agents/")
@@ -263,9 +264,13 @@ Glob("**/*.md", path=".agents/commands/")
 
 Read each discovered file's frontmatter (first 15 lines). The frontmatter is the authoritative source — it may be richer than the system-reminder summary. Include the file if its `name`, `description`, or any frontmatter field contains any of: "review", "code-review", "reviewer", "quality", "lint", "audit", "assess", "guidelines", "compliance", "pattern", "architecture", "composition".
 
-**If a file matches the keywords above, include it.** Only exclude if it is one of these specific categories: plan writers (`ba-plan`, `ba-brainstorm`), execution skills (`ba-execute`), fixer skills that modify code rather than producing read-only findings (`simplify`), or the built-in agents already listed in 2a. When in doubt, include — let the user decide.
+**If a file matches the keywords above, include it.** When in doubt, include — let the user decide. Exclude only these categories:
 
-**Also scan the system-reminder skills list** as a fallback for skills not stored as files. Include any skill whose name or description matches the same keywords above. Exclude: `ba-review`, `ba-review-plan`, fixer skills (`simplify`), and other orchestration skills. Fixer skills modify code rather than producing read-only findings — they violate the reviewer contract and risk mutating the working tree during parallel review execution.
+- **This family's own orchestration skills** — `ba-review`, `ba-review-plan`, `ba-plan`, `ba-brainstorm`, `ba-execute`, `ba-propose`, `ba-handoff`, `ba-research`, `ba-compound`. Several match the keyword filter on phrases in their own descriptions (`ba-propose` matches on "review" via its `--review` flag; `ba-review`/`ba-review-plan` match on their names), so name them explicitly rather than relying on a judgment call. `ba-propose` is the costliest false positive in this list — it commits, pushes, and opens a PR/MR.
+- **Fixer skills** that modify code rather than producing read-only findings (`simplify`). They violate the reviewer contract and risk mutating the working tree during parallel review execution.
+- **The built-in agents already listed in 2a.**
+
+**Also scan the system-reminder skills list** as a fallback for skills not stored as files, applying the same keyword filter and the same exclusion list above — one list governs both paths, so a name added to it cannot be enforced on one path and missed on the other.
 
 **Skills and commands are valid reviewers regardless of which directory they live in.** A skill that performs code review, audit, or quality assessment should be included.
 

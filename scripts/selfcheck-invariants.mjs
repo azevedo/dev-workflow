@@ -171,6 +171,31 @@ const CASES = [
     expectSubstring: 'references: PASS',
   },
   {
+    // Pins the needle's missing leading backtick (check-invariants.mjs). Re-adding it would still pass
+    // every bare-form fixture above while silently failing the anchored form real skill bodies use.
+    name: 'references PASS — cited only via the plugin-root-anchored spelling from skills/',
+    checkId: 'references',
+    build(root) {
+      write(root, 'references/foo.md', 'content\n');
+      write(root, 'skills/a.md', 'load `${CLAUDE_PLUGIN_ROOT}/references/foo.md` at compose time\n');
+      write(root, 'agents/b.md', 'no citation here\n');
+    },
+    expectExit: 0,
+    expectSubstring: 'references: PASS',
+  },
+  {
+    name: 'references PASS — bare and anchored spellings both satisfy the same needle',
+    checkId: 'references',
+    build(root) {
+      write(root, 'references/foo.md', 'content\n');
+      write(root, 'references/bar.md', 'content\n');
+      write(root, 'skills/a.md', 'load `${CLAUDE_PLUGIN_ROOT}/references/foo.md`\n');
+      write(root, 'agents/b.md', 'see `references/bar.md`\n');
+    },
+    expectExit: 0,
+    expectSubstring: 'references: PASS',
+  },
+  {
     name: 'references UNKNOWN — empty references/ directory',
     checkId: 'references',
     build(root) {
@@ -327,6 +352,45 @@ const CASES = [
     expectSubstrings: ['agents/b.md:1', "retired invocation string 'commands/ba/'"],
   },
   {
+    // references/ and .claude/agent_docs/ are in the corpus beyond the two prompt-surface dirs;
+    // without this, narrowing RETIRED_INVOCATION_DIRS back to PROMPT_SURFACE_DIRS would pass.
+    name: 'retired-invocations FAIL — planted colon form in references/ and .claude/agent_docs/',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'clean\n');
+      write(root, 'agents/b.md', 'clean\n');
+      write(root, 'references/foo.md', 'composed by /ba:plan\n');
+      write(root, '.claude/agent_docs/c.md', 'surface is `commands/ba/*.md`\n');
+      write(root, 'README.md', 'clean\n');
+      write(root, 'CLAUDE.md', 'clean\n');
+    },
+    expectExit: 1,
+    expectSubstrings: ['references/foo.md:1', '.claude/agent_docs/c.md:1'],
+  },
+  {
+    name: 'retired-invocations FAIL — multiple hits in one file each report their own line',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'clean\n');
+      write(root, 'agents/b.md', 'clean\n');
+      write(root, 'references/foo.md', 'clean\n');
+      write(root, '.claude/agent_docs/c.md', 'clean\n');
+      write(root, 'README.md', 'run `/ba:plan`\nthen read `commands/ba/execute.md`\n');
+      write(root, 'CLAUDE.md', 'clean\n');
+    },
+    expectExit: 1,
+    expectSubstrings: ['README.md:1', 'README.md:2'],
+  },
+  {
+    name: 'retired-invocations UNKNOWN — no corpus dirs and no root files',
+    checkId: 'retired-invocations',
+    build(root) {
+      fs.mkdirSync(path.join(root, '.git'), { recursive: true });
+    },
+    expectExit: 2,
+    expectSubstring: 'empty scan corpus',
+  },
+  {
     name: 'retired-invocations PASS — clean tree with only hyphen forms',
     checkId: 'retired-invocations',
     build(root) {
@@ -367,7 +431,7 @@ const CASES = [
       );
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'references/foo.md', 'content\n'); // cited nowhere -> references FAIL
-      // no git repo at all -> version-bump UNKNOWN; sentinels PASSes -> overall exit must be FAIL (1), not UNKNOWN (2)
+      // no git repo at all -> version-bump UNKNOWN
     },
     expectExit: 1,
     expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN'],

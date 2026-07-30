@@ -1,7 +1,7 @@
 ---
 name: ba-plan
 description: Transform feature descriptions into well-structured implementation plans following project conventions
-argument-hint: "[feature description, bug report, or improvement idea]"
+argument-hint: "[output:html|output:md] [feature description, bug report, or improvement idea]"
 ---
 
 # Create an Implementation Plan
