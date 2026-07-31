@@ -242,7 +242,7 @@ A **soft confidence gate** at consolidation suppresses (not drops) findings belo
 
 ## Convention Compliance
 
-Both brainstorm and plan skills run a **mandatory convention-compliance check** before writing artifacts to disk. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules.
+Both brainstorm and plan skills run a **mandatory convention-compliance check** on their artifacts. This closes a gap shared by all three reference systems: no explicit step that compares output against project rules. In `/ba-plan` the check runs strictly before the file reaches disk; in `/ba-brainstorm` it currently runs after the write, as an in-place amendment (known debt).
 
 The `convention-checker` agent reads your CLAUDE.md and project conventions, compares them against the draft, and classifies each as:
 
