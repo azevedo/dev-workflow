@@ -597,7 +597,7 @@ Use **AskUserQuestion**:
 5. **Done** — Wrap up
 
 **Based on selection:**
-Both handoff targets carry `disable-model-invocation: true`, so you **cannot** invoke them — the
+Both handoff targets carry the `disable-model-invocation` flag, so you **cannot** invoke them — the
 `Skill` tool refuses. Print the invocation for the user to type and stop; do not attempt the call, and
 do not silently substitute your own review or PR flow in its place.
 
