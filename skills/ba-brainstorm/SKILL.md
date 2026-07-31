@@ -30,7 +30,7 @@ wireframe for UI-shaped requirements. See `${CLAUDE_PLUGIN_ROOT}/references/html
 for rules and the mandatory directional caption requirement. This affordance is absent from the
 markdown path and from implementation plan HTML artifacts.
 
-**Exclusive-mode enforcement (checked at Phase 3, before write):**
+**Exclusive-mode enforcement (checked at Phase 3.6, the write site):**
 Before writing, check for a same-stem twin of the *other* extension in `docs/brainstorms/`.
 If one exists, refuse and ask the user which to keep — never write both.
 
@@ -38,7 +38,8 @@ If one exists, refuse and ask the user which to keep — never write both.
 If a brainstorm file already exists on disk for this topic, preserve its format. A mid-run
 format switch is refused.
 
-Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) for use in Phase 3.
+Store the resolved format as `OUTPUT_FORMAT` (`md` or `html`) — it drives composition in Phase 3 and
+the write in Phase 3.6.
 
 ---
 
@@ -214,7 +215,7 @@ Mixed-scope brainstorms (new module + refactor in one brainstorm): fire if any p
 
 Tie-breaker on ambiguity: prefer firing. The cost of an unnecessary parallel dispatch is one round of LLM time; the cost of skipping a needed one is calcified design.
 
-When the trigger does **not** fire, run the default mode below silently. No announcement. Single-shot per brainstorm session: if `## Locked Design` already exists in the brainstorm doc at this path, do not re-dispatch — proceed to default mode and note the prior dispatch in Phase 3 capture.
+When the trigger does **not** fire, run the default mode below silently. No announcement. Single-shot per brainstorm session: if `## Locked Design` already exists in the brainstorm doc at this path, do not re-dispatch — proceed to default mode and note the prior dispatch in the Phase 3 draft.
 
 #### Design-it-twice mode (trigger fired)
 
@@ -226,7 +227,7 @@ Dispatch three `interface-design-generator` agents in parallel, one per constrai
 
 Wait for all three to return.
 
-**Failure handling.** If any dispatch errors, returns empty, or returns output missing one or more of the five contract sections (`### Interface`, `### Usage example`, `### What's hidden behind the seam`, `### Dependency strategy`, `### Trade-offs`), **fall back to default mode above** for the entire pick step. Note the fallback in Phase 3 capture as: `Design-it-twice dispatch attempted; fell back to default Phase 2 enumeration because [reason].`
+**Failure handling.** If any dispatch errors, returns empty, or returns output missing one or more of the five contract sections (`### Interface`, `### Usage example`, `### What's hidden behind the seam`, `### Dependency strategy`, `### Trade-offs`), **fall back to default mode above** for the entire pick step. Note the fallback in the Phase 3 draft as: `Design-it-twice dispatch attempted; fell back to default Phase 2 enumeration because [reason].`
 
 **Present.** Show each design sequentially with its full 5-part output (Design A — Deepest module, Design B — Common case, Design C — Info hiding). After the third presentation, contrast in prose on **depth** (leverage at the interface), **locality** (where change concentrates), **seam placement**, and **who pays the trade-offs**. **Lead with a recommendation** — a strong read, not a menu.
 
@@ -236,7 +237,7 @@ Wait for all three to return.
 3. **Design C — Info hiding** — [one-line summary of C's interface]
 4. **Hybrid** — combine elements across designs
 
-If the user picks **Hybrid**, follow up with a second **AskUserQuestion** asking the user to describe the hybrid in one or two sentences (e.g., *"A's interface but B's error model"*). Capture the user's wording verbatim — it becomes the `**Source:**` line of `## Locked Design` in Phase 3 capture.
+If the user picks **Hybrid**, follow up with a second **AskUserQuestion** asking the user to describe the hybrid in one or two sentences (e.g., *"A's interface but B's error model"*). Capture the user's wording verbatim — it becomes the `**Source:**` line of `## Locked Design` in the Phase 3 draft.
 
 If the user explicitly rejects all four options, surface the misfire and offer: (a) accept one of A/B/C as a refinement starting point in plan, or (b) end this brainstorm and start a fresh one. **Do not re-dispatch within this brainstorm session** — single-shot is binding.
 
@@ -253,22 +254,16 @@ For each approach, provide:
 
 Use **AskUserQuestion** to ask which approach the user prefers (or if they want to explore a different direction).
 
-### Phase 3: Capture the Design
+### Phase 3: Compose the Design
 
-Ensure `docs/brainstorms/` directory exists before writing.
+Compose the brainstorm in context using the template below. It does not reach disk until Phase 3.6.
 
-**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0).**
-
-**Write based on `OUTPUT_FORMAT` (resolved in Phase 0.0):**
-
-For **`md`**, write `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`. For **`html`**, follow
-the **canonical load-site pattern**: Read `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` at compose time,
-then load `${CLAUDE_PLUGIN_ROOT}/references/brainstorm-sections.md`. Write
-`docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html` as a single self-contained HTML5 file
-with a visible-text header block (structured metadata — no YAML), composition-signal footer,
-and all rendering invariants from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md`. For a UI-shaped requirement,
-a wireframe with the mandatory directional caption is permitted. Run the post-compose audit
-from `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` before returning.
+For **`html`** (`OUTPUT_FORMAT` resolved in Phase 0.0), the composition is driven by the
+**canonical load-site pattern**: read `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` at compose
+time, then load `${CLAUDE_PLUGIN_ROOT}/references/brainstorm-sections.md`. The artifact is a single
+self-contained HTML5 file with a visible-text header block (structured metadata — no YAML), a
+composition-signal footer, and all rendering invariants from that reference. For a UI-shaped
+requirement, a wireframe with the mandatory directional caption is permitted.
 
 **Markdown document template:**
 
@@ -303,7 +298,7 @@ tags: [feature, component-names]
 - [Must be empty before handoff to plan]
 
 ## Convention Compliance
-[Appended by convention-checker — see Phase 3.5]
+[Filled in from Phase 3.5's findings, before the write — see Phase 3.5]
 
 ## Next Steps
 → `/ba-plan` to create implementation plan
@@ -315,7 +310,7 @@ tags: [feature, component-names]
 
 #### When design-it-twice mode fired in Phase 2
 
-If Phase 2's trigger fired and the user picked a design (A / B / C / Hybrid), append the two sections below **after `## Key Decisions`** in the brainstorm doc. Do not write either section when the trigger did not fire — keep the default template clean.
+If Phase 2's trigger fired and the user picked a design (A / B / C / Hybrid), add the two sections below **after `## Key Decisions`** in the in-context draft. Omit both when the trigger did not fire — keep the default template clean.
 
 ```markdown
 ## Locked Design
@@ -373,7 +368,26 @@ If the dispatch was skipped because `## Locked Design` already exists at this pa
 
 4. **MUST resolve all violations** before writing the artifact to disk.
 
-5. Append the compliance summary to the brainstorm document's "Convention Compliance" section.
+5. Add the compliance summary to the in-context draft's "Convention Compliance" section.
+
+### Phase 3.6: Write
+
+The brainstorm file reaches disk here, once Phase 3.5 has resolved. It must exist before the Phase 4
+handoff menu is presented.
+
+```bash
+mkdir -p docs/brainstorms/
+```
+
+**Check for same-stem twin (exclusive-mode enforcement from Phase 0.0)** — if a file with the same
+stem but the other extension exists, ask the user which to keep before proceeding. Never write both.
+
+Write the composed draft based on `OUTPUT_FORMAT` (resolved in Phase 0.0):
+
+- **`md`** — `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`.
+- **`html`** — `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.html`, per the rendering invariants
+  loaded in Phase 3. Run the post-compose audit from
+  `${CLAUDE_PLUGIN_ROOT}/references/html-rendering.md` before returning.
 
 ### Phase 4: Handoff
 

@@ -213,7 +213,7 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 **After receiving results:**
 - Review identified gaps and edge cases
-- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A critical/important finding that does so is **not** silently folded — park it (in your running context, never in the plan document) and carry it to Step 5's decision round, noting which origin requirement it targets.
+- For each finding, check whether it proposes **narrowing or dropping** a requirement rather than adding coverage. A critical/important finding that does so is **not** silently folded — park it (in context, never in the plan document) and carry it to Step 5's decision round, noting which origin requirement it targets.
 - Incorporate all other critical and important findings into acceptance criteria
 - Add missing error handling or validation requirements to the plan
 - Note any flow permutations that need addressing
