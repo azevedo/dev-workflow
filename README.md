@@ -97,7 +97,7 @@ Brainstorm docs are saved to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`
 
 ### `/ba-plan [feature]`
 
-Transforms feature descriptions into implementation plans with exact file paths and decisions (literal code only under a `**Code-shape decision:**` label, where the code's shape is the design decision).
+Transforms feature descriptions into implementation plans with exact file paths and decisions (literal code only under a `**Code-shape decision:**` label, where the code's shape is the design decision). Scoped to a change you have decided to build: an exploratory "how would we do X" or "what would it take" question is **answered directly** rather than turned into a plan, with `/ba-research` suggested when the question is really about the codebase.
 
 - **Auto-detects brainstorms** — searches `docs/brainstorms/` for recent (14-day) topic-matched docs and carries forward all decisions
 - **Parallel research** — dispatches agents to analyze codebase patterns and search prior learnings
@@ -131,7 +131,7 @@ Prefer **`html`** when:
 
 ### `/ba-review-plan [path]`
 
-Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery.
+Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery. Approved fixes are written back to that plan file **in place**, so it expects a specific plan you want strengthened rather than a general discussion of one.
 
 This catches issues at plan time — where fixing things is cheap — instead of after code is written.
 

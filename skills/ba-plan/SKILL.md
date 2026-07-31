@@ -1,6 +1,6 @@
 ---
 name: ba-plan
-description: Transform feature descriptions into well-structured implementation plans following project conventions
+description: 'Produce a dated implementation plan in docs/plans/ for a scoped change the user has decided to build. Use when asked to plan a feature, bug fix, or refactor, or to turn a brainstorm into a plan. Not for answering "how would we do X" or "what would it take" in conversation — answer directly, or suggest /ba-research for a codebase question.'
 argument-hint: "[output:html|output:md] [feature description, bug report, or improvement idea]"
 ---
 
@@ -702,7 +702,7 @@ Use **AskUserQuestion** to present next steps:
 6. **Done for now** — Return later
 
 **Based on selection:**
-- **Start implementation** → Invoke `/ba-execute docs/plans/[filename]` to implement the plan.
+- **Start implementation** → `ba-execute` carries the `disable-model-invocation` flag, so you **cannot** invoke it — the `Skill` tool refuses. Tell the user to type `/ba-execute docs/plans/[filename]`, and do not start implementing the plan yourself in its place.
 - **Fresh-context implementation** → Tell the user: "Run `/clear`, then in the new session run `/ba-execute docs/plans/[filename]`". This gives a clean context window with only the plan loaded, no brainstorm/research token overhead.
 - **Re-review plan (full pass)** → Invoke `/ba-review-plan docs/plans/[filename]` to run a full judged-ledger pass over the built-in reviewers against the plan.
 - **Review and refine** → Ask which section, make changes, return to options.
