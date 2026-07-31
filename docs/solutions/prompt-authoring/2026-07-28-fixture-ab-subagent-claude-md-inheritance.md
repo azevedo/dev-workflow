@@ -122,4 +122,18 @@ complete, legitimate A/B finding — not a failure to find one clean fixture wor
 
 ## Related Documentation
 
-No existing `docs/solutions/` entries overlap with this topic.
+Written first; two later entries extend it into a family of three instrument-failure axes.
+
+- [`2026-07-31-probe-instrument-validation-false-zeros.md`](2026-07-31-probe-instrument-validation-false-zeros.md)
+  — **mechanism and filesystem** contamination: a capture mechanism that removed the very tool
+  whose invocation it was measuring (every cell a false zero, in both arms), and parallel sessions
+  sharing one fixture directory and reading each other's output. Also supplies the positive-control
+  and per-run-isolation prescriptions, and the floor-effect rule that generalizes this entry's
+  "report the criterion as not met rather than iterating the fixture until it separates."
+- [`2026-07-31-global-instructions-replace-the-step-under-test.md`](2026-07-31-global-instructions-replace-the-step-under-test.md)
+  — **subject** substitution: the same global-`CLAUDE.md` leak documented here, but in a live-harness
+  run, where it replaced a *workflow step* rather than biasing a conclusion. Symmetric across arms,
+  so it left no asymmetry to spot; the evidence was in the arms' own prose, not the tool log — the
+  log-level analogue of this entry's "read the reasoning trace, don't score the verdict field."
+
+Check all three axes on any prompt-behavior run; a clean bill on one says nothing about the others.

@@ -180,3 +180,12 @@ the ones you didn't check.
   not met rather than iterating the fixture until it separates" is exactly this entry's
   floor-effect null. Read together, that doc covers **context** contamination of the
   instrument and this one covers **mechanism and filesystem** contamination.
+- [`2026-07-31-global-instructions-replace-the-step-under-test.md`](2026-07-31-global-instructions-replace-the-step-under-test.md)
+  — the third member of the family, and the one that contaminates the **subject** rather than
+  the instrument: the caller's global `CLAUDE.md` replaced the workflow step under test with an
+  inline substitute, identically in both arms, so it produced no asymmetry to notice. It followed
+  this entry's positive-control and per-run-isolation prescriptions (both held) and its
+  floor-effect prescription — piloting the baseline arm alone, which is what finally established
+  that the targeted failure does not reproduce. Its addition is why the "read together" pairing
+  above is now a set of three; check all three axes, because a clean bill on one says nothing
+  about the others.
