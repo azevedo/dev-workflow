@@ -222,7 +222,8 @@ After structuring the plan, run the spec-flow analyzer to validate completeness:
 
 ## Step 4: Draft the Plan
 
-Write the plan using the chosen detail level template.
+Compose the plan in context using the chosen detail level template. It does not reach disk until
+Step 7.
 
 ### Structured Metadata (all levels) — YAML frontmatter for markdown, visible-text header for HTML
 
@@ -606,7 +607,7 @@ findings:
    defined mechanism yet; until it does, treat the interactive path as the default and this as the
    fallback for when a prompt cannot be presented.
 
-**5. Append compliance summary** to the plan's end (as before):
+**5. Add the compliance summary** to the end of the in-context draft:
    ```markdown
    ## Convention Compliance
    - [x] [Convention A] — aligned
@@ -635,7 +636,8 @@ If anything was dropped, add it back before writing.
 
 ## Step 7: Write & Present
 
-**REQUIRED: Write the plan file to disk before presenting options.**
+**The plan file reaches disk here, once Steps 5 and 6 have resolved. It must exist before the
+handoff menu is presented.**
 
 ```bash
 mkdir -p docs/plans/
