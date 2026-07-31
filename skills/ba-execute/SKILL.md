@@ -597,8 +597,12 @@ Use **AskUserQuestion**:
 5. **Done** — Wrap up
 
 **Based on selection:**
-- **Review code** → Invoke `/ba-review` directly. The review command will auto-detect scope from the current branch.
-- **Create MR/PR** → Prefer `/ba-propose` — it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, and creates or updates the PR/MR as appropriate. Invoke `/ba-propose` directly. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. **Fallback** — if `/ba-propose` is unavailable or the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command the user prefers.
+Both handoff targets carry `disable-model-invocation: true`, so you **cannot** invoke them — the
+`Skill` tool refuses. Print the invocation for the user to type and stop; do not attempt the call, and
+do not silently substitute your own review or PR flow in its place.
+
+- **Review code** → tell the user to type `/ba-review`, which auto-detects scope from the current branch.
+- **Create MR/PR** → tell the user to type `/ba-propose`, and say why it is preferred over an ad-hoc PR: it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, creates or updates as appropriate, and rolls up any `Deviation (U<n>):` trailers. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. Warn against squashing first — that buries the trailers before propose can read them. **Fallback**, only if the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command they prefer.
 - **Review changes** → Show the diff, then return to options.
 - **Continue working** → Ask what they want to work on. Exit structured execution flow.
 - **Done** → Display final summary and exit.
