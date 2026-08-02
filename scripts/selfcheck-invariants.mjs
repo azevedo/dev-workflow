@@ -45,6 +45,22 @@ function runChecker(root, checkId, envOverride) {
   }
 }
 
+// A minimal well-formed rubric corpus — owner heading + literal, the sibling skill's copy, and one
+// citing reviewer agent. Each case overrides only the part it is testing, so a fixture never
+// accidentally trips a second assertion and passes for the wrong reason.
+function buildRubricTree(root, opts = {}) {
+  const literal = 'N ∈ {0, 25, 50, 75, 100}';
+  const heading = opts.ownerHeading ?? '## Code-Anchor & Confidence Grammar';
+  if (!opts.omitOwner) {
+    write(root, 'skills/ba-review/SKILL.md', `${heading}\n\nwhere \`${literal}\`.\n`);
+  }
+  write(root, 'skills/ba-review-plan/SKILL.md', `adapts Code-Anchor & Confidence Grammar; \`${literal}\`\n`);
+  const agents = opts.agents ?? {
+    'architecture-reviewer.md': `cites Code-Anchor & Confidence Grammar\n\`${literal}\`\n`,
+  };
+  for (const [name, content] of Object.entries(agents)) write(root, `agents/${name}`, content);
+}
+
 const CASES = [
   {
     name: 'sentinels FAIL — differing AUTO-SCORE keyword sets',
@@ -421,7 +437,73 @@ const CASES = [
     expectSubstring: 'retired-invocations: PASS',
   },
   {
-    name: 'no --only: all four checks run and their verdicts fold with FAIL outranking UNKNOWN',
+    name: 'rubric-mirror FAIL — one agent carries a divergent value set',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nN ∈ {0, 50, 100}\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'value set spelled `N ∈ {0, 50, 100}`',
+  },
+  {
+    // Pins the exact-string comparison (check-invariants.mjs). The divergent-value fixture above
+    // would fail under a whitespace-normalising implementation too; only this one discriminates.
+    name: 'rubric-mirror FAIL — value set differs only in whitespace',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nN ∈ {0,25,50,75,100}\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'value set spelled `N ∈ {0,25,50,75,100}`',
+  },
+  {
+    name: 'rubric-mirror FAIL — cited section absent from ba-review',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { ownerHeading: '## Some Other Heading' });
+    },
+    expectExit: 1,
+    expectSubstring: 'no `## Code-Anchor & Confidence Grammar` heading',
+  },
+  {
+    name: 'rubric-mirror FAIL — an agent does not cite the section',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'no citation\nN ∈ {0, 25, 50, 75, 100}\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'no citation of `Code-Anchor & Confidence Grammar`',
+  },
+  {
+    name: 'rubric-mirror PASS — all copies agree and the section resolves',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root);
+    },
+    expectExit: 0,
+    expectSubstring: 'rubric-mirror: PASS',
+  },
+  {
+    name: 'rubric-mirror UNKNOWN — no reviewer agents in the corpus',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: {} });
+      write(root, 'agents/convention-checker.md', 'not a reviewer\n');
+    },
+    expectExit: 2,
+    expectSubstring: 'no *-reviewer.md files in agents/',
+  },
+  {
+    name: 'rubric-mirror UNKNOWN — ba-review/SKILL.md absent or unreadable',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { omitOwner: true });
+    },
+    expectExit: 2,
+    expectSubstring: 'cannot read rubric owner skills/ba-review/SKILL.md',
+  },
+  {
+    name: 'no --only: all five checks run and their verdicts fold with FAIL outranking UNKNOWN',
     checkId: null,
     build(root) {
       write(
@@ -431,10 +513,10 @@ const CASES = [
       );
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'references/foo.md', 'content\n'); // cited nowhere -> references FAIL
-      // no git repo at all -> version-bump UNKNOWN
+      // no git repo at all -> version-bump UNKNOWN; no *-reviewer.md -> rubric-mirror UNKNOWN
     },
     expectExit: 1,
-    expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN'],
+    expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN', 'rubric-mirror: UNKNOWN'],
   },
   {
     name: '--only bogus: unknown check id reports an error and exits 2',

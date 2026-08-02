@@ -91,6 +91,26 @@ const RETIRED_INVOCATION_NEEDLES = ['/ba:', 'commands/ba/'];
 const RETIRED_INVOCATION_DIRS = [...PROMPT_SURFACE_DIRS, 'references', '.claude/agent_docs'];
 const RETIRED_INVOCATION_FILES = ['README.md', 'CLAUDE.md'];
 
+// The rubric's owner. The agents cite this section by title; renaming it here without updating
+// them leaves a dangling citation that raises no error at dispatch — reviewers self-supply a
+// plausible bullet shape from their own ## Output Format, so the loss is silent.
+const RUBRIC_OWNER_FILE = 'skills/ba-review/SKILL.md';
+const RUBRIC_SECTION_HEADING = '## Code-Anchor & Confidence Grammar';
+// The two skills that state the legal confidence set in their own dispatch grammar. Declared
+// standalone rather than by widening PROMPT_SURFACE_DIRS, which sentinels, references, and
+// retired-invocations all share — widening it would silently change three existing corpora.
+const RUBRIC_MIRROR_FILES = [RUBRIC_OWNER_FILE, 'skills/ba-review-plan/SKILL.md'];
+// Filtered over a walkMarkdown('agents') listing, since loadCorpus(dirs) cannot express a glob.
+const RUBRIC_AGENT_DIR = 'agents';
+const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
+// A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it
+// exactly. Compared as an exact string, never whitespace-normalised — normalising would let
+// spacing drift through, and the drift is precisely what a hand-maintained mirror loses first.
+const RUBRIC_VALUE_SET_LITERAL = 'N ∈ {0, 25, 50, 75, 100}';
+// Any spelling of the value set, used only to point at the offending line when the exact literal
+// is missing — so a FAIL names where the divergent copy lives instead of just which file.
+const RUBRIC_VALUE_SET_ANY_SPELLING = /N\s*∈\s*\{[^}]*\}/;
+
 // Reads the corpus once — both dir listing and file contents — so every check that needs the
 // same prompt-surface text shares one read and one error-reporting path, rather than each
 // sub-check re-reading files and trusting a sibling to have reported a read failure.
@@ -471,11 +491,78 @@ function versionBumpCheck(opts) {
   };
 }
 
+function rubricMirrorCheck(opts) {
+  const records = [];
+  const unknown = (file, message) => ({
+    subjectCount: 0,
+    subjectNoun: 'rubric mirror files',
+    reason: message,
+    records: [...records, makeRecord('rubric-mirror', file, null, 'UNKNOWN', message)],
+  });
+
+  const agentRes = walkMarkdown(opts.root, RUBRIC_AGENT_DIR);
+  if (agentRes.error) {
+    return unknown(RUBRIC_AGENT_DIR, `cannot list ${RUBRIC_AGENT_DIR}/: ${agentRes.error}`);
+  }
+  const agentFiles = agentRes.files.filter((f) => f.endsWith(RUBRIC_AGENT_SUFFIX));
+  if (agentFiles.length === 0) {
+    return unknown(RUBRIC_AGENT_DIR, `no *${RUBRIC_AGENT_SUFFIX} files in ${RUBRIC_AGENT_DIR}/`);
+  }
+
+  const corpus = [];
+  for (const file of [...RUBRIC_MIRROR_FILES, ...agentFiles]) {
+    const lr = readLines(opts.root, file);
+    // The owner is the citation target: without it, "does the cited section resolve?" is
+    // unanswerable, so its absence is UNKNOWN for the whole check rather than a FAIL.
+    if (lr.error && file === RUBRIC_OWNER_FILE) {
+      return unknown(file, `cannot read rubric owner ${file}: ${lr.error}`);
+    }
+    if (lr.error) {
+      records.push(makeRecord('rubric-mirror', file, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    corpus.push({ file, lines: lr.lines });
+  }
+
+  for (const { file, lines } of corpus) {
+    if (lines.some((line) => line.includes(RUBRIC_VALUE_SET_LITERAL))) continue;
+    const divergentIdx = lines.findIndex((line) => RUBRIC_VALUE_SET_ANY_SPELLING.test(line));
+    const message =
+      divergentIdx === -1
+        ? `missing the legal value set \`${RUBRIC_VALUE_SET_LITERAL}\``
+        : `value set spelled \`${lines[divergentIdx].match(RUBRIC_VALUE_SET_ANY_SPELLING)[0]}\`, expected \`${RUBRIC_VALUE_SET_LITERAL}\``;
+    records.push(makeRecord('rubric-mirror', file, divergentIdx === -1 ? null : divergentIdx + 1, 'FAIL', message));
+  }
+
+  const owner = corpus.find((e) => e.file === RUBRIC_OWNER_FILE);
+  const headingIdx = owner.lines.findIndex((line) => line.trimEnd() === RUBRIC_SECTION_HEADING);
+  if (headingIdx === -1) {
+    records.push(
+      makeRecord('rubric-mirror', RUBRIC_OWNER_FILE, null, 'FAIL', `no \`${RUBRIC_SECTION_HEADING}\` heading`),
+    );
+  }
+  // Cited by title, not by heading marker — an agent references the section in prose.
+  const citation = RUBRIC_SECTION_HEADING.replace(/^#+\s*/, '');
+  for (const { file, lines } of corpus.filter((e) => e.file.endsWith(RUBRIC_AGENT_SUFFIX))) {
+    if (!lines.some((line) => line.includes(citation))) {
+      records.push(makeRecord('rubric-mirror', file, null, 'FAIL', `no citation of \`${citation}\``));
+    }
+  }
+
+  return {
+    subjectCount: corpus.length,
+    subjectNoun: 'rubric mirror files',
+    reason: `${corpus.length} file(s) checked for \`${RUBRIC_VALUE_SET_LITERAL}\` and the ${agentFiles.length} reviewer agent(s)' citation of \`${citation}\``,
+    records,
+  };
+}
+
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
   { id: 'retired-invocations', run: retiredInvocationsCheck },
   { id: 'version-bump', run: versionBumpCheck },
+  { id: 'rubric-mirror', run: rubricMirrorCheck },
 ];
 
 function runChecks(opts) {
