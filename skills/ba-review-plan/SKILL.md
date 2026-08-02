@@ -194,7 +194,8 @@ silent run:
 This grammar is a **parser contract**: every dispatched reviewer (Step 3) and the Step 4 parser must
 agree on it exactly. It is written here as the literal authority — do not re-derive it from prose
 elsewhere, or a divergent token shape (line-numbered vs key-based) will be silently dropped at parse.
-It adapts `skills/ba-review/SKILL.md`'s `**<path>:<line>**` bullet grammar to plan anchors; line numbers do
+It adapts the `**<path>:<line>**` bullet grammar owned by `skills/ba-review/SKILL.md`'s
+`## Code-Anchor & Confidence Grammar` section to plan anchors; line numbers do
 **not** appear (plans are edited freely and line anchors would rot).
 
 **Anchor namespaces.** A finding's anchor is exactly one of three forms, written verbatim as the bold
@@ -290,7 +291,7 @@ verbatim where quoted:
 
   Emit your findings under the headings `## Must Address` / `## Consider` / `## Looks Good` (NOT
   Critical/High/Medium/Low). Anchor each non-`Looks Good` finding to the most specific plan key as
-  `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0,25,50,75,100}`.
+  `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`.
 
   Plan path: [path]
   Plan content: [the full plan]

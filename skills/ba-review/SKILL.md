@@ -389,8 +389,9 @@ Apply these distribution rules:
    text list. Cancelling any round is a **Cancel review** (the invariant below).
 
 The **"Other"** free-text option still accepts a reviewer name not in the roster; typed names
-resolve via Step 3's user-typed handling, which is **self-contained in Step 3** and does not
-depend on any logic removed from the old menu.
+resolve via **Step 3's user-typed handling** (with the bullet grammar supplied by the
+`## Code-Anchor & Confidence Grammar` section above it) and do not depend on any logic removed from
+the old menu.
 
 **Invariant — never dispatch an empty set.** This is the single rule behind both the empty-`✓`
 branch above and any all-deselected Adjust result — they are two entry points to it, not competing
