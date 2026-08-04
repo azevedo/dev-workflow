@@ -390,7 +390,7 @@ Apply these distribution rules:
 
 The **"Other"** free-text option still accepts a reviewer name not in the roster; typed names
 resolve via **Step 3's user-typed handling** (with the bullet grammar supplied by the
-`## Code-Anchor & Confidence Grammar` section above it) and do not depend on any logic removed from
+`## Code-Anchor & Confidence Grammar` section) and do not depend on any logic removed from
 the old menu.
 
 **Invariant — never dispatch an empty set.** This is the single rule behind both the empty-`✓`
@@ -453,15 +453,27 @@ For each selected reviewer, dispatch a fresh subagent using the Agent tool — r
 ### Dispatch instructions — apply to ALL templates
 
 Every dispatch template below (agent-based, skill-based, user-typed) embeds the **Code-Anchor &
-Confidence Grammar** section above, verbatim: the severity ladder and its `Looks Good` level, the
+Confidence Grammar** section, verbatim: the severity ladder and its `Looks Good` level, the
 exact bullet format and its legal confidence values, the anchor-scope rule, the write-`None` rule,
 and the protected-artifacts guard. Each template's apply-phrase is a pointer to that section, not a
-summary of it — compose the dispatch prompt with the section's text included, so the reviewer
-receives the grammar even though it is stated once here.
+summary of it — **compose the dispatch prompt with the section's full text included**, so the
+reviewer receives the grammar even though it is stated once here. The apply-phrase is an
+instruction to *you*, the orchestrator; it is not text a reviewer can act on, because a dispatched
+subagent has neither this file nor the section in its context.
+
+Each template also carries the bullet grammar and the protected-artifacts guard inline, in one
+sentence. That is **deliberate redundancy, not residue left over from the hoist**: those two are
+the parser contract and a safety guard, so they must survive even a dispatch that transcribes the
+template literally instead of composing the section in. Do not "de-duplicate" them away — the
+two `general-purpose` templates have no agent definition behind them and would otherwise reach
+their subagent with no grammar at all. `skills/ba-review-plan/SKILL.md` keeps the same two inline
+for the same reason.
 
 For **agent-based reviewers**, prompt the subagent directly:
 
-- Task <reviewer-agent>("Review these code changes for [dimension focus]. Apply all the dispatch instructions in the section above (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+- Task <reviewer-agent>("Review these code changes for [dimension focus]. Apply all the dispatch instructions in the `## Code-Anchor & Confidence Grammar` section (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+
+Anchor each non-`Looks Good` finding as `- **<path>:<line>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`, to a file in the codebase under review. Do not suggest deleting, relocating, renaming, or otherwise changing the existence or path of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content review is unaffected.
 
 Context:
 - Scope: [scope description]
@@ -477,7 +489,9 @@ Review the diff AND read the full content of changed files for context. Return f
 
 For **skill-based reviewers**, instruct the subagent to invoke the skill:
 
-- Task general-purpose("Use the `[skill-name]` skill to review these code changes. Apply all the dispatch instructions in the section above (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+- Task general-purpose("Use the `[skill-name]` skill to review these code changes. Apply all the dispatch instructions in the `## Code-Anchor & Confidence Grammar` section (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+
+Anchor each non-`Looks Good` finding as `- **<path>:<line>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`, to a file in the codebase under review. Do not suggest deleting, relocating, renaming, or otherwise changing the existence or path of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content review is unaffected.
 
 Context:
 - Scope: [scope description]
@@ -499,7 +513,9 @@ Before dispatching, **resolve the name** against known skills and agents:
 3. **Match against agent types:** check if the bare name matches the **suffix** of a registered `dev-workflow:<name>` ID (e.g., typing `security-reviewer` matches `dev-workflow:security-reviewer`). If matched → dispatch as an **agent-based reviewer** using the full `dev-workflow:<name>` ID (same template as above). If the bare name matches a non-`dev-workflow:` registered agent type exactly, dispatch by that name.
 4. **No match → custom review dimension:** dispatch as a `general-purpose` subagent — do NOT use the typed name as `subagent_type` since it won't be a registered agent type:
 
-- Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens. Apply all the dispatch instructions in the section above (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+- Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens. Apply all the dispatch instructions in the `## Code-Anchor & Confidence Grammar` section (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+
+Anchor each non-`Looks Good` finding as `- **<path>:<line>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`, to a file in the codebase under review. Do not suggest deleting, relocating, renaming, or otherwise changing the existence or path of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content review is unaffected.
 
 Context:
 - Scope: [scope description]

@@ -91,24 +91,24 @@ const RETIRED_INVOCATION_NEEDLES = ['/ba:', 'commands/ba/'];
 const RETIRED_INVOCATION_DIRS = [...PROMPT_SURFACE_DIRS, 'references', '.claude/agent_docs'];
 const RETIRED_INVOCATION_FILES = ['README.md', 'CLAUDE.md'];
 
-// The rubric's owner. The agents cite this section by title; renaming it here without updating
-// them leaves a dangling citation that raises no error at dispatch — reviewers self-supply a
-// plausible bullet shape from their own ## Output Format, so the loss is silent.
+// The agents cite this section by title; renaming it here without updating them leaves a dangling
+// citation that raises no error at dispatch — reviewers self-supply a plausible bullet shape from
+// their own ## Output Format, so the loss is silent.
 const RUBRIC_OWNER_FILE = 'skills/ba-review/SKILL.md';
 const RUBRIC_SECTION_HEADING = '## Code-Anchor & Confidence Grammar';
 // The two skills that state the legal confidence set in their own dispatch grammar. Declared
 // standalone rather than by widening PROMPT_SURFACE_DIRS, which sentinels, references, and
 // retired-invocations all share — widening it would silently change three existing corpora.
 const RUBRIC_MIRROR_FILES = [RUBRIC_OWNER_FILE, 'skills/ba-review-plan/SKILL.md'];
-// Filtered over a walkMarkdown('agents') listing, since loadCorpus(dirs) cannot express a glob.
+// A dir + suffix pair rather than a glob, since loadCorpus(dirs) cannot express one.
 const RUBRIC_AGENT_DIR = 'agents';
 const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
 // A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it
 // exactly. Compared as an exact string, never whitespace-normalised — normalising would let
 // spacing drift through, and the drift is precisely what a hand-maintained mirror loses first.
 const RUBRIC_VALUE_SET_LITERAL = 'N ∈ {0, 25, 50, 75, 100}';
-// Any spelling of the value set, used only to point at the offending line when the exact literal
-// is missing — so a FAIL names where the divergent copy lives instead of just which file.
+// Used only to point at the offending line when the exact literal is missing, so a FAIL names where
+// the divergent copy lives instead of just which file.
 const RUBRIC_VALUE_SET_ANY_SPELLING = /N\s*∈\s*\{[^}]*\}/;
 
 // Reads the corpus once — both dir listing and file contents — so every check that needs the

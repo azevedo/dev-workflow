@@ -47,14 +47,18 @@ function runChecker(root, checkId, envOverride) {
 
 // A minimal well-formed rubric corpus — owner heading + literal, the sibling skill's copy, and one
 // citing reviewer agent. Each case overrides only the part it is testing, so a fixture never
-// accidentally trips a second assertion and passes for the wrong reason.
+// accidentally trips a second assertion and passes for the wrong reason. Every opts key exists to
+// let one case defect a single corpus member while the rest stay well-formed.
 function buildRubricTree(root, opts = {}) {
   const literal = 'N ∈ {0, 25, 50, 75, 100}';
   const heading = opts.ownerHeading ?? '## Code-Anchor & Confidence Grammar';
   if (!opts.omitOwner) {
     write(root, 'skills/ba-review/SKILL.md', `${heading}\n\nwhere \`${literal}\`.\n`);
   }
-  write(root, 'skills/ba-review-plan/SKILL.md', `adapts Code-Anchor & Confidence Grammar; \`${literal}\`\n`);
+  if (!opts.omitPlan) {
+    const plan = opts.planContent ?? `adapts Code-Anchor & Confidence Grammar; \`${literal}\`\n`;
+    write(root, 'skills/ba-review-plan/SKILL.md', plan);
+  }
   const agents = opts.agents ?? {
     'architecture-reviewer.md': `cites Code-Anchor & Confidence Grammar\n\`${literal}\`\n`,
   };
@@ -455,6 +459,56 @@ const CASES = [
     },
     expectExit: 1,
     expectSubstring: 'value set spelled `N ∈ {0,25,50,75,100}`',
+  },
+  {
+    // The sibling of the whitespace case: that one pins the exact-string compare, this one pins the
+    // OTHER arm of the same ternary. Every other FAIL fixture plants a line that still matches
+    // RUBRIC_VALUE_SET_ANY_SPELLING, so without this the `divergentIdx === -1` message never runs.
+    name: 'rubric-mirror FAIL — value set absent entirely, not merely divergent',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nno value set here\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'missing the legal value set',
+  },
+  {
+    // ba-review-plan is in RUBRIC_MIRROR_FILES but every other fixture puts the defect in an agent,
+    // so its membership was asserted only by the corpus loop happening to include it.
+    name: 'rubric-mirror FAIL — the divergent copy is ba-review-plan, not an agent',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { planContent: 'adapts Code-Anchor & Confidence Grammar; N ∈ {0, 100}\n' });
+    },
+    expectExit: 1,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md', 'value set spelled `N ∈ {0, 100}`'],
+  },
+  {
+    // Both loops in rubricMirrorCheck push rather than return, so a second defect must still surface.
+    // A single-defect fixture cannot tell "reports all" from "reports the first".
+    name: 'rubric-mirror FAIL — two defects in one run both surface',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        agents: {
+          'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nN ∈ {0, 50, 100}\n',
+          'test-coverage-reviewer.md': 'no citation\nN ∈ {0, 25, 50, 75, 100}\n',
+        },
+      });
+    },
+    expectExit: 1,
+    expectSubstrings: ['value set spelled `N ∈ {0, 50, 100}`', 'no citation of `Code-Anchor & Confidence Grammar`'],
+  },
+  {
+    // The owner's read failure aborts the whole check; a non-owner's must NOT — it records and the
+    // loop continues. Distinguished from the omitOwner case by the surviving agent-citation reason.
+    name: 'rubric-mirror UNKNOWN — a non-owner mirror file is unreadable, check still evaluates the rest',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { omitPlan: true });
+    },
+    expectExit: 2,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md', 'cannot read file'],
   },
   {
     name: 'rubric-mirror FAIL — cited section absent from ba-review',

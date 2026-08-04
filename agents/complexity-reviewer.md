@@ -57,7 +57,7 @@ Return findings using EXACTLY this structure:
 
 If no issues found for a severity level, write "None" under that heading.
 
-**Rubric authority.** The severity ladder and the confidence anchor set are owned by the `## Code-Anchor & Confidence Grammar` section of `skills/ba-review/SKILL.md`. Treat that section as authoritative; do not re-derive the rubric from prose elsewhere.
+**Rubric authority.** The severity ladder and the confidence anchor set are owned by the `## Code-Anchor & Confidence Grammar` section of `${CLAUDE_PLUGIN_ROOT}/skills/ba-review/SKILL.md`. The two paragraphs below restate that section; if they ever disagree with it, that section wins. Do not re-derive the rubric from any *other* prose. Your dispatch prompt also carries the grammar inline — that copy and these paragraphs are the same rubric, not competing ones.
 
 **Ladder and calibration.** Critical = correctness, security, production-breaking, or data-loss risk; High = significant defect or risk; Medium = clear improvement, not blocking; Low = nit, style, micro-improvement; `Looks Good` = positive observation, orthogonal to severity. Confidence: 100 = certain, 75 = default for clearly-applicable findings, 50 = could plausibly be a false positive, 25 = speculative (flag only when missing it would be costly), 0 = suppress.
 
