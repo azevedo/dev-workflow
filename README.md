@@ -238,7 +238,7 @@ Each non-`Looks Good` finding carries a confidence anchor from `{0, 25, 50, 75, 
 
 A **soft confidence gate** at consolidation suppresses (not drops) findings below `Critical@50` and `High`/`Medium`/`Low@75`. Cross-reviewer agreement at the same `file:line` merges findings and promotes confidence by `+25` per additional reviewer (capped at 100), so corroboration can lift a finding past the gate. Legacy `Must Address` / `Consider` outputs from external reviewers are mapped to `High` / `Medium`.
 
-> **Source of truth for the rubric:** `skills/ba-review/SKILL.md` §4 is authoritative for the ladder, the anchor set, the floors, the merge math, and the legacy mapping. This README section is a user-facing summary — when in doubt, consult the skill file.
+> **Source of truth for the rubric:** `skills/ba-review/SKILL.md`'s `## Code-Anchor & Confidence Grammar` section is authoritative for the ladder and the anchor set; §4 is authoritative for the floors, merge math, and legacy mapping. This README section is a user-facing summary — when in doubt, consult the skill file.
 
 ## Convention Compliance
 

@@ -45,6 +45,25 @@ function runChecker(root, checkId, envOverride) {
   }
 }
 
+// A minimal well-formed rubric corpus — owner heading + literal, the sibling skill's copy, and one
+// citing reviewer agent. Each case overrides only the part it is testing, so a fixture never
+// accidentally trips a second assertion and passes for the wrong reason.
+function buildRubricTree(root, opts = {}) {
+  const literal = 'N ∈ {0, 25, 50, 75, 100}';
+  const heading = opts.ownerHeading ?? '## Code-Anchor & Confidence Grammar';
+  if (!opts.omitOwner) {
+    write(root, 'skills/ba-review/SKILL.md', `${heading}\n\nwhere \`${literal}\`.\n`);
+  }
+  if (!opts.omitPlan) {
+    const plan = opts.planContent ?? `adapts Code-Anchor & Confidence Grammar; \`${literal}\`\n`;
+    write(root, 'skills/ba-review-plan/SKILL.md', plan);
+  }
+  const agents = opts.agents ?? {
+    'architecture-reviewer.md': `cites Code-Anchor & Confidence Grammar\n\`${literal}\`\n`,
+  };
+  for (const [name, content] of Object.entries(agents)) write(root, `agents/${name}`, content);
+}
+
 const CASES = [
   {
     name: 'sentinels FAIL — differing AUTO-SCORE keyword sets',
@@ -421,7 +440,146 @@ const CASES = [
     expectSubstring: 'retired-invocations: PASS',
   },
   {
-    name: 'no --only: all four checks run and their verdicts fold with FAIL outranking UNKNOWN',
+    name: 'rubric-mirror FAIL — one agent carries a divergent value set',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nN ∈ {0, 50, 100}\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'value set spelled `N ∈ {0, 50, 100}`',
+  },
+  {
+    // Pins the exact-string comparison (check-invariants.mjs). The divergent-value fixture above
+    // would fail under a whitespace-normalising implementation too; only this one discriminates.
+    name: 'rubric-mirror FAIL — value set differs only in whitespace',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nN ∈ {0,25,50,75,100}\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'value set spelled `N ∈ {0,25,50,75,100}`',
+  },
+  {
+    // The only fixture where one file holds a correct occurrence AND a drifted one — a per-file
+    // existence test passes it on the strength of the correct copy.
+    name: 'rubric-mirror FAIL — one file, two occurrences, only the second diverges',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        planContent:
+          'adapts Code-Anchor & Confidence Grammar; `N ∈ {0, 25, 50, 75, 100}`\ntemplate copy: N ∈ {0,25,50,75,100}\n',
+      });
+    },
+    expectExit: 1,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md:2', 'value set spelled `N ∈ {0,25,50,75,100}`'],
+  },
+  {
+    // Every other FAIL fixture plants a line that still matches RUBRIC_VALUE_SET_ANY_SPELLING, so
+    // without this the `occurrences.length === 0` message never runs.
+    name: 'rubric-mirror FAIL — value set absent entirely, not merely divergent',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nno value set here\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'missing the legal value set',
+  },
+  {
+    // ba-review-plan is in RUBRIC_MIRROR_FILES but every other fixture puts the defect in an agent,
+    // so its membership was asserted only by the corpus loop happening to include it.
+    name: 'rubric-mirror FAIL — the divergent copy is ba-review-plan, not an agent',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { planContent: 'adapts Code-Anchor & Confidence Grammar; N ∈ {0, 100}\n' });
+    },
+    expectExit: 1,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md', 'value set spelled `N ∈ {0, 100}`'],
+  },
+  {
+    // A single-defect fixture cannot tell "reports all" from "reports the first".
+    name: 'rubric-mirror FAIL — two defects in one run both surface',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        agents: {
+          'security-reviewer.md': 'cites Code-Anchor & Confidence Grammar\nN ∈ {0, 50, 100}\n',
+          'test-coverage-reviewer.md': 'no citation\nN ∈ {0, 25, 50, 75, 100}\n',
+        },
+      });
+    },
+    expectExit: 1,
+    expectSubstrings: ['value set spelled `N ∈ {0, 50, 100}`', 'no citation of `Code-Anchor & Confidence Grammar`'],
+  },
+  {
+    // The owner's read failure aborts the whole check; a non-owner's must NOT — it records and the
+    // loop continues. Distinguished from the omitOwner case by the surviving agent-citation reason.
+    name: 'rubric-mirror UNKNOWN — a non-owner mirror file is unreadable, check still evaluates the rest',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { omitPlan: true });
+    },
+    expectExit: 2,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md', 'cannot read file'],
+  },
+  {
+    name: 'rubric-mirror FAIL — cited section absent from ba-review',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { ownerHeading: '## Some Other Heading' });
+    },
+    expectExit: 1,
+    expectSubstring: 'no `## Code-Anchor & Confidence Grammar` heading',
+  },
+  {
+    name: 'rubric-mirror FAIL — an agent does not cite the section',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: { 'security-reviewer.md': 'no citation\nN ∈ {0, 25, 50, 75, 100}\n' } });
+    },
+    expectExit: 1,
+    expectSubstring: 'no citation of `Code-Anchor & Confidence Grammar`',
+  },
+  {
+    name: 'rubric-mirror PASS — all copies agree and the section resolves',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root);
+    },
+    expectExit: 0,
+    expectSubstring: 'rubric-mirror: PASS',
+  },
+  {
+    // Distinct from the case below: there the directory lists fine and holds no reviewer, here the
+    // listing itself fails. Both sibling directory-walking checks pin their own unlistable-dir path.
+    name: 'rubric-mirror UNKNOWN — agents/ cannot be listed at all',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: {} });
+    },
+    expectExit: 2,
+    expectSubstring: 'cannot list agents/',
+  },
+  {
+    name: 'rubric-mirror UNKNOWN — no reviewer agents in the corpus',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: {} });
+      write(root, 'agents/convention-checker.md', 'not a reviewer\n');
+    },
+    expectExit: 2,
+    expectSubstring: 'no *-reviewer.md files in agents/',
+  },
+  {
+    name: 'rubric-mirror UNKNOWN — ba-review/SKILL.md absent or unreadable',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { omitOwner: true });
+    },
+    expectExit: 2,
+    expectSubstring: 'cannot read rubric owner skills/ba-review/SKILL.md',
+  },
+  {
+    name: 'no --only: all five checks run and their verdicts fold with FAIL outranking UNKNOWN',
     checkId: null,
     build(root) {
       write(
@@ -431,10 +589,10 @@ const CASES = [
       );
       write(root, 'agents/b.md', '[AUTO-SCORE: clean]\n[AUTO-SCORE: weak]\n[AUTO-SCORE: error]\n');
       write(root, 'references/foo.md', 'content\n'); // cited nowhere -> references FAIL
-      // no git repo at all -> version-bump UNKNOWN
+      // no git repo at all -> version-bump UNKNOWN; no *-reviewer.md -> rubric-mirror UNKNOWN
     },
     expectExit: 1,
-    expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN'],
+    expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN', 'rubric-mirror: UNKNOWN'],
   },
   {
     name: '--only bogus: unknown check id reports an error and exits 2',

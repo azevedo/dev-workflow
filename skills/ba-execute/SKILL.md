@@ -141,10 +141,10 @@ order:
      exclusion matches only the default `git revert` subject form (`^Revert`,
      capital-R, no colon); reverts authored with an alternate subject
      (`revert:`, `chore(revert):`) are **not** excluded and must be manually
-     re-tagged — a documented residual. A reverted unit re-reads pending until
-     re-tagged. (Residual: a description that coincidentally contains `: U<n>`
-     mid-subject is a false-positive match — acceptable under the one-in-flight-
-     plan-per-branch assumption.)
+     re-tagged; a reverted unit re-reads pending until re-tagged. A description
+     that coincidentally contains `: U<n>` mid-subject is likewise a
+     false-positive match, acceptable under the
+     one-in-flight-plan-per-branch assumption.
   b. else, **only when `run_verify` is true**, **done-via-verify** — the unit's
      `Verify:` passes against the working tree. **"Passes"** = the command exits
      0, or the named symbol/path is present in the working tree. A unit with no
@@ -224,7 +224,7 @@ each wiring site so no consumer forms `..HEAD` by omission.
   short-name that appeared both locally and under `origin/`.
 - **Fetch policy**: `git fetch --no-tags origin <default-branch>` (preserved) **and**
   fetch the chosen winner's `origin/` ref once before finalizing so the winner's
-  count/merge-base isn't stale. **Residual (documented):** ranking runs against
+  count/merge-base isn't stale. Ranking runs against
   whatever `refs/remotes/origin/*` tips are already local (only `<default>` is freshly
   fetched up front), so a stale sibling ref can in principle flip the smallest
   positive ahead-count and select the wrong parent at `confidence = high`; fetching
@@ -272,14 +272,14 @@ two occurrences ⇒ two plans' commits are in the window ⇒ foreign. The guard 
 under `base_override`/`target_override` (advisory) and forces `confidence = low` (the
 biconditional stays intact; an override over a polluted window reads low, not high).
 
-- **Residual (documented, safe-side):** the proxy assumes exactly one commit per
+- **Safe-side limit.** The proxy assumes exactly one commit per
   `U<n>` for the life of the branch. A legitimate rework/fixup that re-tags the *same*
   `U<n>` a second time on an otherwise correctly-scoped, non-stacked branch would
   false-trigger `FOREIGN_UID_IN_WINDOW`. The failure mode is safe-side (forces the
   `Verify:`-tier fallback, never a false `done`), but the user would see a confusing
   warning on a solo branch. If same-unit re-tagging becomes a supported flow, the
   proxy must be revisited.
-- **Residual (documented, numeric-collision proxy only):** a foreign plan whose U-IDs
+- **Numeric-collision proxy only.** A foreign plan whose U-IDs
   do **not** overlap the current plan's numbering (parent minted U1–U5, current mints
   U6–U10) leaves no duplicate, so the guard does not fire and `confidence` can stay
   `high` over a still-polluted window. Sufficient for the silent-skip bug (caused by
@@ -406,13 +406,6 @@ the confidence table.)
   ("cannot verify — no `Verify:` line and subject-scan distrusted", not a plain
   `pending`), so the user knows it is "can't tell," not merely "not yet done," and can
   resolve the base (e.g. via `--base`) or re-tag.
-
-> **Five-site walk (U-ID convention edit).** Threading `base:` into `derive-state` and
-> relocating `<base>` edits the *owned* `## U-ID & Git-Derived State Convention`
-> section, so the "update all five citation sites together" rule fires. All five walked
-> + the README U-ID mirror: `plan.md`/`review-plan.md` reference neither `<base>` nor a
-> based `derive-state` call → grammar-only, unaffected; execute/propose/handoff are
-> edited (this unit + U3/U4); README in U6.
 
 **If fresh start (all units `pending`)**:
 1. Announce: "Starting execution. [M] tasks to complete."

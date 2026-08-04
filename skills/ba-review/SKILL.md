@@ -389,8 +389,9 @@ Apply these distribution rules:
    text list. Cancelling any round is a **Cancel review** (the invariant below).
 
 The **"Other"** free-text option still accepts a reviewer name not in the roster; typed names
-resolve via Step 3's user-typed handling, which is **self-contained in Step 3** and does not
-depend on any logic removed from the old menu.
+resolve via **Step 3's user-typed handling** (with the bullet grammar supplied by the
+`## Code-Anchor & Confidence Grammar` section) and do not depend on any logic removed from
+the old menu.
 
 **Invariant — never dispatch an empty set.** This is the single rule behind both the empty-`✓`
 branch above and any all-deselected Adjust result — they are two entry points to it, not competing
@@ -405,15 +406,11 @@ Discovery (2b) is **not** re-run on Adjust or on any loop — the roster is fixe
 
 ---
 
-## Step 3: Run Reviews in Parallel
+## Code-Anchor & Confidence Grammar
 
-For each selected reviewer, dispatch a fresh subagent using the Agent tool — regardless of whether it is an agent or a skill. Every reviewer must run in its own isolated context.
-
-**Built-in vs external dispatch:** built-in plugin reviewers use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). The selection ledger shows bare display names for readability; the dispatch uses the fully-qualified ID — this does not affect ledger presence or the never-hide convention. Discovered **external** reviewers (e.g. `code-reviewer`, `dragon-test-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
-
-For **agent-based reviewers**, prompt the subagent directly:
-
-- Task <reviewer-agent>("Review these code changes for [dimension focus].
+This grammar is a **parser contract**: every dispatched reviewer (Step 3) and the Step 4 parser must
+agree on it exactly. It is written here as the literal authority — do not re-derive it from prose
+elsewhere, or a divergent bullet shape will be silently dropped at parse.
 
 **Severity ladder and confidence.** Return findings under the four-level ladder + `Looks Good`. Each non-`Looks Good` bullet must include a confidence anchor between the file:line marker and the body.
 
@@ -444,6 +441,39 @@ where `N ∈ {0, 25, 50, 75, 100}`.
 If no issues at a severity, write `None` under that heading. Do not invent placeholder bullets.
 
 **Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+
+---
+
+## Step 3: Run Reviews in Parallel
+
+For each selected reviewer, dispatch a fresh subagent using the Agent tool — regardless of whether it is an agent or a skill. Every reviewer must run in its own isolated context.
+
+**Built-in vs external dispatch:** built-in plugin reviewers use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). The selection ledger shows bare display names for readability; the dispatch uses the fully-qualified ID — this does not affect ledger presence or the never-hide convention. Discovered **external** reviewers (e.g. `code-reviewer`, `dragon-test-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
+
+### Dispatch instructions — apply to ALL templates
+
+Every dispatch template below (agent-based, skill-based, user-typed) embeds the **Code-Anchor &
+Confidence Grammar** section, verbatim: the severity ladder and its `Looks Good` level, the
+exact bullet format and its legal confidence values, the anchor-scope rule, the write-`None` rule,
+and the protected-artifacts guard. Each template's apply-phrase is a pointer to that section, not a
+summary of it — **compose the dispatch prompt with the section's full text included**, so the
+reviewer receives the grammar even though it is stated once here. The apply-phrase is an
+instruction to *you*, the orchestrator; it is not text a reviewer can act on, because a dispatched
+subagent has neither this file nor the section in its context.
+
+Each template also carries the bullet grammar and the protected-artifacts guard inline, in one
+sentence. That is **deliberate redundancy, not residue left over from the hoist**: those two are
+the parser contract and a safety guard, so they must survive even a dispatch that transcribes the
+template literally instead of composing the section in. Do not "de-duplicate" them away — the
+two `general-purpose` templates have no agent definition behind them and would otherwise reach
+their subagent with no grammar at all. `skills/ba-review-plan/SKILL.md` keeps the same two inline
+for the same reason.
+
+For **agent-based reviewers**, prompt the subagent directly:
+
+- Task <reviewer-agent>("Review these code changes for [dimension focus]. Apply all the dispatch instructions in the `## Code-Anchor & Confidence Grammar` section (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
+
+Anchor each non-`Looks Good` finding as `- **<path>:<line>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`, to a file in the codebase under review. Do not suggest deleting, relocating, renaming, or otherwise changing the existence or path of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content review is unaffected.
 
 Context:
 - Scope: [scope description]
@@ -459,37 +489,9 @@ Review the diff AND read the full content of changed files for context. Return f
 
 For **skill-based reviewers**, instruct the subagent to invoke the skill:
 
-- Task general-purpose("Use the `[skill-name]` skill to review these code changes.
+- Task general-purpose("Use the `[skill-name]` skill to review these code changes. Apply all the dispatch instructions in the `## Code-Anchor & Confidence Grammar` section (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
 
-**Severity ladder and confidence.** Return findings under the four-level ladder + `Looks Good`. Each non-`Looks Good` bullet must include a confidence anchor between the file:line marker and the body.
-
-Bullet format (exact):
-
-`- **<path>:<line>** *(confidence: N)* — <body>`
-
-where `N ∈ {0, 25, 50, 75, 100}`.
-
-**Anchor scope.** The `<path>:<line>` anchor must identify a location in the codebase under review — a file in `Changed files` or reachable via `git ls-files`. Rubrics, specs, and external guideline documents are cited in the body, never as the anchor. A finding that compares the codebase against an external rubric should anchor to the offending in-repo file and reference the rubric in the body. Example: `**src/Button.tsx:42** ... — missing keyboard handler (per web-interface-guidelines §3.2)` anchors to the in-repo file, not to the guideline. Anchors that don't resolve in the repo are dropped by the consolidation pipeline.
-
-| Heading | Meaning |
-|---|---|
-| `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
-| `## High` | Significant defect or risk. Strongly recommended. |
-| `## Medium` | Clear improvement, not blocking. |
-| `## Low` | Nit, style, micro-improvement. |
-| `## Looks Good` | Positive observation. No file:line, no confidence. Format: `- [Validated aspect]`. |
-
-| Confidence | Meaning |
-|---|---|
-| `100` | Certain. |
-| `75` | High; minor context risk. Default for clearly-applicable findings. |
-| `50` | Moderate; could plausibly be a false positive. |
-| `25` | Speculative; flag only when missing it would be costly. |
-| `0` | Suppress. Records the consideration; will not be displayed. |
-
-If no issues at a severity, write `None` under that heading. Do not invent placeholder bullets.
-
-**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+Anchor each non-`Looks Good` finding as `- **<path>:<line>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`, to a file in the codebase under review. Do not suggest deleting, relocating, renaming, or otherwise changing the existence or path of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content review is unaffected.
 
 Context:
 - Scope: [scope description]
@@ -511,37 +513,9 @@ Before dispatching, **resolve the name** against known skills and agents:
 3. **Match against agent types:** check if the bare name matches the **suffix** of a registered `dev-workflow:<name>` ID (e.g., typing `security-reviewer` matches `dev-workflow:security-reviewer`). If matched → dispatch as an **agent-based reviewer** using the full `dev-workflow:<name>` ID (same template as above). If the bare name matches a non-`dev-workflow:` registered agent type exactly, dispatch by that name.
 4. **No match → custom review dimension:** dispatch as a `general-purpose` subagent — do NOT use the typed name as `subagent_type` since it won't be a registered agent type:
 
-- Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens.
+- Task general-purpose("You are a code reviewer specializing in **[user-typed name]**. Review these code changes through that lens. Apply all the dispatch instructions in the `## Code-Anchor & Confidence Grammar` section (severity ladder and confidence, bullet format, anchor scope, the write-`None` rule, protected artifacts).
 
-**Severity ladder and confidence.** Return findings under the four-level ladder + `Looks Good`. Each non-`Looks Good` bullet must include a confidence anchor between the file:line marker and the body.
-
-Bullet format (exact):
-
-`- **<path>:<line>** *(confidence: N)* — <body>`
-
-where `N ∈ {0, 25, 50, 75, 100}`.
-
-**Anchor scope.** The `<path>:<line>` anchor must identify a location in the codebase under review — a file in `Changed files` or reachable via `git ls-files`. Rubrics, specs, and external guideline documents are cited in the body, never as the anchor. A finding that compares the codebase against an external rubric should anchor to the offending in-repo file and reference the rubric in the body. Example: `**src/Button.tsx:42** ... — missing keyboard handler (per web-interface-guidelines §3.2)` anchors to the in-repo file, not to the guideline. Anchors that don't resolve in the repo are dropped by the consolidation pipeline.
-
-| Heading | Meaning |
-|---|---|
-| `## Critical` | Correctness, security, production-breaking, data-loss risk. Must fix before merge. |
-| `## High` | Significant defect or risk. Strongly recommended. |
-| `## Medium` | Clear improvement, not blocking. |
-| `## Low` | Nit, style, micro-improvement. |
-| `## Looks Good` | Positive observation. No file:line, no confidence. Format: `- [Validated aspect]`. |
-
-| Confidence | Meaning |
-|---|---|
-| `100` | Certain. |
-| `75` | High; minor context risk. Default for clearly-applicable findings. |
-| `50` | Moderate; could plausibly be a false positive. |
-| `25` | Speculative; flag only when missing it would be costly. |
-| `0` | Suppress. Records the consideration; will not be displayed. |
-
-If no issues at a severity, write `None` under that heading. Do not invent placeholder bullets.
-
-**Protected artifacts.** Do not suggest deleting, removing, hiding, gitignoring, relocating, renaming, archiving, consolidating, splitting, or otherwise changing the existence, path, or identity of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/`. These directories are intentional workflow outputs. You may still review and flag content-quality issues inside these files (vague acceptance criteria, missing edge cases, broken references), and you may review changes to these files when they appear in the diff — the guard protects the file's existence and location, not its contents.
+Anchor each non-`Looks Good` finding as `- **<path>:<line>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`, to a file in the codebase under review. Do not suggest deleting, relocating, renaming, or otherwise changing the existence or path of any file under `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content review is unaffected.
 
 Context:
 - Scope: [scope description]
