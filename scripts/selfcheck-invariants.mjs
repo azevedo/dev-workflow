@@ -47,8 +47,7 @@ function runChecker(root, checkId, envOverride) {
 
 // A minimal well-formed rubric corpus — owner heading + literal, the sibling skill's copy, and one
 // citing reviewer agent. Each case overrides only the part it is testing, so a fixture never
-// accidentally trips a second assertion and passes for the wrong reason. Every opts key exists to
-// let one case defect a single corpus member while the rest stay well-formed.
+// accidentally trips a second assertion and passes for the wrong reason.
 function buildRubricTree(root, opts = {}) {
   const literal = 'N ∈ {0, 25, 50, 75, 100}';
   const heading = opts.ownerHeading ?? '## Code-Anchor & Confidence Grammar';
@@ -461,9 +460,22 @@ const CASES = [
     expectSubstring: 'value set spelled `N ∈ {0,25,50,75,100}`',
   },
   {
-    // The sibling of the whitespace case: that one pins the exact-string compare, this one pins the
-    // OTHER arm of the same ternary. Every other FAIL fixture plants a line that still matches
-    // RUBRIC_VALUE_SET_ANY_SPELLING, so without this the `divergentIdx === -1` message never runs.
+    // The only fixture where one file holds a correct occurrence AND a drifted one — a per-file
+    // existence test passes it on the strength of the correct copy.
+    name: 'rubric-mirror FAIL — one file, two occurrences, only the second diverges',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        planContent:
+          'adapts Code-Anchor & Confidence Grammar; `N ∈ {0, 25, 50, 75, 100}`\ntemplate copy: N ∈ {0,25,50,75,100}\n',
+      });
+    },
+    expectExit: 1,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md:2', 'value set spelled `N ∈ {0,25,50,75,100}`'],
+  },
+  {
+    // Every other FAIL fixture plants a line that still matches RUBRIC_VALUE_SET_ANY_SPELLING, so
+    // without this the `occurrences.length === 0` message never runs.
     name: 'rubric-mirror FAIL — value set absent entirely, not merely divergent',
     checkId: 'rubric-mirror',
     build(root) {
@@ -484,7 +496,6 @@ const CASES = [
     expectSubstrings: ['skills/ba-review-plan/SKILL.md', 'value set spelled `N ∈ {0, 100}`'],
   },
   {
-    // Both loops in rubricMirrorCheck push rather than return, so a second defect must still surface.
     // A single-defect fixture cannot tell "reports all" from "reports the first".
     name: 'rubric-mirror FAIL — two defects in one run both surface',
     checkId: 'rubric-mirror',
@@ -536,6 +547,17 @@ const CASES = [
     },
     expectExit: 0,
     expectSubstring: 'rubric-mirror: PASS',
+  },
+  {
+    // Distinct from the case below: there the directory lists fine and holds no reviewer, here the
+    // listing itself fails. Both sibling directory-walking checks pin their own unlistable-dir path.
+    name: 'rubric-mirror UNKNOWN — agents/ cannot be listed at all',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { agents: {} });
+    },
+    expectExit: 2,
+    expectSubstring: 'cannot list agents/',
   },
   {
     name: 'rubric-mirror UNKNOWN — no reviewer agents in the corpus',

@@ -103,12 +103,11 @@ const RUBRIC_MIRROR_FILES = [RUBRIC_OWNER_FILE, 'skills/ba-review-plan/SKILL.md'
 // A dir + suffix pair rather than a glob, since loadCorpus(dirs) cannot express one.
 const RUBRIC_AGENT_DIR = 'agents';
 const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
-// A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it
-// exactly. Compared as an exact string, never whitespace-normalised — normalising would let
-// spacing drift through, and the drift is precisely what a hand-maintained mirror loses first.
+// A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it exactly.
+// Not whitespace-normalised — spacing drift is what a hand-maintained mirror loses first.
 const RUBRIC_VALUE_SET_LITERAL = 'N ∈ {0, 25, 50, 75, 100}';
-// Used only to point at the offending line when the exact literal is missing, so a FAIL names where
-// the divergent copy lives instead of just which file.
+// Diagnostic only: locates each candidate spelling so a FAIL can name the offending line. The
+// assertion is the exact literal above.
 const RUBRIC_VALUE_SET_ANY_SPELLING = /N\s*∈\s*\{[^}]*\}/;
 
 // Reads the corpus once — both dir listing and file contents — so every check that needs the
@@ -525,13 +524,24 @@ function rubricMirrorCheck(opts) {
   }
 
   for (const { file, lines } of corpus) {
-    if (lines.some((line) => line.includes(RUBRIC_VALUE_SET_LITERAL))) continue;
-    const divergentIdx = lines.findIndex((line) => RUBRIC_VALUE_SET_ANY_SPELLING.test(line));
-    const message =
-      divergentIdx === -1
-        ? `missing the legal value set \`${RUBRIC_VALUE_SET_LITERAL}\``
-        : `value set spelled \`${lines[divergentIdx].match(RUBRIC_VALUE_SET_ANY_SPELLING)[0]}\`, expected \`${RUBRIC_VALUE_SET_LITERAL}\``;
-    records.push(makeRecord('rubric-mirror', file, divergentIdx === -1 ? null : divergentIdx + 1, 'FAIL', message));
+    const occurrences = [];
+    lines.forEach((line, idx) => {
+      const m = line.match(RUBRIC_VALUE_SET_ANY_SPELLING);
+      if (m) occurrences.push({ line: idx + 1, spelling: m[0], exact: line.includes(RUBRIC_VALUE_SET_LITERAL) });
+    });
+    if (occurrences.length === 0) {
+      const message = `missing the legal value set \`${RUBRIC_VALUE_SET_LITERAL}\``;
+      records.push(makeRecord('rubric-mirror', file, null, 'FAIL', message));
+      continue;
+    }
+    // ba-review and ba-review-plan carry the literal several times — the owning section plus each
+    // dispatch template's inline copy — and the template copies are the ones that reach a dispatched
+    // subagent. A per-file test would pass a drifted copy while the canonical occurrence stayed right.
+    for (const { line, spelling, exact } of occurrences) {
+      if (exact) continue;
+      const message = `value set spelled \`${spelling}\`, expected \`${RUBRIC_VALUE_SET_LITERAL}\``;
+      records.push(makeRecord('rubric-mirror', file, line, 'FAIL', message));
+    }
   }
 
   const owner = corpus.find((e) => e.file === RUBRIC_OWNER_FILE);
