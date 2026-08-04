@@ -100,11 +100,26 @@ literally true.
 
 ## Acceptance Criteria
 
-- AC1: `skills/ba-review/SKILL.md` states the shared 29-line grammar block exactly once, in a new
-  top-level `## Code-Anchor & Confidence Grammar` section, and the three dispatch templates carry no
-  copy of it.
+- AC1: `skills/ba-review/SKILL.md` states the shared 29-line grammar block exactly once in full, in
+  a new top-level `## Code-Anchor & Confidence Grammar` section. The three dispatch templates carry
+  no copy of the *block*, but each **must** retain, in one sentence each, the bullet-format line and
+  the protected-artifacts guard.
+    - **Amended 2026-08-04 after the AC13 dry-run.** The original wording ("the three dispatch
+      templates carry no copy of it") was implemented literally and was wrong. The templates ended up
+      shipping only the apply-phrase pointer, and a dispatched subagent has neither this file nor the
+      section in its context. Verified at the time: 0 of 7 `agents/*-reviewer.md` carried the guard or
+      the anchor-scope rule, and the two `general-purpose` templates have no agent definition behind
+      them, so a literal transcription reached the subagent with **no grammar and no guard**.
+      `skills/ba-review-plan/SKILL.md` — the precedent this unit claimed to mirror — keeps both inline
+      after its own apply-phrase. The parser contract and the safety guard are deliberate redundancy;
+      do not de-duplicate them away again.
 - AC2: All three dispatch stubs explicitly instruct the reviewer to apply the hoisted section, using
-  the same mandatory phrase `ba-review-plan` uses — so no stub is a dangling reference.
+  an apply-phrase that **names the section by title** — so no stub is a dangling reference.
+    - **Amended 2026-08-04.** Originally "the same mandatory phrase `ba-review-plan` uses", i.e.
+      "Apply all the dispatch instructions in the section above". Dropped: "above" is a position in a
+      file the dispatched subagent does not have. The phrase now names
+      `## Code-Anchor & Confidence Grammar` explicitly. This diverges from `ba-review-plan`'s wording
+      on purpose; `ba-review-plan` has the same latent weakness and is out of scope here.
 - AC3: Each of the three per-template tails survives verbatim. Specifically the agent-based
   `MR context:` line is still present exactly once, and the read-full-files instruction is still
   present exactly twice (agent-based + user-typed, still absent from skill-based).
@@ -298,7 +313,14 @@ Test scenarios:
   (Covers AC4)
 - The selection ledger still shows every reviewer, selected or set aside (Covers AC4)
 
-Verify: `test "$(grep -c 'N ∈ {0, 25, 50, 75, 100}' skills/ba-review/SKILL.md)" = 1 && test "$(grep -c 'Apply all the dispatch instructions in the section above' skills/ba-review/SKILL.md)" = 3 && test "$(grep -c 'MR context' skills/ba-review/SKILL.md)" = 1 && test "$(grep -c 'Review the diff AND read the full content' skills/ba-review/SKILL.md)" = 2 && grep -q '^## Code-Anchor & Confidence Grammar' skills/ba-review/SKILL.md && grep -q 'never-hide convention' skills/ba-review/SKILL.md`
+Verify: `test "$(grep -c 'N ∈ {0, 25, 50, 75, 100}' skills/ba-review/SKILL.md)" = 4 && test "$(grep -c 'docs/brainstorms/' skills/ba-review/SKILL.md)" = 4 && test "$(grep -c 'Apply all the dispatch instructions in the ' skills/ba-review/SKILL.md)" = 3 && test "$(grep -c 'MR context' skills/ba-review/SKILL.md)" = 1 && test "$(grep -c 'Review the diff AND read the full content' skills/ba-review/SKILL.md)" = 2 && grep -q '^## Code-Anchor & Confidence Grammar' skills/ba-review/SKILL.md && grep -q 'never-hide convention' skills/ba-review/SKILL.md`
+
+> **Verify amended 2026-08-04.** The counts were `1` for both the value-set literal and the guard,
+> encoding the AC1 defect above — a literal reading of the old `Verify:` would re-strip the templates.
+> Both are now `4` (one full statement in the hoisted section + one one-sentence copy per template).
+> The apply-phrase needle is also truncated: the phrase now names the section explicitly
+> (`in the \`## Code-Anchor & Confidence Grammar\` section`) rather than saying "above", because a
+> dispatched subagent cannot resolve a relative position it has no file for.
 
 #### U2 — Repair the two stale self-descriptions the hoist creates
 
