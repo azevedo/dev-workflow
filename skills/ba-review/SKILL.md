@@ -200,7 +200,15 @@ If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected
 - For **staged** scope: "Reviewing staged changes ([N] files, [N] lines changed)."
 - For **recent** scope: "Reviewing last [N] commits ([N] files, [N] lines changed)."
 
-**When `PERSIST=true`**, also announce on a second line the fully-resolved persist target — substitute `${TIMESTAMP}` (captured in Parse Arguments) and the `SCOPE_REF` derived from `SCOPE_TYPE` (see Step 4.5a's table). Example: `Persist target: docs/reviews/2026-05-13-143022-feat_add-auth/`. Show this *before* Step 2's reviewer selection so the user can `^C` if the target path looks wrong.
+**When `PERSIST=true`**, also announce on a second line the fully-resolved persist target — substitute `${TIMESTAMP}` (captured in Parse Arguments) and the `SCOPE_REF` derived from `SCOPE_TYPE` (the `SCOPE_TYPE` → `SCOPE_REF` table in `references/review-persist.md`). Example: `Persist target: docs/reviews/2026-05-13-143022-feat_add-auth/`. Show this *before* Step 2's reviewer selection so the user can `^C` if the target path looks wrong.
+
+**Load site — persist run artifacts.** Read `references/review-persist.md` now and follow
+it. Everything this step does lives there; do not act on this step from memory or from
+this body's description of it — that file is the only authority. If the read fails, skip
+the persist work entirely, say so, and continue to Step 5 — never improvise a directory
+name or any part of the procedure from this sentence.
+
+**Failure semantics at this site.** If that read fails here at Step 1d, skip the announce, say so, and treat `PERSIST` as **off for the remainder of the run** — Step 4.5 must not retry the load. A persist directory created without the announcement would defeat the `^C` affordance the announcement exists to provide.
 
 ### 1e. Gather plan context
 
@@ -690,6 +698,14 @@ The pipeline operates as `parse → validate → group → merge → gate → re
 > **Skipped entirely when `PERSIST=false`.** This step has no effect on the default flow.
 
 When `PERSIST=true`, write the run's per-reviewer outputs and a consolidated summary to a dated directory under `docs/reviews/`. The command does **not** touch `.gitignore` in the consuming repo — ignoring `docs/reviews/` is the user's responsibility (see the "Runtime `.gitignore` management" entry in **What We're NOT Doing**).
+
+**Load site — persist run artifacts.** Read `references/review-persist.md` now and follow
+it. Everything this step does lives there; do not act on this step from memory or from
+this body's description of it — that file is the only authority. If the read fails, skip
+the persist work entirely, say so, and continue to Step 5 — never improvise a directory
+name or any part of the procedure from this sentence.
+
+**Failure semantics at this site.** This read is reachable only if the Step 1d load succeeded. If it fails here, skip the persist work, say so, **retract the earlier announcement by name** — state that no directory was created at the announced `docs/reviews/…` path — and continue to Step 5. The review findings are never discarded.
 
 ---
 
