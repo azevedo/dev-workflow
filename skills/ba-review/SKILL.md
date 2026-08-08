@@ -23,7 +23,7 @@ Check the argument string for recognized flags before classifying scope:
   TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)   # local time; single capture, reused at Step 1d and Step 4.5
   ```
 
-  Capture it **here, once** — not later in Step 4.5a — so the value announced in Step 1d matches what Step 4.5 writes. Reviewers can take minutes; deferring the capture would let wall-clock advance and produce announcement-vs-write skew.
+  Capture it **here, once** — not later in the persist procedure — so the value announced in Step 1d matches what Step 4.5 writes. Reviewers can take minutes; deferring the capture would let wall-clock advance and produce announcement-vs-write skew. *(satellite of `references/review-persist.md`)*
 
 - **Everything else** after stripping `--persist`: treat as the scope argument and proceed to Step 1a classification. The remaining string may still contain `--staged` or `--local` (scope tokens) or be empty (local-auto).
 
@@ -189,7 +189,7 @@ echo "---DIFF---"
 git diff $DIFF_RANGE
 ```
 
-If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba-review !123` or `/ba-review abc123..def456`" and exit. **When `PERSIST=true`, the `NO_CHANGES` exit takes precedence — no persist directory is created.**
+If auto-detect found nothing (`NO_CHANGES`), tell the user: "No changes detected to review. Pass an MR URL or a git ref range, e.g., `/ba-review !123` or `/ba-review abc123..def456`" and exit. **When `PERSIST=true`, the `NO_CHANGES` exit takes precedence — no persist directory is created.** *(satellite of `references/review-persist.md`)*
 
 ---
 
@@ -875,7 +875,7 @@ Use **AskUserQuestion**:
 2. **Re-run review** — Run `/ba-review` again (e.g., after manual fixes)
 3. **Done** — Exit
 
-**When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
+**When `PERSIST=true` and `PERSIST_WRITE_OK` is true** — the all-or-nothing verdict 4.5e sets, true only when `mkdir`, every per-reviewer `Write`, and the `summary.md` `Write` all succeeded — and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`. When `PERSIST_WRITE_OK` is false, display nothing here: 4.5e already warned, and repeating a success line would contradict it. *(satellite of `references/review-persist.md`)*
 
 ### For MR/PR scope (remote)
 
@@ -937,7 +937,7 @@ unchanged:
 3. **Review one by one** — Walk through each finding for discussion
 4. **Done** — Acknowledge findings without further action
 
-**When `PERSIST=true`** and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`.
+**When `PERSIST=true` and `PERSIST_WRITE_OK` is true** — the all-or-nothing verdict 4.5e sets, true only when `mkdir`, every per-reviewer `Write`, and the `summary.md` `Write` all succeeded — and the user selects Done, also display: `Persisted to docs/reviews/<TIMESTAMP>-<scope-ref>/`. When `PERSIST_WRITE_OK` is false, display nothing here: 4.5e already warned, and repeating a success line would contradict it. *(satellite of `references/review-persist.md`)*
 
 **"Review one by one" flow (posting, for discussion):** Use the same finding-context-inside-the-question convention as the fix-local walk — include the full finding context inside each AskUserQuestion's question text; never output finding details as separate text before the question widget. This posting walk shows **no** disposition recommendation (the Apply/Skip/Modify recommendation is fix-local only) — it is still for discussion, not applying.
 
