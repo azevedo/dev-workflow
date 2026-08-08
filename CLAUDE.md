@@ -63,7 +63,8 @@ Claude Code plugin providing brainstorm and plan skills with triage, convention 
 | Learnings | `docs/solutions/<category>/<filename>.md` |
 | Research docs | `docs/research/YYYY-MM-DD-<description>-research.md` |
 | Review run artifacts | `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` |
-| Format-rendering references + per-skill section contracts | `references/` |
+| Shared references (two or more consumers) — format rendering + per-skill section contracts | `references/` — cited `${CLAUDE_PLUGIN_ROOT}`-anchored from a skill, bare from an agent |
+| Skill-local references (single consumer) | `skills/<name>/references/` — cited by bare relative path |
 
 ## Conventions
 
