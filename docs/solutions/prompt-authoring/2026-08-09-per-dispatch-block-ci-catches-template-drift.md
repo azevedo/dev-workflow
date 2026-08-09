@@ -171,27 +171,28 @@ A fixture that passes on both versions pins nothing.
    carries X inline" is an assertion *about the file*, and assertions about the file are either
    pinned by a check or verified by grep during review.
 
-## Known open gap (verified 2026-08-09, not fixed here)
+## The check found its own author out
 
-The per-block check pins exactly one contract: the confidence literal. The **protected-artifacts
-guard** — the other half lost in the original incident — is pinned nowhere. Measured across all six
-dispatch blocks:
+The per-block check pins exactly one contract: the confidence literal. A scan of all six dispatch
+blocks for the *other* half lost in the original incident — the **protected-artifacts guard** —
+found `ba-review-plan`'s agent-based template carrying the literal but not the guard, with
+`grep -rl 'docs/brainstorms/' agents/` returning **zero files**, so the built-in reviewers had no
+fallback for it either.
 
-| Block | literal | guard |
-|---|---|---|
-| `ba-review-plan:300` (agent-based) | ✓ | **✗** |
-| `ba-review-plan:314`, `:342` | ✓ | ✓ |
-| `ba-review:484`, `:502`, `:526` | ✓ | ✓ |
+Worse, the same change had just added a sentence asserting *"each template below also carries the
+bullet grammar and the protected-artifacts guard inline"* — false for one of three templates, on the
+skill where `CLAUDE.md` calls the guard load-bearing because the reviewed plan lives under
+`docs/plans/`. **A fix for unpinned prose introduced a new piece of unpinned prose, and it was wrong
+on arrival.** That is the sharpest evidence for Prevention #5 in this entry: the sentence read as
+true when written, and only a scan showed otherwise.
 
-`grep -rl 'docs/brainstorms/' agents/` returns **zero files**, so the built-in reviewers have no
-fallback for it either. Meanwhile `skills/ba-review-plan/SKILL.md` now asserts that *"each template
-below also carries the bullet grammar and the protected-artifacts guard inline"* — a sentence added
-by this same change, and false for one of three templates, on the skill where `CLAUDE.md` calls the
-guard load-bearing because the reviewed plan lives under `docs/plans/`.
+Closed in the same PR — the guard was added to the third template, which made the sentence true
+rather than the sentence edited to match a gap. All six blocks now carry both contracts.
 
-Three-legs status: **reachable, no observed impact.** The text permits the loss and the fallback is
-absent, but no transcript shows a reviewer proposing a plan deletion. Treat it as the seed fixture
-for generalizing the check to a contract table, not as an incident.
+**Still unpinned:** the guard itself. Nothing in CI asserts it, so this exact drift can recur
+silently. Generalizing `rubric-mirror` from a single literal to a contract table is the fix; one
+caveat found while measuring is that the guard sentence is line-wrapped differently in the two
+files, so a block body must be joined and whitespace-collapsed before the byte-exact comparison.
 
 Open scope call, deliberately not decided here: whether that generalization stops at the guard or
 extends to the other two items templates carry (native `## Must Address` vocabulary,

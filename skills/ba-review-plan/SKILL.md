@@ -303,7 +303,10 @@ same reason.
 
   Emit your findings under the headings `## Must Address` / `## Consider` / `## Looks Good` (NOT
   Critical/High/Medium/Low). Anchor each non-`Looks Good` finding to the most specific plan key as
-  `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`.
+  `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`. Do not suggest deleting,
+  relocating, renaming, or otherwise changing the existence or path of any file under
+  `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content
+  review is unaffected.
 
   Plan path: [path]
   Plan content: [the full plan]
