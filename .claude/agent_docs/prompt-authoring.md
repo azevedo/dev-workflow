@@ -127,6 +127,14 @@ count changes. Before adding a second consumer, enumerate the citers with
 `grep -rn "references/<basename>" skills/ agents/`. Promotion is a file move **plus** a re-spelling
 of every citation into its own reader's form; miss one and it fails only at runtime.
 
+**A duplicated instruction is a contract, and this one is pinned.** When the same sentence must
+appear at more than one site — as the `--persist` load site does in `skills/ba-review/SKILL.md` —
+the copies are a machine-boundary contract, not prose, and an occurrence count cannot enforce them:
+counting one substring's occurrences is unchanged by a divergence anywhere else in the block. The
+`load-site-mirror` check extracts every block from its anchor to the next blank line and compares
+them byte-for-byte, reporting `file:line` on the diverging copy. Fewer than two blocks is UNKNOWN,
+not PASS — one copy left after a deletion must not read the same as two that agree.
+
 **What CI does and does not pin here.** `scripts/check-invariants.mjs`'s `references` check walks the
 **top-level** `references/` directory only, so a skill-local reference gets no cited-at-least-once
 coverage at all — an orphaned one ships silently. Its needle also matches the bare and the

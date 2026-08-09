@@ -101,6 +101,12 @@ const RUBRIC_SECTION_HEADING = '## Code-Anchor & Confidence Grammar';
 // retired-invocations all share — widening it would silently change three existing corpora.
 const RUBRIC_MIRROR_FILES = [RUBRIC_OWNER_FILE, 'skills/ba-review-plan/SKILL.md'];
 // A dir + suffix pair rather than a glob, since loadCorpus(dirs) cannot express one.
+// A load-site sentence duplicated across sites is a machine-boundary contract: the copies must be
+// byte-identical, and an occurrence count cannot detect two copies diverging (the plan that
+// introduced this pair claimed identity while checking a single substring's count).
+const LOAD_SITE_FILE = 'skills/ba-review/SKILL.md';
+const LOAD_SITE_ANCHOR = '**Load site — persist run artifacts.**';
+
 const RUBRIC_AGENT_DIR = 'agents';
 const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
 // A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it exactly.
@@ -567,12 +573,65 @@ function rubricMirrorCheck(opts) {
   };
 }
 
+function loadSiteMirrorCheck(opts) {
+  const records = [];
+  const unknown = (message) => ({
+    subjectCount: 0,
+    subjectNoun: 'load-site blocks',
+    reason: message,
+    records: [makeRecord('load-site-mirror', LOAD_SITE_FILE, null, 'UNKNOWN', message)],
+  });
+
+  const lr = readLines(opts.root, LOAD_SITE_FILE);
+  if (lr.error) return unknown(`cannot read ${LOAD_SITE_FILE}: ${lr.error}`);
+
+  // A block runs from its anchor line to the next blank line, so it tracks the paragraph rather
+  // than a fixed length — an added or removed line is compared, not silently excluded.
+  const blocks = [];
+  lr.lines.forEach((line, i) => {
+    if (!line.startsWith(LOAD_SITE_ANCHOR)) return;
+    const body = [];
+    for (let j = i; j < lr.lines.length && lr.lines[j].trim() !== ''; j += 1) body.push(lr.lines[j]);
+    blocks.push({ line: i + 1, text: body.join('\n') });
+  });
+
+  // Zero or one copy is nothing to mirror. That is vacuous, not passing: reporting PASS here would
+  // read identically to "both copies agree" on a tree where one site had been deleted.
+  if (blocks.length < 2) {
+    return unknown(
+      `expected at least 2 '${LOAD_SITE_ANCHOR}' blocks in ${LOAD_SITE_FILE}, found ${blocks.length}`,
+    );
+  }
+
+  const [first, ...rest] = blocks;
+  for (const block of rest) {
+    if (block.text === first.text) continue;
+    records.push(
+      makeRecord(
+        'load-site-mirror',
+        LOAD_SITE_FILE,
+        block.line,
+        'FAIL',
+        `load-site block differs from the copy at line ${first.line}; the copies must be byte-identical`,
+      ),
+    );
+  }
+
+  return {
+    subjectCount: blocks.length,
+    subjectNoun: 'load-site blocks',
+    reason: `${blocks.length} copies of the load-site block compared for byte-identity`,
+    records,
+  };
+}
+
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
   { id: 'retired-invocations', run: retiredInvocationsCheck },
   { id: 'version-bump', run: versionBumpCheck },
   { id: 'rubric-mirror', run: rubricMirrorCheck },
+  { id: 'load-site-mirror', run: loadSiteMirrorCheck },
 ];
 
 function runChecks(opts) {
