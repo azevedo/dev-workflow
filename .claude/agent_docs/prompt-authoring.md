@@ -91,3 +91,52 @@ what a prompt "should" do is not evidence. Run the change instead:
 Nine runs is roughly ten minutes. It is the only real evidence available here, and it has already
 overturned a static review — see `docs/research/2026-07-26-opus5-context-engineering-fit-research.md`
 for the assessment that motivated these rules and the run that tested one of them.
+
+## Where a reference file lives, and how it is cited
+
+`CLAUDE.md` carries the operative rule — placement by shareability, and the three citation forms.
+This section carries the reasoning behind it, so the always-resident copy stays short. Read this
+when adding a reference file, changing where one lives, or giving one a second consumer.
+
+**Why shareability decides placement.** A repo-root `references/` file can be read by both a skill
+and an agent; a skill-local one cannot. `agents/convention-checker.md` reads `plan-sections.md` and
+`brainstorm-sections.md`, and `html-rendering.md` is cited from every skill that renders HTML — a
+skill-local copy of any of those would have to be duplicated, which `html-rendering.md`'s own
+single-source rule forbids. Single-consumer files carry none of that, so they sit next to the one
+body that reads them and cost nothing to the rest.
+
+**Why the three spellings differ.** One mechanism explains all of it: **a skill resolves bundled
+paths relative to its own `SKILL.md`.** So a bare `references/<file>.md` in a skill body resolves
+inside `skills/<name>/` — which is exactly right for a skill-local reference and exactly wrong for a
+repo-root one, hence `${CLAUDE_PLUGIN_ROOT}/` for the latter. An agent is not a skill and does not
+get that rebasing, so `agents/convention-checker.md` cites the root bare. Three forms, one rule,
+each correct for its reader — which is why normalising them to one spelling breaks two of the three.
+
+**Evidentiary footing, and its limit.** Bare-relative skill-local resolution was proven at runtime
+by a three-arm probe (see `docs/plans/2026-08-08-refactor-prompt-surface-shrink-slice-2-plan.md`):
+the file resolves to the skill-local path when its branch is taken, is not read when it is not, and
+a missing file degrades to skip-and-continue rather than an improvised path. That probe ran under
+`claude --plugin-dir`, where plugin-root and cwd coincide — the least discriminating configuration
+available. **The result is verified for a working-tree plugin and unverified for an installed one.**
+Read a first installed-plugin resolution failure as this claim breaking, not as a bug in the citing
+skill. There is also no regression detector: nothing re-verifies on future invocations that the read
+still happens, so re-run the probe on any model bump that changes the consuming skill's behavior.
+
+**Promoting a skill-local reference to the root.** Placement follows consumer count, and consumer
+count changes. Before adding a second consumer, enumerate the citers with
+`grep -rn "references/<basename>" skills/ agents/`. Promotion is a file move **plus** a re-spelling
+of every citation into its own reader's form; miss one and it fails only at runtime.
+
+**A duplicated instruction is a contract, and this one is pinned.** When the same sentence must
+appear at more than one site — as the `--persist` load site does in `skills/ba-review/SKILL.md` —
+the copies are a machine-boundary contract, not prose, and an occurrence count cannot enforce them:
+counting one substring's occurrences is unchanged by a divergence anywhere else in the block. The
+`load-site-mirror` check extracts every block from its anchor to the next blank line and compares
+them byte-for-byte, reporting `file:line` on the diverging copy. Fewer than two blocks is UNKNOWN,
+not PASS — one copy left after a deletion must not read the same as two that agree.
+
+**What CI does and does not pin here.** `scripts/check-invariants.mjs`'s `references` check walks the
+**top-level** `references/` directory only, so a skill-local reference gets no cited-at-least-once
+coverage at all — an orphaned one ships silently. Its needle also matches the bare and the
+`${CLAUDE_PLUGIN_ROOT}`-anchored spellings alike, so a promotion that moves the file without
+re-spelling its citers passes CI green. Both gaps are known and hand-maintained, not enforced.

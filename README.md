@@ -300,7 +300,8 @@ Research docs in `docs/research/` form a second, ephemeral layer: raw investigat
 | Plan docs | `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md` or `.html` |
 | Learnings | `docs/solutions/<category>/<filename>.md` |
 | Review run artifacts (opt-in via `--persist`; not auto-ignored — user-managed) | `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` |
-| Format-rendering references + per-skill section contracts | `references/` |
+| Shared references (two or more consumers) — format rendering + per-skill section contracts | `references/` — cited `${CLAUDE_PLUGIN_ROOT}`-anchored from a skill, bare from an agent |
+| Skill-local references (single consumer) | `skills/<name>/references/` — cited by bare relative path |
 
 ## Roadmap
 

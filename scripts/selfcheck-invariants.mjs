@@ -48,6 +48,21 @@ function runChecker(root, checkId, envOverride) {
 // A minimal well-formed rubric corpus — owner heading + literal, the sibling skill's copy, and one
 // citing reviewer agent. Each case overrides only the part it is testing, so a fixture never
 // accidentally trips a second assertion and passes for the wrong reason.
+function loadSiteBlock(tailLine) {
+  return [
+    '**Load site — persist run artifacts.** Read `references/review-persist.md` now and follow',
+    'the part of it this site needs. Everything the persist step does lives there.',
+    tailLine,
+  ].join('\n');
+}
+
+function buildLoadSiteTree(root, opts = {}) {
+  const a = loadSiteBlock('must stay byte-identical.');
+  const b = opts.divergentTail ? loadSiteBlock(opts.divergentTail) : a;
+  const blocks = opts.single ? [a] : [a, b];
+  write(root, 'skills/ba-review/SKILL.md', ['# ba-review', '', blocks.join('\n\n'), ''].join('\n'));
+}
+
 function buildRubricTree(root, opts = {}) {
   const literal = 'N ∈ {0, 25, 50, 75, 100}';
   const heading = opts.ownerHeading ?? '## Code-Anchor & Confidence Grammar';
@@ -593,6 +608,52 @@ const CASES = [
     },
     expectExit: 1,
     expectSubstrings: ['sentinels: PASS', 'references: FAIL', 'version-bump: UNKNOWN', 'rubric-mirror: UNKNOWN'],
+  },
+  {
+    name: 'load-site-mirror FAIL — the second copy diverges on its last line',
+    checkId: 'load-site-mirror',
+    build(root) {
+      buildLoadSiteTree(root, { divergentTail: 'must stay BYTE-IDENTICAL.' });
+    },
+    expectExit: 1,
+    expectSubstrings: ['load-site-mirror: FAIL', 'differs from the copy at line'],
+  },
+  {
+    // The regression this check exists for: the retired proxy counted one substring's occurrences,
+    // which is unchanged by a divergence anywhere else in the block.
+    name: 'load-site-mirror FAIL — divergence an occurrence count cannot see',
+    checkId: 'load-site-mirror',
+    build(root) {
+      buildLoadSiteTree(root, { divergentTail: 'must stay byte-identical, mostly.' });
+    },
+    expectExit: 1,
+    expectSubstring: 'load-site-mirror: FAIL',
+  },
+  {
+    name: 'load-site-mirror PASS — both copies agree',
+    checkId: 'load-site-mirror',
+    build(root) {
+      buildLoadSiteTree(root);
+    },
+    expectExit: 0,
+    expectSubstring: 'load-site-mirror: PASS',
+  },
+  {
+    // Vacuous, not passing: one copy left after a deletion must not read the same as two agreeing.
+    name: 'load-site-mirror UNKNOWN — fewer than two blocks is vacuous',
+    checkId: 'load-site-mirror',
+    build(root) {
+      buildLoadSiteTree(root, { single: true });
+    },
+    expectExit: 2,
+    expectSubstrings: ['load-site-mirror: UNKNOWN', 'found 1'],
+  },
+  {
+    name: 'load-site-mirror UNKNOWN — the owning file cannot be read',
+    checkId: 'load-site-mirror',
+    build() {},
+    expectExit: 2,
+    expectSubstring: 'cannot read skills/ba-review/SKILL.md',
   },
   {
     name: '--only bogus: unknown check id reports an error and exits 2',
