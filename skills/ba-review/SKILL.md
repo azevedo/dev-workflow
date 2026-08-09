@@ -239,7 +239,7 @@ If the diff exceeds 2000 lines, warn: "Large diff detected ([N] lines). Review q
 
 ### 2a. Gather built-in reviewers
 
-List the seven built-in review agents (all live flat in `agents/`):
+List the eight built-in review agents (all live flat in `agents/`):
 
 | Agent | Focus |
 |---|---|
@@ -250,8 +250,9 @@ List the seven built-in review agents (all live flat in `agents/`):
 | `test-coverage-reviewer` | Missing test scenarios, test quality |
 | `deep-module-reviewer` | Ousterhout deep-module design: small interface / deep implementation, dependency injection, return-over-side-effects, duplication, shallow-layer merging |
 | `complexity-reviewer` | Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns |
+| `comment-quality-reviewer` | Doc comments on declarations with callers, and inline comments inside changed function bodies |
 
-**All seven built-in reviewers MUST appear in the selection ledger (Step 2d) — selected (`✓`)
+**All eight built-in reviewers MUST appear in the selection ledger (Step 2d) — selected (`✓`)
 or set aside (`○`), each with a reason. Never omit a reviewer from the ledger or from the
 Adjust pick-list.**
 
@@ -293,7 +294,7 @@ For each discovered external reviewer, record:
 
 You already captured `FULL_DIFF` and `CHANGED_FILES` in Step 1. **Reuse that read — do NOT run
 `git diff`, `glab mr diff`, `gh pr diff`, or any diff command here** (the Step 1f STOP rule still
-binds). For **each** candidate reviewer — the seven built-ins **and** every discovered external,
+binds). For **each** candidate reviewer — the eight built-ins **and** every discovered external,
 judged uniformly with no built-in/external precedence — answer one question:
 
 > **Does this diff contain substantive work in this reviewer's domain?**
@@ -326,7 +327,7 @@ This judgment writes **no state** — it is recomputed fresh on every run.
 
 ### 2d. Present the selection ledger and confirm
 
-Print the **full roster** as plain text (not a widget) in stable order — the seven built-ins
+Print the **full roster** as plain text (not a widget) in stable order — the eight built-ins
 first, then discovered externals — every candidate on its own line:
 
 ```
@@ -339,6 +340,7 @@ Reviewer selection — <T> candidates (<S> ✓ selected, <A> ○ set aside)
 ○ error-handling-reviewer — no new IO or error paths
 ○ deep-module-reviewer — overlaps with architecture-reviewer here; architecture covers the structure
 ○ complexity-reviewer — diff is small and linear; no cognitive-load surface
+○ comment-quality-reviewer — no doc comments added or modified; changed bodies carry no inline comments
 ○ dragon-test-reviewer (agent) — overlaps with test-coverage-reviewer on this diff
 ```
 
@@ -347,7 +349,7 @@ exactly once. Never truncate, summarize ("…and N others"), or drop a low-relev
 candidate missing from the ledger is unreachable, which violates the never-hide guarantee.
 
 **Header count `<T>`** is a sanity aid, not the mechanism: the **pre-judgment** total =
-`7 (built-ins from 2a) + count(all externals from 2b)` — every discovered candidate, including
+`8 (built-ins from 2a) + count(all externals from 2b)` — every discovered candidate, including
 borderline keyword matches kept under 2b's "when in doubt, include" rule. It is **not** the `✓` count.
 
 If discovery (2b) found no externals, append after the roster: "No external reviewers found in
@@ -385,7 +387,7 @@ single option.**
 
 Apply these distribution rules:
 
-1. Collect all reviewers into an ordered list: 7 built-ins first, then discovered externals.
+1. Collect all reviewers into an ordered list: 8 built-ins first, then discovered externals.
 2. Partition into groups of 2-4 (prefer 3-4 to minimize questions). If the final group would be a
    lone reviewer, rebalance with the adjacent group — split their combined members into two groups
    of 2-3, rather than pushing one group past 4.

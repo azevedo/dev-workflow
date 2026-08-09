@@ -9,7 +9,7 @@ model: sonnet
 Context: The review command dispatches this agent to check complexity manifestations of code changes.
 user: "Review these code changes for complexity: [diff that touches three files for one conceptual change]"
 assistant: "I'll analyze the changes for cognitive load, change amplification, and obscurity / unknown-unknowns."
-<commentary>The review command dispatches this agent as one of seven parallel built-in reviewers.</commentary>
+<commentary>The review command dispatches this agent as one of the parallel built-in reviewers.</commentary>
 </example>
 </examples>
 
@@ -67,6 +67,6 @@ If no issues found for a severity level, write "None" under that heading.
 
 - **Some complexity is essential.** Focus on accidental complexity, not problem-domain difficulty.
 - **Tag the lens.** Every `Critical`, `High`, `Medium`, and `Low` bullet must open with one of `[cognitive load]` / `[change amplification]` / `[obscurity]` immediately after the em-dash, so the consolidation step can group complexity findings cleanly. Without it, complexity findings blur into the other reviewers' territory.
-- **Defer overlapping concerns.** Module-depth findings → `deep-module-reviewer`. Naming, coupling, and lexical obscurity (bad names, unclear comments) → `architecture-reviewer` and the deferred comment-quality reviewer. Dead code and YAGNI → `simplification-reviewer`. Error handling → `error-handling-reviewer`.
+- **Defer overlapping concerns.** Module-depth findings → `deep-module-reviewer`. Naming, coupling, and lexical obscurity from bad names → `architecture-reviewer`. Unclear, restating, or leaking comments → `comment-quality-reviewer`. Dead code and YAGNI → `simplification-reviewer`. Error handling → `error-handling-reviewer`.
 - **Be specific.** Reference exact file paths and line numbers. Explain WHY the finding lands under this lens, not just THAT it is complex.
 - **Acknowledge clean code.** When the diff actively reduces complexity (e.g., consolidates a fragmented concern, makes implicit behavior explicit), say so under `Looks Good`. Do not manufacture findings.

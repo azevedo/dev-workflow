@@ -50,7 +50,9 @@ Read the plan file thoroughly before proceeding.
 
 ### 1a. Built-in reviewers
 
-These seven built-in reviewers live flat in `agents/` and are always available:
+Seven of the plugin's eight built-in reviewers are on this roster and are always available. The
+eighth, `comment-quality-reviewer`, reviews doc and inline **code** comments — a surface plan
+documents do not have — so it is off this roster by design and stays reachable via Adjust → Other:
 
 | Agent | Focus |
 |---|---|
