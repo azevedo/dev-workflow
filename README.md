@@ -133,6 +133,8 @@ Prefer **`html`** when:
 
 Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery. Approved fixes are written back to that plan file **in place**, so it expects a specific plan you want strengthened rather than a general discussion of one.
 
+(Seven, not `/ba-review`'s eight: `comment-quality-reviewer` reviews doc and inline code comments, which plan documents do not have. It stays reachable via Adjust → Other.)
+
 This catches issues at plan time — where fixing things is cheap — instead of after code is written.
 
 - **Auto-detects the latest plan** if no path is given
@@ -156,7 +158,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 
 ### `/ba-review [ref range]`
 
-Runs post-implementation code review using seven built-in review agents plus any additional reviewers discovered in the environment.
+Runs post-implementation code review using eight built-in review agents plus any additional reviewers discovered in the environment.
 
 ### `/ba-compound [context]`
 
@@ -169,7 +171,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
 
 - **Smart scope detection** — auto-detects feature branch vs. main, staged changes, or recent commits when no ref range is given
-- **Seven built-in reviewers** — architecture, security, simplification, error handling, test coverage, deep-module design, and complexity; always available out of the box
+- **Eight built-in reviewers** — architecture, security, simplification, error handling, test coverage, deep-module design, complexity, and comment quality; always available out of the box
 - **Smart selection** — discovers external review agents and skills, then reads the diff and judges which reviewers have real work; presents the full roster as a **selection ledger** (selected + set aside, each with a one-line reason, overlaps named) for a one-step confirm or adjust. Nothing hidden, every reviewer reachable, no state persisted
 - **Parallel dispatch** — all selected reviewers run simultaneously as independent subagents for unbiased analysis
 - **Structured findings** — Critical / High / Medium / Low / Looks Good with per-finding confidence anchors, `file:line` references, cross-reviewer dedup, and a soft confidence gate that moves high-noise findings into a separate `Suppressed` section
@@ -283,6 +285,7 @@ The **Stack-Base Resolution Convention** (owned by the `## Stack-Base Resolution
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
 | `deep-module-reviewer` | Reviews code changes for Ousterhout deep-module design principles: interface depth, dependency injection, side-effect discipline (built-in reviewer) |
 | `complexity-reviewer` | Reviews code changes for Ousterhout's three complexity manifestations: cognitive load, change amplification, obscurity / unknown-unknowns (built-in reviewer) |
+| `comment-quality-reviewer` | Reviews comment quality against Ousterhout's interface-vs-implementation separation: doc comments on declarations with callers, inline comments inside changed bodies (built-in reviewer; `/ba-review` only) |
 | `interface-design-generator` | Generates one alternative interface design under a named Ousterhout-flavored constraint (deepest-module / common-case / info-hiding); dispatched in parallel by `/ba-brainstorm` Phase 2 when the brainstorm proposes a new module or interface |
 
 ## Knowledge Compounding

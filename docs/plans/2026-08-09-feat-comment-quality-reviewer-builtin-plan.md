@@ -199,7 +199,9 @@ prose the executing agent composes.
 
 Test scenarios:
 - A diff adding a JSDoc block that restates a typed parameter yields a Medium at confidence 75 (Covers AC1, AC5)
-- A diff with code but zero comments yields `None` under every severity heading (Covers AC4)
+- A diff with code but zero comments yields no *existing-comment* findings — `None` under every
+  severity heading, except that a missing caller-visible contract on a non-trivial declaration may
+  still surface as a Medium/`Add` (Covers AC4)
 - A markdown-only diff produces no findings anchored into `.md` files (Covers AC4)
 
 Verify: `test -f agents/comment-quality-reviewer.md && grep -q '^name: comment-quality-reviewer$' agents/comment-quality-reviewer.md && grep -q 'N ∈ {0, 25, 50, 75, 100}' agents/comment-quality-reviewer.md && grep -q 'Code-Anchor & Confidence Grammar' agents/comment-quality-reviewer.md && grep -q '/ba-review' agents/comment-quality-reviewer.md && grep -q 'interface pass' agents/comment-quality-reviewer.md && grep -q 'implementation pass' agents/comment-quality-reviewer.md && grep -q 'parallel built-in reviewers' agents/comment-quality-reviewer.md && grep -qE '^## (Critical|High|Medium|Low)$' agents/comment-quality-reviewer.md && ! grep -qE '^## (Must Address|Consider)$' agents/comment-quality-reviewer.md && ! grep -qE '/ba:|commands/ba/' agents/comment-quality-reviewer.md && ! grep -q 'Verdict:' agents/comment-quality-reviewer.md && node scripts/check-invariants.mjs`
@@ -375,7 +377,16 @@ at start:
 without these passes a port that fires on every diff regardless of content ships unnoticed.
 
 6. Re-run on a diff with code changes and **zero comments**: the reviewer returns `None` under every
-   severity heading (or is set aside at Step 2c — either is correct; findings are not).
+   severity heading, **or** is set aside at Step 2c, **or** returns only missing-caller-contract
+   findings (Medium, `Treatment: Add`) on non-trivial declarations. Any finding about an *existing*
+   comment is the failure — there are none to review.
+
+   **Loosened after the first dry-run**, which returned exactly one such finding
+   (`drainAcross` returns `[]` rather than a partial plan, a contract the signature does not carry;
+   Medium/50, correctly suppressed by the Medium floor). The original criterion — findings-none, full
+   stop — contradicted U1's own instruction to carry over leak-taxonomy item 7 ("missing caller-visible
+   contracts", Medium, `Add`). A reviewer that can flag a missing contract will fire on a zero-comment
+   file that has one; the two cannot both hold. The finding was judged correct and the criterion wrong.
 7. Re-run on a **markdown-only** diff: no findings anchored into `.md` files. This repo's own diffs are
    the common case for this boundary, and its agent bodies are literally prose about comments.
 
