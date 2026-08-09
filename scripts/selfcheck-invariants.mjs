@@ -570,6 +570,64 @@ const CASES = [
     expectSubstring: 'rubric-mirror: PASS',
   },
   {
+    // The defect this granularity exists for: the file still holds correct copies (its own grammar
+    // section and a sibling template), so a per-file existence test passes it while the dispatched
+    // subagent behind the stripped block receives no confidence grammar at all.
+    name: 'rubric-mirror FAIL — one dispatch block loses the literal while its siblings keep it',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        planTaskBlocks: [
+          '- Task general-purpose("Apply the dispatch instructions.\n\n  `N ∈ {0, 25, 50, 75, 100}`")\n',
+          '- Task general-purpose("Apply the dispatch instructions in the section above.")\n',
+        ],
+      });
+    },
+    expectExit: 1,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md:7', 'dispatch block is missing the legal value set'],
+  },
+  {
+    // Pins the byte-exact assertion at block granularity. A whitespace-normalising implementation
+    // would pass this, and the FAIL must read as drift at the offending line — not as "missing",
+    // which would send the reader looking for an absent copy rather than a mis-spelled one.
+    name: 'rubric-mirror FAIL — a block carries the literal in a whitespace-only variant',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        planTaskBlocks: ['- Task general-purpose("Apply the dispatch instructions.\n\n  `N ∈ {0,25,50,75,100}`")\n'],
+      });
+    },
+    expectExit: 1,
+    expectSubstrings: ['value set spelled `N ∈ {0,25,50,75,100}`', 'spells the value set inexactly'],
+  },
+  {
+    // The check must not read the literal across a section boundary: without the `##` bound the
+    // trailing block would swallow the next section and pass on a copy that never reaches its
+    // subagent.
+    name: 'rubric-mirror FAIL — a later section\'s literal does not satisfy a stripped trailing block',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, {
+        planTaskBlocks: [
+          '- Task general-purpose("Apply the dispatch instructions.")\n\n## Step 4\n\n`N ∈ {0, 25, 50, 75, 100}`\n',
+        ],
+      });
+    },
+    expectExit: 1,
+    expectSubstring: 'dispatch block is missing the legal value set',
+  },
+  {
+    // A mirror file with no template at all is vacuous, not passing: reporting PASS here would read
+    // identically to "every block carries the literal" on a tree whose templates had been deleted.
+    name: 'rubric-mirror UNKNOWN — a mirror file carries no dispatch block to check',
+    checkId: 'rubric-mirror',
+    build(root) {
+      buildRubricTree(root, { planTaskBlocks: [] });
+    },
+    expectExit: 2,
+    expectSubstrings: ['skills/ba-review-plan/SKILL.md', 'no `- Task ` dispatch block to check'],
+  },
+  {
     // Distinct from the case below: there the directory lists fine and holds no reviewer, here the
     // listing itself fails. Both sibling directory-walking checks pin their own unlistable-dir path.
     name: 'rubric-mirror UNKNOWN — agents/ cannot be listed at all',
