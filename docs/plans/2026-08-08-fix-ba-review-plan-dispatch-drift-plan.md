@@ -42,7 +42,7 @@ behind them, so the template text is the whole specification. `skills/ba-review/
 corrected shape to copy — each of its three `Task` blocks (`:474`, `:492`, `:516`) cites the section by
 title **and** carries the literal inline (`:476`, `:494`, `:518`).
 
-`rubric-mirror` (`scripts/check-invariants.mjs:493`) walks `RUBRIC_MIRROR_FILES` (`:102`) plus
+`rubric-mirror` (`scripts/check-invariants.mjs:499`) walks `RUBRIC_MIRROR_FILES` (`:102`) plus
 `agents/*-reviewer.md`. Its zero-occurrence branch (`:532`) is per-file. Selfcheck suite is at 47.
 
 ## Acceptance Criteria
@@ -146,7 +146,7 @@ Verify: `node scripts/selfcheck-invariants.mjs`
 Three changes:
 1. Replace the positional apply-phrases at `:289`, `:303`, `:322` with citations by section title.
 2. Promote `:253` to a citable `##` heading. The byte-identical heading also sits at
-   `skills/ba-review/SKILL.md:453` — promote **both**, or a currently-parallel pair splits with nothing
+   `skills/ba-review/SKILL.md:463` — promote **both**, or a currently-parallel pair splits with nothing
    detecting it.
 3. Add the legal-value literal and the protected-artifacts guard inline to both `general-purpose`
    templates (`:302`, `:321`).
@@ -204,14 +204,21 @@ Verify: `node scripts/check-invariants.mjs --only version-bump`
 | Version double-bump if both plans ship together | U5 states the check-first rule explicitly |
 | Fixing the literal but not the guard, or vice versa | U3's `Verify:` counts the literal; the guard is covered by AC1's raw-return scenario |
 
+> **Citations re-pointed 2026-08-09 against `main` @ `9694645`.** This plan was written before the
+> slice-2 PR landed; that PR inserted `loadSiteMirrorCheck` into `scripts/check-invariants.mjs` and
+> edited `skills/ba-review/SKILL.md`, shifting four of the line numbers cited below. Mapping applied:
+> `check-invariants.mjs` `:493`→`:499`, `:532`→`:538` (`:102` unchanged); `ba-review/SKILL.md`
+> `:453`→`:463`, `:453-518`→`:463-539`. Symbols and intent are unchanged — verify before relying on
+> any line number, since nothing pins these.
+
 ## Sources & References
 
 - Origin: `docs/solutions/prompt-authoring/2026-08-08-hoisted-text-invisible-to-dispatched-subagents.md`
   — the defect, its root cause, and the "Residual gaps to keep visible" section that named these exact
   line numbers.
 - Sibling plan: `docs/plans/2026-08-08-refactor-prompt-surface-shrink-slice-2-plan.md`
-- Corrected shape to copy: `skills/ba-review/SKILL.md:453-518` (Step 3 preamble and the three templates)
-- `scripts/check-invariants.mjs:102` (`RUBRIC_MIRROR_FILES`), `:493` (`rubricMirrorCheck`), `:532` (the
+- Corrected shape to copy: `skills/ba-review/SKILL.md:463-539` (Step 3 preamble and the three templates)
+- `scripts/check-invariants.mjs:102` (`RUBRIC_MIRROR_FILES`), `:499` (`rubricMirrorCheck`), `:538` (the
   per-file zero-occurrence branch this plan replaces)
 - `docs/plans/2026-08-02-refactor-prompt-surface-shrink-slice-1-plan.md` — slice 1, where the same defect
   was found and fixed in the sibling file
