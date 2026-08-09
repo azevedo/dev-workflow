@@ -1,38 +1,39 @@
 # `/ba-review` — Persist Run Artifacts
 
-The `--persist` run-artifact procedure for `/ba-review`. **This file is the only authority on what
-that step does.** `skills/ba-review/SKILL.md` deliberately does not describe the procedure; nothing
-in it is a summary you may act on instead of reading this.
+The `--persist` run-artifact procedure for `/ba-review`. **This file is the only authority on the
+steps of that procedure** — `skills/ba-review/SKILL.md` does not describe them, and nothing in it is
+a summary you may act on instead of reading this. Single consumer, hence skill-local and cited by
+bare relative path; see the reference-placement bullet in `CLAUDE.md` before adding a second.
 
-**Consumer.** Exactly one — `skills/ba-review/SKILL.md`. That single-consumer status is why this
-reference is skill-local and cited by bare relative path (`references/review-persist.md`) rather
-than living at the repo root; see the reference-placement bullet in `CLAUDE.md`. Before adding a
-second consumer, run the migration grep that bullet specifies.
+**Preconditions this file does not own.** Facts left resident in the skill body, each tagged
+`(satellite of `references/review-persist.md`)` — a **satellite** may state a fact about this
+procedure, never restate a step of it. The load-bearing one: **a `NO_CHANGES` exit at Step 1c takes
+precedence and no persist directory is created**, so this procedure does not run at all. The rest are
+`TIMESTAMP`'s single-capture rule and the two Step 5 Done lines.
 
-**Load sites.** Two, both gated on `PERSIST=true` — so a default (`PERSIST=false`) run reads this
-file not at all:
+**Load sites.** Two, both gated on `PERSIST=true`, so a default run reads this file not at all:
 
-| Load site | Needs | Uses |
-|---|---|---|
-| Step 1d — announce scope | `SCOPE_REF` | 4.5a's table + `sanitize(s)`, to announce the fully-resolved target *before* Step 2's reviewer selection, preserving the `^C` affordance |
-| Step 4.5 — persist run artifacts | the write procedure | 4.5a–4.5e in full |
+| Load site | Uses |
+|---|---|
+| Step 1d — announce scope | 4.5a only: derive `SCOPE_REF` to announce the target before Step 2's reviewer selection. Creates nothing |
+| Step 4.5 — persist run artifacts | 4.5a–4.5e in full |
 
-**Input — `TIMESTAMP` arrives already captured.** It is captured **once**, at argument-parse time
-(`skills/ba-review/SKILL.md`, Parse Arguments), *not* here in 4.5a. **Why, so this is not
-"simplified" by re-deriving it closer to the write:** reviewers can take minutes, so deferring the
-capture lets wall-clock advance between the Step 1d announcement and the Step 4.5 write, producing
-announce-vs-write **skew** — the user is shown one directory and a different one is created.
-Re-derive `TIMESTAMP` anywhere in this file and that bug comes back.
+**In — `TIMESTAMP`**, captured once at argument-parse time, *not* here in 4.5a. **Do not re-derive it
+closer to the write:** reviewers take minutes, so a later capture lets wall-clock advance between the
+Step 1d announcement and the Step 4.5 write, producing announce-vs-write **skew** — one directory
+announced, a different one created.
 
-**Input — `SCOPE_TYPE`**, resolved by Step 1c or set implicitly by Step 1b for `mr` scope. Deriving
-`SCOPE_REF` twice from 4.5a's table — once per load site — is safe. Deriving it the second time
-from memory is not.
+**In — `SCOPE_TYPE`**, from Step 1c (or Step 1b for `mr`). Deriving `SCOPE_REF` from 4.5a's table
+twice, once per load site, is safe; deriving it from memory the second time is not.
 
-**Output — `PERSIST_WRITE_OK`.** Step 4.5e sets this fact. It is **true only when all three write
-operations succeeded**: `mkdir`, every per-reviewer `Write`, and the `summary.md` `Write` — the
-all-or-nothing three-way verdict enumerated in 4.5e. The resident Step 5 Done lines in
-`skills/ba-review/SKILL.md` consult it, printing `Persisted to …` only when it is true, so a run
-that warned about a failed write never also claims success.
+**In — 4.5c/4.5d only**, read from what Steps 1–4 left in context: the Step 3 roster with each
+reviewer's `source`/`status`; **each reviewer's raw Step 3 return text, not Step 4's consolidated
+form** (the one trap here); `STAT` and `head_sha`; `MR_TITLE`/`MR_DESCRIPTION` for `mr`; the Step 1e
+plan context; Step 4's output verbatim; Step 4b's validator counters.
+
+**Out — `PERSIST_WRITE_OK`**, set by 4.5e: **true only if all three writes succeeded** (`mkdir`,
+every per-reviewer `Write`, `summary.md`). The resident Done lines print `Persisted to …` only when
+it is true, so a warned failure never also claims success.
 
 ---
 
@@ -48,11 +49,11 @@ that warned about a failed write never also claims success.
 | `branch` | `sanitize(current_branch)`; on detached HEAD, falls through to `unknown` via the sanitize empty-string rule (HEAD SHA is still preserved in `summary.md`'s `head_sha` field) | `feat_add-auth`, `unknown` |
 | `staged` | literal `staged` | `staged` |
 | `recent` | literal `recent` (the underlying SHA range is recorded in `summary.md`'s scope section, not the directory name) | `recent` |
-| `local-range` | `sanitize(range)` — `..` becomes `__`, slashes become `_` | `origin_main__HEAD`, `abc123__def456` |
+| `local-range` | `sanitize(range)` — slashes become `_`; dots pass through, so `..` survives | `origin_main..HEAD`, `abc123..def456` |
 
-**`mr` is the one row that bypasses `sanitize()`** — it interpolates `N` directly into `mr-<N>`. That is safe only because the `N` Step 1b extracts is a **numeric** MR/PR identifier. If that ever stops holding, this row must route through `sanitize()` like the others rather than interpolating raw.
+**`mr` is the one row that bypasses `sanitize()`** — it interpolates `N` directly into `mr-<N>`. Do not treat that as an assumption: **verify it before interpolating.** If `N` does not match the regex for one-or-more digits, route it through `sanitize()` like every other row. Step 1b should yield a numeric identifier from all five accepted forms, but it is prose executed by a model, not a parser with a fail-closed branch — so an anomalous `N` must degrade to an ugly directory name, never an extra path segment.
 
-**`sanitize(s)`**: replace every character outside `[A-Za-z0-9._-]` with `_`; collapse runs of `_` into one; trim leading and trailing `_`; if empty, fall back to `unknown`. Leading dots (`.bugfix` → `.bugfix`) and leading digits (`123-fix` → `123-fix`) pass through unchanged — the regex is intentionally permissive for both.
+**`sanitize(s)`**: replace every character outside `[A-Za-z0-9._-]` with `_`; collapse runs of `_` into one; trim leading and trailing `_`; if empty, fall back to `unknown`. Leading dots (`.bugfix` → `.bugfix`) and leading digits (`123-fix` → `123-fix`) pass through unchanged — the regex is intentionally permissive for both. Because `.` is inside the allowed class, a `..` run also passes through (`origin/main..HEAD` → `origin_main..HEAD`); that is safe because `/` is always replaced, so no sanitized value can introduce a new path segment.
 
 The full directory path is:
 
