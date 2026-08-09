@@ -250,10 +250,14 @@ but do not block other results.
 the dispatch uses the fully-qualified ID. Discovered/typed **external** reviewers (e.g. `code-reviewer`)
 dispatch by their own name, **never** prefixed with `dev-workflow:`.
 
-### Dispatch instructions — apply to ALL templates
+## Dispatch instructions — apply to ALL templates
 
 Every dispatch template (built-in, skill, user-typed/"Other", custom dimension) embeds the following,
-verbatim where quoted:
+verbatim where quoted. Each template's apply-phrase is a pointer to this section, not a summary of it —
+**compose the dispatch prompt with this section's full text included**, so the reviewer receives the
+grammar even though it is stated once here. The apply-phrase is an instruction to *you*, the
+orchestrator; it is not text a reviewer can act on, because a dispatched subagent has neither this file
+nor this section in its context.
 
 1. **Plan framing.** "This is a *plan*, not finished code. Review the proposed approach, not implementation
    details that don't exist yet."
@@ -281,17 +285,28 @@ verbatim where quoted:
 > `docs/plans/`. The carve-out ("review changes/contents, never propose deleting/relocating") is exactly
 > what lets a reviewer flag plan *content* without proposing to move or delete the plan.
 
+Each template below also carries the bullet grammar and the protected-artifacts guard inline, in one
+sentence. That is **deliberate redundancy, not residue**: those two are the parser contract and a safety
+guard, so they must survive even a dispatch that transcribes the template literally instead of composing
+this section in. Do not "de-duplicate" them away — the two `general-purpose` templates have no agent
+definition behind them, so the template text is their whole specification and they would otherwise reach
+their subagent with no grammar at all. `skills/ba-review/SKILL.md` keeps the same two inline for the
+same reason.
+
 ### Templates
 
 **Agent-based (built-in) reviewer** — prompt the subagent directly:
 
 - Task <reviewer-agent>("Review this **plan**, not finished code, for [dimension focus]. Apply all the
-  dispatch instructions in the section above (plan framing, native vocabulary, most-specific-key anchoring,
-  the bullet grammar, protected artifacts).
+  dispatch instructions in the `## Dispatch instructions — apply to ALL templates` section (plan framing,
+  native vocabulary, most-specific-key anchoring, the bullet grammar, protected artifacts).
 
   Emit your findings under the headings `## Must Address` / `## Consider` / `## Looks Good` (NOT
   Critical/High/Medium/Low). Anchor each non-`Looks Good` finding to the most specific plan key as
-  `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`.
+  `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`. Do not suggest deleting,
+  relocating, renaming, or otherwise changing the existence or path of any file under
+  `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content
+  review is unaffected.
 
   Plan path: [path]
   Plan content: [the full plan]
@@ -300,8 +315,17 @@ verbatim where quoted:
 **Skill-based reviewer** — instruct the subagent to invoke the skill:
 
 - Task general-purpose("Use the `[skill-name]` skill to review this **plan**, not finished code. Apply all
-  the dispatch instructions in the section above, including emitting `## Must Address` / `## Consider` /
-  `## Looks Good` headings and the anchor/confidence bullet grammar. [same context block as the agent template]")
+  the dispatch instructions in the `## Dispatch instructions — apply to ALL templates` section, including
+  emitting `## Must Address` / `## Consider` / `## Looks Good` headings and the anchor/confidence bullet
+  grammar.
+
+  Anchor each non-`Looks Good` finding to the most specific plan key (`U<n>` > `AC<n>` > section heading)
+  as `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`. Do not suggest deleting,
+  relocating, renaming, or otherwise changing the existence or path of any file under
+  `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content
+  review is unaffected.
+
+  [same context block as the agent template]")
 
 **User-typed reviewers** (an "Other" name from Adjust, not a built-in). First **dedup** the typed name
 against the already-selected built-in set — if it resolves to a built-in already selected, do **not**
@@ -319,9 +343,17 @@ double-dispatch. Otherwise **resolve the name**:
    typed name as `subagent_type` — it is not a registered agent type):
 
 - Task general-purpose("You are a reviewer specializing in **[user-typed name]**. Review this **plan, not
-  finished code**, through that lens. Apply all the dispatch instructions in the section above, including
-  emitting `## Must Address` / `## Consider` / `## Looks Good` headings and the anchor/confidence bullet
-  grammar. [same context block]")
+  finished code**, through that lens. Apply all the dispatch instructions in the
+  `## Dispatch instructions — apply to ALL templates` section, including emitting `## Must Address` /
+  `## Consider` / `## Looks Good` headings and the anchor/confidence bullet grammar.
+
+  Anchor each non-`Looks Good` finding to the most specific plan key (`U<n>` > `AC<n>` > section heading)
+  as `- **<anchor>** *(confidence: N)* — <body>`, `N ∈ {0, 25, 50, 75, 100}`. Do not suggest deleting,
+  relocating, renaming, or otherwise changing the existence or path of any file under
+  `docs/brainstorms/`, `docs/plans/`, `docs/solutions/`, `docs/research/`, or `docs/reviews/` — content
+  review is unaffected.
+
+  [same context block]")
 
 ---
 

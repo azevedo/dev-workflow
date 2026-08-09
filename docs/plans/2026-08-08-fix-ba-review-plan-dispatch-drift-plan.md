@@ -39,11 +39,11 @@ Verified 2026-08-08 against `skills/ba-review-plan/SKILL.md`:
 
 The `general-purpose` templates are the ones that **cannot** fall back: there is no agent definition
 behind them, so the template text is the whole specification. `skills/ba-review/SKILL.md` is the
-corrected shape to copy — each of its three `Task` blocks (`:474`, `:492`, `:516`) cites the section by
-title **and** carries the literal inline (`:476`, `:494`, `:518`).
+corrected shape to copy — each of its three `Task` blocks (`:484`, `:502`, `:526`) cites the section by
+title **and** carries the literal inline (`:486`, `:504`, `:528`).
 
-`rubric-mirror` (`scripts/check-invariants.mjs:493`) walks `RUBRIC_MIRROR_FILES` (`:102`) plus
-`agents/*-reviewer.md`. Its zero-occurrence branch (`:532`) is per-file. Selfcheck suite is at 47.
+`rubric-mirror` (`scripts/check-invariants.mjs:499`) walks `RUBRIC_MIRROR_FILES` (`:102`) plus
+`agents/*-reviewer.md`. Its zero-occurrence branch (`:538`) is per-file. Selfcheck suite is at 52.
 
 ## Acceptance Criteria
 
@@ -52,7 +52,7 @@ title **and** carries the literal inline (`:476`, `:494`, `:518`).
 - AC3: `rubric-mirror` FAILs when any single `Task` block loses the literal, even while sibling blocks in the same file retain it.
 - AC4: `rubric-mirror` PASSes on `skills/ba-review/SKILL.md` and `skills/ba-review-plan/SKILL.md` as they stand after this fix, and its verdict distinguishes missing from drifted.
 - AC5: No positional apply-phrase ("the section above" / "described above") remains in `skills/`, `agents/`, or `references/`.
-- AC6: `node scripts/selfcheck-invariants.mjs` passes with the new fixtures, and the reported total is above 47.
+- AC6: `node scripts/selfcheck-invariants.mjs` passes with the new fixtures, and the reported total is above **52** — the post-slice-2 baseline. (Stated as 47 when this plan was written; slice 2 added five cases, which would have made the original threshold tautologically true.)
 - AC7: `.claude-plugin/plugin.json` shows exactly one version change in this plan.
 
 ## What We're NOT Doing
@@ -104,7 +104,7 @@ tightened check rather than grandfathered past the loose one.
 
 **File**: `scripts/check-invariants.mjs`
 
-#### U1 — `rubric-mirror` asserts per `Task` block
+### U1 — `rubric-mirror` asserts per `Task` block
 
 Enumerate each `Task` block in `RUBRIC_MIRROR_FILES` and require the literal within that block's own
 line range. Keep the house pattern: a loose locator to name the offending line, a byte-exact assertion,
@@ -117,7 +117,7 @@ heading, whichever comes first.
 Test scenarios:
 - One block's literal drifts while siblings are correct → FAIL naming the line (Covers AC3)
 - A whitespace-only variant still FAILs (Covers AC3)
-- `skills/ba-review/SKILL.md` unchanged → PASS, since `:476`/`:494`/`:518` sit inside `:474`/`:492`/`:516` (Covers AC4)
+- `skills/ba-review/SKILL.md` unchanged → PASS, since `:486`/`:504`/`:528` sit inside `:484`/`:502`/`:526` (Covers AC4)
 - An unreadable mirror file → UNKNOWN (Covers AC4)
 
 Verify: `node scripts/check-invariants.mjs --only rubric-mirror`
@@ -126,7 +126,7 @@ Verify: `node scripts/check-invariants.mjs --only rubric-mirror`
 
 **File**: `scripts/selfcheck-invariants.mjs`
 
-#### U2 — Fixtures for the new granularity
+### U2 — Fixtures for the new granularity
 
 Append `CASES` entries covering all four scenarios above, following the existing `rubric-mirror` cases
 as the template. Each fixture builds a minimal tree in-process; there are no fixture files on disk.
@@ -141,12 +141,12 @@ Verify: `node scripts/selfcheck-invariants.mjs`
 
 **File**: `skills/ba-review-plan/SKILL.md`
 
-#### U3 — Cite by title, and inline the contract where it cannot fall back
+### U3 — Cite by title, and inline the contract where it cannot fall back
 
 Three changes:
 1. Replace the positional apply-phrases at `:289`, `:303`, `:322` with citations by section title.
 2. Promote `:253` to a citable `##` heading. The byte-identical heading also sits at
-   `skills/ba-review/SKILL.md:453` — promote **both**, or a currently-parallel pair splits with nothing
+   `skills/ba-review/SKILL.md:463` — promote **both**, or a currently-parallel pair splits with nothing
    detecting it.
 3. Add the legal-value literal and the protected-artifacts guard inline to both `general-purpose`
    templates (`:302`, `:321`).
@@ -167,7 +167,7 @@ Verify: `! grep -rq 'instructions in the section above' skills/ agents/ referenc
 
 **File**: `CLAUDE.md`
 
-#### U4 — Update the bullet that says CI pins two things
+### U4 — Update the bullet that says CI pins two things
 
 `CLAUDE.md`'s `rubric-mirror` bullet states CI "pins two things and no more" and that the check owns
 the literal and each agent's section-title citation. U1 changes the granularity, so the bullet's
@@ -183,7 +183,7 @@ Verify: `grep -q 'Task' CLAUDE.md && grep -q 'a green build does not mean the ag
 
 **File**: `.claude-plugin/plugin.json`
 
-#### U5 — One version bump
+### U5 — One version bump
 
 Bump once. Check whether the branch already bumped before adding one; if the sibling slice-2 plan lands
 first in the same release, this plan carries no second bump.
@@ -204,14 +204,26 @@ Verify: `node scripts/check-invariants.mjs --only version-bump`
 | Version double-bump if both plans ship together | U5 states the check-first rule explicitly |
 | Fixing the literal but not the guard, or vice versa | U3's `Verify:` counts the literal; the guard is covered by AC1's raw-return scenario |
 
+> **Citations re-pointed 2026-08-09 against `main` @ `9694645`.** This plan was written before the
+> slice-2 PR landed; that PR inserted `loadSiteMirrorCheck` into `scripts/check-invariants.mjs` and
+> edited `skills/ba-review/SKILL.md`, shifting four of the line numbers cited below. Mapping applied:
+> `check-invariants.mjs` `:493`→`:499`, `:532`→`:538` (`:102` unchanged); `ba-review/SKILL.md`
+> `:453`→`:463`, `:453-518`→`:463-539`; Task blocks `:474`/`:492`/`:516`→`:484`/`:502`/`:526` and their
+> inline literal `:476`/`:494`/`:518`→`:486`/`:504`/`:528`. The selfcheck baseline moved 47→52, which
+> made AC6's original threshold tautological, so AC6 now reads against 52. Unit anchors normalised from
+> `#### U<n>` to the convention's `### U<n>`. **All ten `skills/ba-review-plan/SKILL.md` citations were
+> re-verified and are unchanged** — that file was not touched, and the defect this plan fixes is still
+> present exactly as described. Symbols and intent are unchanged — verify before relying on any line
+> number, since nothing pins these.
+
 ## Sources & References
 
 - Origin: `docs/solutions/prompt-authoring/2026-08-08-hoisted-text-invisible-to-dispatched-subagents.md`
   — the defect, its root cause, and the "Residual gaps to keep visible" section that named these exact
   line numbers.
 - Sibling plan: `docs/plans/2026-08-08-refactor-prompt-surface-shrink-slice-2-plan.md`
-- Corrected shape to copy: `skills/ba-review/SKILL.md:453-518` (Step 3 preamble and the three templates)
-- `scripts/check-invariants.mjs:102` (`RUBRIC_MIRROR_FILES`), `:493` (`rubricMirrorCheck`), `:532` (the
+- Corrected shape to copy: `skills/ba-review/SKILL.md:463-539` (Step 3 preamble and the three templates)
+- `scripts/check-invariants.mjs:102` (`RUBRIC_MIRROR_FILES`), `:499` (`rubricMirrorCheck`), `:538` (the
   per-file zero-occurrence branch this plan replaces)
 - `docs/plans/2026-08-02-refactor-prompt-surface-shrink-slice-1-plan.md` — slice 1, where the same defect
   was found and fixed in the sibling file

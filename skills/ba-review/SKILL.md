@@ -460,7 +460,7 @@ For each selected reviewer, dispatch a fresh subagent using the Agent tool — r
 
 **Built-in vs external dispatch:** built-in plugin reviewers use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). The selection ledger shows bare display names for readability; the dispatch uses the fully-qualified ID — this does not affect ledger presence or the never-hide convention. Discovered **external** reviewers (e.g. `code-reviewer`, `dragon-test-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
 
-### Dispatch instructions — apply to ALL templates
+## Dispatch instructions — apply to ALL templates
 
 Every dispatch template below (agent-based, skill-based, user-typed) embeds the **Code-Anchor &
 Confidence Grammar** section, verbatim: the severity ladder and its `Looks Good` level, the
@@ -495,7 +495,7 @@ Diff:
 
 Changed files: [list of changed file paths]
 
-Review the diff AND read the full content of changed files for context. Return findings in the standard format described above (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
+Review the diff AND read the full content of changed files for context. Return findings in the standard format from the `## Code-Anchor & Confidence Grammar` section (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
 
 For **skill-based reviewers**, instruct the subagent to invoke the skill:
 
@@ -512,7 +512,7 @@ Diff:
 
 Changed files: [list of changed file paths]
 
-Return findings in the standard format described above (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
+Return findings in the standard format from the `## Code-Anchor & Confidence Grammar` section (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
 
 For **user-typed reviewers** (names typed manually that are not in the built-in or discovered lists):
 
@@ -536,7 +536,7 @@ Diff:
 
 Changed files: [list of changed file paths]
 
-Review the diff AND read the full content of changed files for context. Return findings in the standard format described above (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
+Review the diff AND read the full content of changed files for context. Return findings in the standard format from the `## Code-Anchor & Confidence Grammar` section (Critical / High / Medium / Low / Looks Good with confidence anchors and file:line references).")
 
 Run all selected reviewers **in parallel**.
 
