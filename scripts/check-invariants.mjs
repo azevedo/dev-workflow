@@ -115,6 +115,11 @@ const RUBRIC_VALUE_SET_LITERAL = 'N ∈ {0, 25, 50, 75, 100}';
 // Diagnostic only: locates each candidate spelling so a FAIL can name the offending line. The
 // assertion is the exact literal above.
 const RUBRIC_VALUE_SET_ANY_SPELLING = /N\s*∈\s*\{[^}]*\}/;
+// A dispatch template becomes the entire context of a fresh subagent, so the literal has to sit
+// inside each Task block — not merely somewhere in the file. A file-level test is satisfied by
+// whichever copy is still right, which is how a `general-purpose` template shipped reaching its
+// subagent with no grammar at all while the check stayed green on a sibling's correct copy.
+const RUBRIC_TASK_BLOCK_ANCHOR = /^\s*- Task /;
 
 // Reads the corpus once — both dir listing and file contents — so every check that needs the
 // same prompt-surface text shares one read and one error-reporting path, rather than each
@@ -550,6 +555,50 @@ function rubricMirrorCheck(opts) {
     }
   }
 
+  // The `##` bound, not just the next `- Task `, is what stops the last block in a section from
+  // swallowing the rest of the file and passing on a literal that belongs to a later section.
+  const taskBlocks = (lines) => {
+    const starts = [];
+    lines.forEach((line, i) => {
+      if (RUBRIC_TASK_BLOCK_ANCHOR.test(line)) starts.push(i);
+    });
+    return starts.map((start, n) => {
+      let end = n + 1 < starts.length ? starts[n + 1] : lines.length;
+      for (let j = start + 1; j < end; j += 1) {
+        if (lines[j].startsWith('##')) {
+          end = j;
+          break;
+        }
+      }
+      return { line: start + 1, body: lines.slice(start, end) };
+    });
+  };
+
+  let blockCount = 0;
+  for (const { file, lines } of corpus.filter((e) => RUBRIC_MIRROR_FILES.includes(e.file))) {
+    const blocks = taskBlocks(lines);
+    // Zero blocks is vacuous, not passing: a mirror file whose templates had been deleted would
+    // otherwise report identically to one whose every template carries the literal.
+    if (blocks.length === 0) {
+      records.push(
+        makeRecord('rubric-mirror', file, null, 'UNKNOWN', 'no `- Task ` dispatch block to check'),
+      );
+      continue;
+    }
+    blockCount += blocks.length;
+    for (const { line, body } of blocks) {
+      if (body.some((l) => l.includes(RUBRIC_VALUE_SET_LITERAL))) continue;
+      // Only *missing* is reported here. A block whose copy drifted still holds a candidate
+      // spelling, and the per-occurrence loop above already FAILs it at the offending line — so
+      // the two verdicts stay distinct instead of double-reporting the same drift.
+      const spelled = body.some((l) => RUBRIC_VALUE_SET_ANY_SPELLING.test(l));
+      const message = spelled
+        ? `dispatch block spells the value set inexactly, expected \`${RUBRIC_VALUE_SET_LITERAL}\` inline`
+        : `dispatch block is missing the legal value set \`${RUBRIC_VALUE_SET_LITERAL}\``;
+      records.push(makeRecord('rubric-mirror', file, line, 'FAIL', message));
+    }
+  }
+
   const owner = corpus.find((e) => e.file === RUBRIC_OWNER_FILE);
   const headingIdx = owner.lines.findIndex((line) => line.trimEnd() === RUBRIC_SECTION_HEADING);
   if (headingIdx === -1) {
@@ -568,7 +617,7 @@ function rubricMirrorCheck(opts) {
   return {
     subjectCount: corpus.length,
     subjectNoun: 'rubric mirror files',
-    reason: `${corpus.length} file(s) checked for \`${RUBRIC_VALUE_SET_LITERAL}\` and the ${agentFiles.length} reviewer agent(s)' citation of \`${citation}\``,
+    reason: `${corpus.length} file(s) and ${blockCount} dispatch block(s) checked for \`${RUBRIC_VALUE_SET_LITERAL}\`, and the ${agentFiles.length} reviewer agent(s)' citation of \`${citation}\``,
     records,
   };
 }

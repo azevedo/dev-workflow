@@ -66,12 +66,18 @@ function buildLoadSiteTree(root, opts = {}) {
 function buildRubricTree(root, opts = {}) {
   const literal = 'N ∈ {0, 25, 50, 75, 100}';
   const heading = opts.ownerHeading ?? '## Code-Anchor & Confidence Grammar';
+  // Both mirror files carry dispatch templates in the real tree, so every fixture does too: a tree
+  // with no block trips the vacuous-zero-blocks UNKNOWN, which would mask whatever defect the
+  // fixture was actually written to discriminate.
+  const block = (id, inline = `\`${literal}\``) =>
+    `- Task ${id}("Apply the dispatch instructions.\n\n  ${inline}")\n`;
   if (!opts.omitOwner) {
-    write(root, 'skills/ba-review/SKILL.md', `${heading}\n\nwhere \`${literal}\`.\n`);
+    write(root, 'skills/ba-review/SKILL.md', `${heading}\n\nwhere \`${literal}\`.\n\n${block('<reviewer-agent>')}`);
   }
   if (!opts.omitPlan) {
     const plan = opts.planContent ?? `adapts Code-Anchor & Confidence Grammar; \`${literal}\`\n`;
-    write(root, 'skills/ba-review-plan/SKILL.md', plan);
+    const blocks = opts.planTaskBlocks ?? [block('general-purpose')];
+    write(root, 'skills/ba-review-plan/SKILL.md', `${plan}\n${blocks.join('\n')}`);
   }
   const agents = opts.agents ?? {
     'architecture-reviewer.md': `cites Code-Anchor & Confidence Grammar\n\`${literal}\`\n`,
