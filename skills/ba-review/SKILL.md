@@ -341,7 +341,7 @@ Reviewer selection — <T> candidates (<S> ✓ selected, <A> ○ set aside)
 ○ deep-module-reviewer — overlaps with architecture-reviewer here; architecture covers the structure
 ○ complexity-reviewer — diff is small and linear; no cognitive-load surface
 ○ comment-quality-reviewer — no doc comments added or modified; changed bodies carry no inline comments
-○ dragon-test-reviewer (agent) — overlaps with test-coverage-reviewer on this diff
+○ e2e-test-reviewer (agent) — overlaps with test-coverage-reviewer on this diff
 ```
 
 **No elision.** The real guarantee is the **enumeration**: every candidate appears on its own line
@@ -460,7 +460,7 @@ If no issues at a severity, write `None` under that heading. Do not invent place
 
 For each selected reviewer, dispatch a fresh subagent using the Agent tool — regardless of whether it is an agent or a skill. Every reviewer must run in its own isolated context.
 
-**Built-in vs external dispatch:** built-in plugin reviewers use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). The selection ledger shows bare display names for readability; the dispatch uses the fully-qualified ID — this does not affect ledger presence or the never-hide convention. Discovered **external** reviewers (e.g. `code-reviewer`, `dragon-test-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
+**Built-in vs external dispatch:** built-in plugin reviewers use `subagent_type: dev-workflow:<name>` (e.g. `dev-workflow:security-reviewer`). The selection ledger shows bare display names for readability; the dispatch uses the fully-qualified ID — this does not affect ledger presence or the never-hide convention. Discovered **external** reviewers (e.g. `code-reviewer`, `e2e-test-reviewer`) dispatch by their own discovered name, **never** prefixed with `dev-workflow:`.
 
 ## Dispatch instructions — apply to ALL templates
 
