@@ -140,3 +140,25 @@ not PASS — one copy left after a deletion must not read the same as two that a
 coverage at all — an orphaned one ships silently. Its needle also matches the bare and the
 `${CLAUDE_PLUGIN_ROOT}`-anchored spellings alike, so a promotion that moves the file without
 re-spelling its citers passes CI green. Both gaps are known and hand-maintained, not enforced.
+
+## Shipping: one bump, and how to read a local `version-bump` FAIL
+
+A ship gets **one** bump of `version` in `.claude-plugin/plugin.json`, however many commits it spans.
+The version is the plugin's autoupdate cache key, so a second bump added mid-branch doesn't produce a
+tidier history — it burns a version number that was never published, and consumers skip it.
+
+That collides with how the `version-bump` check reads history. It compares `HEAD~1..HEAD` — exactly one
+commit. On a branch, `HEAD~1` is the previous *branch* commit, so **every** prompt-surface commit except
+the one that happens to carry the bump reads `FAIL: version unchanged while skills/, agents/,
+references/ changed`. A branch that bumps in its third commit and touches `skills/` in its fifth will
+fail locally at the fifth, while being perfectly correct.
+
+In CI the same comparison means something different. On `pull_request`, GitHub checks out an ephemeral
+merge commit whose first parent is the base branch tip, so `HEAD~1..HEAD` spans the PR's **cumulative**
+diff — where the single bump sits alongside every prompt-surface change it covers, and the check passes.
+(This is why `.github/workflows/invariants.yml` pins `fetch-depth: 0` and says not to shallow it.)
+
+So a local FAIL at a branch HEAD is expected output, not a defect to fix, and **never** a reason to add
+a bump. Confirm before acting: compare the branch's cumulative diff against its base and check whether
+*that* range carries a bump. Only a whole PR that touches `skills/`, `agents/`, or `references/` with no
+bump anywhere in it is the failure this check exists to catch.
