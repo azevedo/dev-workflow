@@ -569,7 +569,7 @@ Step 5 dispatches on the single `ACTION` value resolved in Step 0b. The `HOST=un
 
 | `ACTION` | Actions |
 |---|---|
-| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output: the three-line receipt, whose line 3 is the capture disposition) → 5f (dispatch on it) |
+| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output: the receipt — three lines, or two when the URL is unresolved — whose last line is the capture disposition) → 5f (dispatch on it) |
 | `commit_push_edit` | 5a (stage) → 5b (commit) → 5c (push) → 5d (edit existing PR/MR) |
 | `edit_only` | 5d only (edit existing PR/MR description; no commit, no push) |
 | `describe_only` | Print body to stdout; exit zero. |
@@ -732,11 +732,14 @@ in 5d (`CREATED_PR_URL`), line 3 the **capture disposition** resolved here:
 `suppressed — ship-url-unresolved`, `suppressed — non-interactive`, `suppressed — already-captured`,
 `suppressed — judged-not-reusable`, `unavailable`.
 
-**This section is the canonical site for the enum.** It is restated in the `REVIEW_MODE`-touches-two-
-confirmations paragraph under Arguments, in the Step 5 action table, in 5f's dispatch paragraph, in
-the **Code-shape decision** block below, and in `README.md`'s `/ba-compound` and `/ba-propose` feature
-lists. Update them together — **no CI check pins them**, and a literal grep for a retired token
-reports green while prose elsewhere still describes the deleted machinery.
+**This section is the canonical site for the enum.** Two other sites **restate the literals** and must
+be updated with it: 5f's dispatch paragraph, and `README.md`'s `/ba-compound` and `/ba-propose` feature
+lists — README's is the highest-drift site, since it paraphrases every disposition in prose rather than
+citing them. The `REVIEW_MODE`-touches-two-confirmations paragraph under Arguments, the Step 5 action
+table, and the **Code-shape decision** block below are **pointers, not copies** — they name at most one
+literal and defer here, so a rename does not oblige an edit there. **No CI check pins any of this**, and
+a literal grep for a retired token reports green while prose elsewhere still describes the deleted
+machinery.
 
 **Unparseable-URL guard.** If the create call in 5d exits 0 but `CREATED_PR_URL` is empty or not a
 URL (a transient CLI/output-format hiccup), omit the URL line and print
@@ -756,16 +759,14 @@ sketch, not literal command text — the file is a prose spec — and the paragr
 branch.
 
 ```
-# 5e. Output — one contiguous receipt. Line 3's value set is CLOSED (six literals).
-# CANONICAL SITE for the enum. Restated in the REVIEW_MODE paragraph, the Step 5 action table,
-# 5f's dispatch paragraph, and README's two feature lists — update together; no CI check pins this.
+# 5e. Output — one contiguous receipt. Line 3's value set is CLOSED (six literals; see above).
 print(f"✓ {title}")
 if is_url(CREATED_PR_URL): print(f"  {CREATED_PR_URL}")
 
 # Validity is judged HERE — empty OR malformed — outside the resolver's exception boundary, and it
 # RETURNS before the try, so ship-url-unresolved and unavailable can never both fire.
 if not is_url(CREATED_PR_URL):
-    print("  capture: suppressed — ship-url-unresolved"); goto 5f_dispatch(decision=None)
+    print("  capture: suppressed — ship-url-unresolved"); decision = None; return   # → 5f no-ops
 
 try:                                     # resolver boundary #1 → degrades to `unavailable`
     if not interactive_session():         # model-judged; deliberately unspecified (steering)
@@ -816,8 +817,9 @@ the PR.
 
 **Ordering.** Every assessment input is settled well before 5e: `deviation_trailers` (2f), `risk`
 (2h), `proof` (2e), `sensitive_paths_touched` (2g), `solutions` (2c), commit type (Step 3), and the
-conversation arc (ambient). The resolver now sits between PR creation and the user seeing the URL, so
-a slow assessment delays the printed URL; the `try` guards a *thrown* exception, not a hung one.
+conversation arc (ambient). The resolver runs *after* the `✓` and URL lines are printed, so a slow
+assessment delays only the `capture:` line, never the URL; the `try` guards a *thrown* exception, not a
+hung one.
 There is no timeout — accepted, since the assessment reads only already-materialized state.
 
 ### 5f. Capture dispatch
