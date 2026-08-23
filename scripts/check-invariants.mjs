@@ -117,6 +117,18 @@ const AGENT_MODEL_EXCEPTIONS = new Map([['security-reviewer.md', 'inherit']]);
 // the exact expected value.
 const AGENT_MODEL_ANY_VALUE = /^model:\s*(.*)$/;
 
+// The `model:<value>` contract is stated once per review skill, on each skill's always-executed
+// parse path — duplication chosen over a shared reference file, which would cost a Read on every
+// invocation. That trade is only safe if the copies cannot drift, so they are pinned here.
+// Per-skill divergences (scan ordering, the never-scan surface, discovered externals, the
+// AUTO-SCORE clause) deliberately sit outside the anchors, so the pinned span needs no exception
+// list.
+const TOKEN_GRAMMAR_FILES = ['skills/ba-review/SKILL.md', 'skills/ba-review-plan/SKILL.md'];
+const TOKEN_GRAMMAR_SPANS = [
+  { name: 'model-token-grammar', start: '<!-- model-token-grammar:start -->', end: '<!-- model-token-grammar:end -->' },
+  { name: 'model-resolution', start: '<!-- model-resolution:start -->', end: '<!-- model-resolution:end -->' },
+];
+
 const RUBRIC_AGENT_DIR = 'agents';
 const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
 // A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it exactly.
@@ -747,6 +759,74 @@ function agentModelPinCheck(opts) {
   };
 }
 
+function tokenGrammarMirrorCheck(opts) {
+  const records = [];
+  const unknown = (file, message) => ({
+    subjectCount: 0,
+    subjectNoun: 'token-grammar spans',
+    reason: message,
+    records: [makeRecord('token-grammar-mirror', file, null, 'UNKNOWN', message)],
+  });
+
+  const sources = [];
+  for (const file of TOKEN_GRAMMAR_FILES) {
+    const lr = readLines(opts.root, file);
+    if (lr.error) return unknown(file, `cannot read ${file}: ${lr.error}`);
+    sources.push({ file, lines: lr.lines });
+  }
+
+  // Extracted between explicit anchors rather than by paragraph, because the pinned span runs to
+  // several paragraphs and a table — a blank-line bound would silently pin only its first block.
+  const extract = ({ file, lines }, span) => {
+    const startIdx = lines.findIndex((l) => l.trim() === span.start);
+    if (startIdx === -1) return null;
+    const endIdx = lines.findIndex((l, i) => i > startIdx && l.trim() === span.end);
+    if (endIdx === -1) return null;
+    return { file, line: startIdx + 1, text: lines.slice(startIdx + 1, endIdx).join('\n') };
+  };
+
+  let compared = 0;
+  for (const span of TOKEN_GRAMMAR_SPANS) {
+    const found = sources.map((src) => extract(src, span)).filter(Boolean);
+    // One copy is nothing to mirror, and that is vacuous rather than passing: a PASS would read
+    // identically to "both copies agree" on a tree where one skill's anchor had been deleted.
+    if (found.length < 2) {
+      const missing = TOKEN_GRAMMAR_FILES.filter((f) => !found.some((b) => b.file === f));
+      records.push(
+        makeRecord(
+          'token-grammar-mirror',
+          missing[0] ?? TOKEN_GRAMMAR_FILES[0],
+          null,
+          'UNKNOWN',
+          `expected the \`${span.name}\` span in both review skills, found ${found.length} (missing in ${missing.join(', ') || 'none'})`,
+        ),
+      );
+      continue;
+    }
+    compared += found.length;
+    const [first, ...rest] = found;
+    for (const other of rest) {
+      if (other.text === first.text) continue;
+      records.push(
+        makeRecord(
+          'token-grammar-mirror',
+          other.file,
+          other.line,
+          'FAIL',
+          `\`${span.name}\` span differs from the copy at ${first.file}:${first.line}; the copies must be byte-identical (not whitespace-normalised)`,
+        ),
+      );
+    }
+  }
+
+  return {
+    subjectCount: compared,
+    subjectNoun: 'token-grammar spans',
+    reason: `${compared} span(s) across ${TOKEN_GRAMMAR_FILES.length} review skill(s) compared for byte-identity`,
+    records,
+  };
+}
+
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
@@ -755,6 +835,7 @@ const CHECKS = [
   { id: 'rubric-mirror', run: rubricMirrorCheck },
   { id: 'load-site-mirror', run: loadSiteMirrorCheck },
   { id: 'agent-model-pin', run: agentModelPinCheck },
+  { id: 'token-grammar-mirror', run: tokenGrammarMirrorCheck },
 ];
 
 function runChecks(opts) {
