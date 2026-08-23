@@ -267,7 +267,7 @@ List the eight built-in review agents (all live flat in `agents/`):
 | Agent | Focus |
 |---|---|
 | `architecture-reviewer` | Codebase patterns, coupling, separation of concerns, naming |
-| `security-reviewer` | XSS, sensitive data, auth patterns |
+| `security-reviewer` | XSS, sensitive data, auth patterns — follows your session model; not moved by `model:` |
 | `simplification-reviewer` | Over-engineering, unnecessary abstraction, YAGNI |
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Missing test scenarios, test quality |
@@ -359,13 +359,22 @@ Reviewer selection — <T> candidates (<S> ✓ selected, <A> ○ set aside)
 ✓ architecture-reviewer — new module with cross-cutting exports; structure worth a look
 ✓ simplification-reviewer — ~200-line addition; check for over-engineering
 ✓ test-coverage-reviewer — new exported logic arrives with no tests
-○ security-reviewer — no auth, input-handling, or sensitive-data surface in this diff
+○ security-reviewer — no auth, input-handling, or sensitive-data surface in this diff; follows your session model, not moved by `model:`
 ○ error-handling-reviewer — no new IO or error paths
 ○ deep-module-reviewer — overlaps with architecture-reviewer here; architecture covers the structure
 ○ complexity-reviewer — diff is small and linear; no cognitive-load surface
 ○ comment-quality-reviewer — no doc comments added or modified; changed bodies carry no inline comments
 ○ e2e-test-reviewer (agent) — overlaps with test-coverage-reviewer on this diff
 ```
+
+**Two conditional lines print directly under the header**, each only when its condition holds:
+
+- When `MODEL_OVERRIDE` is set:
+  `Model override: <value> — applies to every reviewer except security-reviewer, which follows your session model.`
+- When `security-reviewer`'s resolved model differs from `sonnet` — whether or not a token is set:
+  `security-reviewer model: <resolved> (follows your session model).`
+  The unpinned reviewer is otherwise the one downgrade nothing announces, since the override line
+  above fires only when a token is set.
 
 **No elision.** The real guarantee is the **enumeration**: every candidate appears on its own line
 exactly once. Never truncate, summarize ("…and N others"), or drop a low-relevance reviewer — a
