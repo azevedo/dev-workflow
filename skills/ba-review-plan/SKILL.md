@@ -1,7 +1,7 @@
 ---
 name: ba-review-plan
 description: "Score a plan's sections with the built-in reviewers and, on approval, edit that plan file in place. Use when explicitly asked to review, critique, or strengthen a specific plan before implementing it. Not for general discussion of a plan or of planning."
-argument-hint: "[path to plan file, or leave empty to auto-detect latest]"
+argument-hint: "[model:<value>] [path to plan file, or leave empty to auto-detect latest]"
 ---
 
 # Review a Plan Before Implementation
