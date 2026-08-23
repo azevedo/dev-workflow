@@ -323,6 +323,46 @@ definition behind them, so the template text is their whole specification and th
 their subagent with no grammar at all. `skills/ba-review/SKILL.md` keeps the same two inline for the
 same reason.
 
+<!-- model-resolution:start -->
+**Model resolution — this is an instruction to you, the orchestrator, not text to pass to a
+subagent.** If `MODEL_OVERRIDE` is unset, pass **no** `model` parameter to any subagent; each
+agent's own frontmatter decides, exactly as before. If it is set, pass it as the `model` parameter
+on every dispatch **except** the one whose resolved `subagent_type` is `dev-workflow:security-reviewer`,
+which is always dispatched with no `model` parameter so its `model: inherit` frontmatter takes
+effect. The exemption is evaluated on the **resolved dispatch
+identity**, after the user-typed-name resolution ladder — not on the ledger row — so a name typed
+into Adjust → Other that resolves to `dev-workflow:security-reviewer` is exempt too.
+
+The exemption is this one `subagent_type` literal and nothing else. The annotation on
+`security-reviewer`'s roster row is **descriptive only** — it does not drive this rule. Exempting a
+second reviewer means editing this list, in both review skills; annotating its row does nothing.
+
+Resolved model, in full — four branches, no others:
+
+| `MODEL_OVERRIDE` | resolved `subagent_type` | model passed at dispatch |
+|---|---|---|
+| unset | any | none — the agent's frontmatter decides |
+| set | `dev-workflow:security-reviewer` | none — its `model: inherit` frontmatter decides |
+| set | any other roster reviewer | the override value |
+| set | a reviewer added by name or discovery | the override value |
+
+`model: inherit` in frontmatter resolves to the session model.
+
+If an override is active and **any** dispatch fails in a way attributable to the model parameter, do
+not present the survivors as an ordinary review — `security-reviewer` is dispatched without the
+override and will normally survive a bad value, so "every reviewer failed" is the wrong test. Retry
+the failed dispatches once passing no `model` parameter and state that the override was dropped. If
+the retry still fails, report the failure instead of a review. Ask before re-running a full fan-out.
+<!-- model-resolution:end -->
+
+`/ba-review-plan` runs no discovery, so the only reviewer reached outside the roster is one named
+through Adjust → Other — it takes the override like any other non-exempt dispatch.
+
+The `[AUTO-SCORE: …]` sentinel is chosen **after** the retry resolves. A successful retry emits its
+normal verdict; only a still-failing retry emits `[AUTO-SCORE: error — <reason>]`. Do not
+short-circuit to the error sentinel before attempting the retry, and do not report `error` after a
+retry that worked.
+
 ### Templates
 
 **Agent-based (built-in) reviewer** — prompt the subagent directly:
