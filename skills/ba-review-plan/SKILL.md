@@ -85,7 +85,7 @@ documents do not have — so it is off this roster by design and stays reachable
 | Agent | Focus |
 |---|---|
 | `architecture-reviewer` | Architectural consistency, coupling, separation of concerns |
-| `security-reviewer` | Security implications of proposed changes |
+| `security-reviewer` | Security implications of proposed changes — follows your session model; not moved by `model:` |
 | `simplification-reviewer` | Over-engineering, unnecessary abstraction, YAGNI |
 | `error-handling-reviewer` | Edge cases, error paths, graceful failures |
 | `test-coverage-reviewer` | Test proposals, coverage gaps, testing approach |
@@ -141,12 +141,21 @@ Reviewer selection — 7 built-in reviewers (<S> ✓ selected, <A> ○ set aside
 
 ✓ architecture-reviewer — the layering decision in **Technical Approach** is underspecified; structure worth a look
 ✓ simplification-reviewer — **Proposed Solution** introduces an abstraction that may be premature
-○ security-reviewer — no auth, input-handling, or sensitive-data surface proposed in this plan
+○ security-reviewer — no auth, input-handling, or sensitive-data surface proposed in this plan; follows your session model, not moved by `model:`
 ○ error-handling-reviewer — no new IO or error paths in the proposed approach
 ○ test-coverage-reviewer — overlaps with simplification-reviewer here; simplification covers the over-build risk
 ○ deep-module-reviewer — no new module or interface proposed; nothing to score for interface depth
 ○ complexity-reviewer — plan is small and linear; no cognitive-load surface
 ```
+
+**Two conditional lines print directly under the header**, each only when its condition holds:
+
+- When `MODEL_OVERRIDE` is set:
+  `Model override: <value> — applies to every reviewer except security-reviewer, which follows your session model.`
+- When `security-reviewer`'s resolved model differs from `sonnet` — whether or not a token is set:
+  `security-reviewer model: <resolved> (follows your session model).`
+  The unpinned reviewer is otherwise the one downgrade nothing announces, since the override line
+  above fires only when a token is set.
 
 **No elision.** The guarantee is the **enumeration**: every reviewer appears on its own line exactly
 once. Never truncate, summarize ("…and N others"), or drop a low-relevance reviewer — a reviewer missing
