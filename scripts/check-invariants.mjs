@@ -107,6 +107,16 @@ const RUBRIC_MIRROR_FILES = [RUBRIC_OWNER_FILE, 'skills/ba-review-plan/SKILL.md'
 const LOAD_SITE_FILE = 'skills/ba-review/SKILL.md';
 const LOAD_SITE_ANCHOR = '**Load site — persist run artifacts.**';
 
+// The reviewer model pins. `security-reviewer` follows the session model deliberately — the stakes
+// carve-out — and every other reviewer stays pinned so an eight-way fan-out stays cheap by default.
+// Pinned here because nothing else reads agent frontmatter: `comment-quality-reviewer` shipped at
+// `sonnet` while its own plan specified `inherit`, and no check noticed.
+const AGENT_MODEL_EXPECTED_DEFAULT = 'sonnet';
+const AGENT_MODEL_EXCEPTIONS = new Map([['security-reviewer.md', 'inherit']]);
+// Diagnostic only: locates any `model:` key so a FAIL can name the offending line. The assertion is
+// the exact expected value.
+const AGENT_MODEL_ANY_VALUE = /^model:\s*(.*)$/;
+
 const RUBRIC_AGENT_DIR = 'agents';
 const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
 // A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it exactly.
@@ -674,6 +684,69 @@ function loadSiteMirrorCheck(opts) {
   };
 }
 
+function agentModelPinCheck(opts) {
+  const records = [];
+  const unknown = (file, message) => ({
+    subjectCount: 0,
+    subjectNoun: 'reviewer agent files',
+    reason: message,
+    records: [makeRecord('agent-model-pin', file, null, 'UNKNOWN', message)],
+  });
+
+  const agentRes = walkMarkdown(opts.root, RUBRIC_AGENT_DIR);
+  if (agentRes.error) {
+    return unknown(RUBRIC_AGENT_DIR, `cannot list ${RUBRIC_AGENT_DIR}/: ${agentRes.error}`);
+  }
+  const agentFiles = agentRes.files.filter((f) => f.endsWith(RUBRIC_AGENT_SUFFIX));
+  // An empty corpus is vacuous, not passing: a PASS here would read identically to "every reviewer
+  // is pinned correctly" on a tree where the reviewers had been moved or renamed away.
+  if (agentFiles.length === 0) {
+    return unknown(RUBRIC_AGENT_DIR, `no *${RUBRIC_AGENT_SUFFIX} files in ${RUBRIC_AGENT_DIR}/`);
+  }
+
+  for (const file of agentFiles) {
+    const lr = readLines(opts.root, file);
+    if (lr.error) {
+      records.push(makeRecord('agent-model-pin', file, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    const expected = AGENT_MODEL_EXCEPTIONS.get(path.basename(file)) ?? AGENT_MODEL_EXPECTED_DEFAULT;
+    let found = null;
+    for (let i = 0; i < lr.lines.length; i += 1) {
+      const m = lr.lines[i].match(AGENT_MODEL_ANY_VALUE);
+      if (m) {
+        found = { line: i + 1, value: m[1].trim() };
+        break;
+      }
+    }
+    // Absence is a FAIL, not a skip: a dropped `model:` key is exactly how the prior drift would
+    // have read, and it leaves the reviewer's model undefined rather than merely unchecked.
+    if (found == null) {
+      records.push(
+        makeRecord('agent-model-pin', file, null, 'FAIL', `no \`model:\` key; expected \`model: ${expected}\``),
+      );
+      continue;
+    }
+    if (found.value === expected) continue;
+    records.push(
+      makeRecord(
+        'agent-model-pin',
+        file,
+        found.line,
+        'FAIL',
+        `model pinned to \`${found.value}\`, expected \`${expected}\``,
+      ),
+    );
+  }
+
+  return {
+    subjectCount: agentFiles.length,
+    subjectNoun: 'reviewer agent files',
+    reason: `${agentFiles.length} reviewer agent(s) checked against the model pin map (${AGENT_MODEL_EXPECTED_DEFAULT} by default, ${[...AGENT_MODEL_EXCEPTIONS.entries()].map(([f, v]) => `${f} → ${v}`).join(', ')})`,
+    records,
+  };
+}
+
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
@@ -681,6 +754,7 @@ const CHECKS = [
   { id: 'version-bump', run: versionBumpCheck },
   { id: 'rubric-mirror', run: rubricMirrorCheck },
   { id: 'load-site-mirror', run: loadSiteMirrorCheck },
+  { id: 'agent-model-pin', run: agentModelPinCheck },
 ];
 
 function runChecks(opts) {
