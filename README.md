@@ -131,13 +131,14 @@ Prefer **`html`** when:
 
 ### `/ba-review-plan [path]`
 
-Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery. Approved fixes are written back to that plan file **in place**, so it expects a specific plan you want strengthened rather than a general discussion of one.
+Runs a judged section-scoring review against a plan before implementation. The judge scores the plan's sections and targets the weak or risky ones, presenting a **selection ledger** over the seven built-in reviewers — no environment discovery. Approved fixes are written back to that plan file **in place**, so it expects a specific plan you want strengthened rather than a general discussion of one. Pass `model:<value>` anywhere in the arguments to run the reviewers on a model of your choosing.
 
 (Seven, not `/ba-review`'s eight: `comment-quality-reviewer` reviews doc and inline code comments, which plan documents do not have. It stays reachable via Adjust → Other.)
 
 This catches issues at plan time — where fixing things is cheap — instead of after code is written.
 
 - **Auto-detects the latest plan** if no path is given
+- **Per-run model override** — pass `model:<value>` (e.g. `/ba-review-plan model:opus docs/plans/X.md`) to dispatch the reviewers on that model for this run only, with the same unvalidated passthrough and the same `security-reviewer` exemption as `/ba-review`
 - **Judged selection ledger** — scores the plan against the 7 built-in reviewers and presents the full roster (selected + set aside, each with a one-line reason citing the weak section); every reviewer reachable via Adjust (including an "Other" free-text external), nothing hidden, no state persisted
 - **Confidence soft gate** — per-finding confidence with cross-reviewer dedup and per-tier floors (Must-Address ≥ 50, Consider ≥ 75); below-floor findings move to a separate `Suppressed` section, not lost
 - **Plan-anchored findings** — each finding anchors to a plan **section heading**, a `### U<n>` unit, or a keyed `AC<n>`; anchors that don't resolve in the plan are dropped and counted
@@ -158,7 +159,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 
 ### `/ba-review [ref range]`
 
-Runs post-implementation code review using eight built-in review agents plus any additional reviewers discovered in the environment.
+Runs post-implementation code review using eight built-in review agents plus any additional reviewers discovered in the environment. Pass `model:<value>` anywhere in the arguments to run the reviewers on a model of your choosing.
 
 ### `/ba-compound [context]`
 
@@ -184,6 +185,9 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
   posting-only. See
   `skills/ba-review/SKILL.md` §5 for the authoritative resolution flow.
 - **Optional persistence** — pass `--persist` to write per-reviewer outputs and a `summary.md` to a dated `docs/reviews/YYYY-MM-DD-HHMMSS-<scope-ref>/` directory. The skill does **not** modify your repo's `.gitignore`; if you want persisted runs kept out of version control, ignore `docs/reviews/` yourself (e.g. via `.git/info/exclude`, a global gitignore, or your repo's own `.gitignore`). Default behavior (no flag) is unchanged
+- **Per-run model override** — pass `model:<value>` (e.g. `/ba-review model:opus main..HEAD`) to dispatch the reviewers on that model for this run only. The value is passed through **unvalidated**, so a non-Anthropic host can name a model its own runtime resolves; a name your host rejects surfaces as a dispatch failure that is retried once without the override rather than as a silent empty review. `security-reviewer` is **exempt** — it always follows your session model, because letting a cheap override move the security pass would defeat the point of having a carve-out. With `--persist`, the recorded `Command:` line keeps the token and each per-reviewer file records the model it ran on
+
+**`model:<value>` residual.** The token is recognized on `/ba-review` and `/ba-review-plan` only. Typing it into any other `ba-*` skill is not an error and not an override — `/ba-plan model:opus add auth` treats `model:opus` as part of the feature description.
 
 ### /ba-propose [--describe-only] [--review] [--issue <ID>]
 
@@ -279,7 +283,7 @@ The **Stack-Base Resolution Convention** (owned by the `## Stack-Base Resolution
 | `research-locator` | Discovers relevant docs in `docs/research/` (Grep/Glob/LS only) |
 | `research-analyzer` | Extracts high-value insights from research documents |
 | `architecture-reviewer` | Reviews code changes for architectural consistency, coupling, separation of concerns, and naming conventions |
-| `security-reviewer` | Reviews code changes for security issues: XSS, sensitive data handling, auth patterns, and input validation |
+| `security-reviewer` | Reviews code changes for security issues: XSS, sensitive data handling, auth patterns, and input validation (built-in reviewer; the one reviewer **not** pinned to a model — it follows your session model and is never moved by `model:<value>`) |
 | `simplification-reviewer` | Reviews code changes for over-engineering, unnecessary abstraction, dead code, and YAGNI violations |
 | `error-handling-reviewer` | Reviews code changes for edge cases, error paths, graceful failures, and loading/error states |
 | `test-coverage-reviewer` | Reviews code changes for test coverage gaps, missing test scenarios, and test quality |
