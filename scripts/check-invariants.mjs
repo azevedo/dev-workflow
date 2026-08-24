@@ -113,8 +113,8 @@ const LOAD_SITE_ANCHOR = '**Load site — persist run artifacts.**';
 // `sonnet` while its own plan specified `inherit`, and no check noticed.
 const AGENT_MODEL_EXPECTED_DEFAULT = 'sonnet';
 const AGENT_MODEL_EXCEPTIONS = new Map([['security-reviewer.md', 'inherit']]);
-// Diagnostic only: locates any `model:` key so a FAIL can name the offending line. The assertion is
-// the exact expected value.
+// Diagnostic only: locates the frontmatter `model:` key so a FAIL can name the offending line. The
+// assertion is the exact expected value.
 const AGENT_MODEL_ANY_VALUE = /^model:\s*(.*)$/;
 
 // The `model:<value>` contract is stated once per review skill, on each skill's always-executed
@@ -127,6 +127,7 @@ const TOKEN_GRAMMAR_FILES = ['skills/ba-review/SKILL.md', 'skills/ba-review-plan
 const TOKEN_GRAMMAR_SPANS = [
   { name: 'model-token-grammar', start: '<!-- model-token-grammar:start -->', end: '<!-- model-token-grammar:end -->' },
   { name: 'model-resolution', start: '<!-- model-resolution:start -->', end: '<!-- model-resolution:end -->' },
+  { name: 'model-ledger-lines', start: '<!-- model-ledger-lines:start -->', end: '<!-- model-ledger-lines:end -->' },
 ];
 
 const RUBRIC_AGENT_DIR = 'agents';
@@ -723,8 +724,14 @@ function agentModelPinCheck(opts) {
       continue;
     }
     const expected = AGENT_MODEL_EXCEPTIONS.get(path.basename(file)) ?? AGENT_MODEL_EXPECTED_DEFAULT;
+    // Bounded to the YAML frontmatter block. Scanning the whole file would let a `model:`-prefixed
+    // line in body prose or an example block stand in for a dropped frontmatter key — the very
+    // absence this check reports as a FAIL. No frontmatter fence at all leaves `found` null, which
+    // takes the same FAIL path.
     let found = null;
-    for (let i = 0; i < lr.lines.length; i += 1) {
+    const fmStart = lr.lines.findIndex((l) => l.trim() === '---');
+    const fmEnd = fmStart === -1 ? -1 : lr.lines.findIndex((l, i) => i > fmStart && l.trim() === '---');
+    for (let i = fmStart + 1; fmEnd !== -1 && i < fmEnd; i += 1) {
       const m = lr.lines[i].match(AGENT_MODEL_ANY_VALUE);
       if (m) {
         found = { line: i + 1, value: m[1].trim() };

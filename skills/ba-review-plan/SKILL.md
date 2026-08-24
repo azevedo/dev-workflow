@@ -148,6 +148,7 @@ Reviewer selection — 7 built-in reviewers (<S> ✓ selected, <A> ○ set aside
 ○ complexity-reviewer — plan is small and linear; no cognitive-load surface
 ```
 
+<!-- model-ledger-lines:start -->
 **Two conditional lines print directly under the header**, each only when its condition holds:
 
 - When `MODEL_OVERRIDE` is set:
@@ -156,6 +157,7 @@ Reviewer selection — 7 built-in reviewers (<S> ✓ selected, <A> ○ set aside
   `security-reviewer model: <resolved> (follows your session model).`
   The unpinned reviewer is otherwise the one downgrade nothing announces, since the override line
   above fires only when a token is set.
+<!-- model-ledger-lines:end -->
 
 **No elision.** The guarantee is the **enumeration**: every reviewer appears on its own line exactly
 once. Never truncate, summarize ("…and N others"), or drop a low-relevance reviewer — a reviewer missing
@@ -361,7 +363,9 @@ If an override is active and **any** dispatch fails in a way attributable to the
 not present the survivors as an ordinary review — `security-reviewer` is dispatched without the
 override and will normally survive a bad value, so "every reviewer failed" is the wrong test. Retry
 the failed dispatches once passing no `model` parameter and state that the override was dropped. If
-the retry still fails, report the failure instead of a review. Ask before re-running a full fan-out.
+the retry still fails **for every retried dispatch**, report the failure instead of a review; if it
+succeeds for some, render those reviewers and report the rest as failed. Ask before re-running a
+full fan-out.
 <!-- model-resolution:end -->
 
 `/ba-review-plan` runs no discovery, so the only reviewer reached outside the roster is one named
