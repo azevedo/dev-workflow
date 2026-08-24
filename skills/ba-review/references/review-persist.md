@@ -80,15 +80,36 @@ Each per-reviewer file uses this template:
 reviewer: <reviewer-name>
 source: built-in | external-agent | external-skill | user-typed
 status: succeeded | failed
+model: <value> | frontmatter
 ---
 
 # <reviewer-name>
 
 [Write the reviewer's **raw return text** here, verbatim as returned from the subagent in Step 3 — *not* Step 4's wrapped/consolidated form. Cross-reviewer merges, suppression, and validator coercions are recorded only in `summary.md`; per-reviewer files stay raw so a reader can always reconstruct what each reviewer actually said.
 
+`model:` records what this reviewer was dispatched with — the `model:<value>` override that applied,
+or the literal `frontmatter` when none did and the agent's own pin decided.
+
 If `status: failed`, write a one-line failure reason in place of the raw text.
 If `status: succeeded` but the reviewer returned an empty body, write `_Reviewer returned no findings._`]
 ```
+
+**`Command:` is captured pre-strip.** `--persist` and `model:<value>` are both removed from the
+argument string during parsing, so the recorded command must be taken before stripping or it will not
+reproduce the run.
+
+**Three failure-path rules the success path does not imply.** They apply when a `model:` override was
+active and the dispatch-instructions retry fired:
+
+1. **The retry writes into the same run directory.** `TIMESTAMP` is captured once before dispatch, so
+   there is one directory per run. The retry's per-reviewer files are written **alongside** the failed
+   attempt's, suffixed to distinguish them — never overwriting them. The first attempt's files are the
+   only record of why the override failed.
+2. **A reviewer that failed still gets a file**, carrying its `model:` value and a `status: failed`
+   failure status. A crashed reviewer's dispatched model is the most useful forensic fact after a bad
+   override; writing nothing loses it.
+3. **`summary.md` reports the failure** rather than rendering an empty clean review, and names the
+   override value that caused it.
 
 ### 4.5d. Write `summary.md`
 
@@ -106,7 +127,7 @@ reviewers: [<reviewer-1>, <reviewer-2>, ...]
 
 ## Run Metadata
 
-- Command: `/ba-review <original arguments including --persist>`
+- Command: `/ba-review <the pre-strip argument string, including --persist and any model: token>`
 - Timestamp: <TIMESTAMP> (local time)
 - HEAD SHA: <short SHA or N/A for mr scope>
 

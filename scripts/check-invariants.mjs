@@ -107,6 +107,29 @@ const RUBRIC_MIRROR_FILES = [RUBRIC_OWNER_FILE, 'skills/ba-review-plan/SKILL.md'
 const LOAD_SITE_FILE = 'skills/ba-review/SKILL.md';
 const LOAD_SITE_ANCHOR = '**Load site — persist run artifacts.**';
 
+// The reviewer model pins. `security-reviewer` follows the session model deliberately — the stakes
+// carve-out — and every other reviewer stays pinned so an eight-way fan-out stays cheap by default.
+// Pinned here because nothing else reads agent frontmatter: `comment-quality-reviewer` shipped at
+// `sonnet` while its own plan specified `inherit`, and no check noticed.
+const AGENT_MODEL_EXPECTED_DEFAULT = 'sonnet';
+const AGENT_MODEL_EXCEPTIONS = new Map([['security-reviewer.md', 'inherit']]);
+// Diagnostic only: locates the frontmatter `model:` key so a FAIL can name the offending line. The
+// assertion is the exact expected value.
+const AGENT_MODEL_ANY_VALUE = /^model:\s*(.*)$/;
+
+// The `model:<value>` contract is stated once per review skill, on each skill's always-executed
+// parse path — duplication chosen over a shared reference file, which would cost a Read on every
+// invocation. That trade is only safe if the copies cannot drift, so they are pinned here.
+// Per-skill divergences (scan ordering, the never-scan surface, discovered externals, the
+// AUTO-SCORE clause) deliberately sit outside the anchors, so the pinned span needs no exception
+// list.
+const TOKEN_GRAMMAR_FILES = ['skills/ba-review/SKILL.md', 'skills/ba-review-plan/SKILL.md'];
+const TOKEN_GRAMMAR_SPANS = [
+  { name: 'model-token-grammar', start: '<!-- model-token-grammar:start -->', end: '<!-- model-token-grammar:end -->' },
+  { name: 'model-resolution', start: '<!-- model-resolution:start -->', end: '<!-- model-resolution:end -->' },
+  { name: 'model-ledger-lines', start: '<!-- model-ledger-lines:start -->', end: '<!-- model-ledger-lines:end -->' },
+];
+
 const RUBRIC_AGENT_DIR = 'agents';
 const RUBRIC_AGENT_SUFFIX = '-reviewer.md';
 // A machine-boundary literal: Step 4's parser and every dispatched reviewer must agree on it exactly.
@@ -674,6 +697,143 @@ function loadSiteMirrorCheck(opts) {
   };
 }
 
+function agentModelPinCheck(opts) {
+  const records = [];
+  const unknown = (file, message) => ({
+    subjectCount: 0,
+    subjectNoun: 'reviewer agent files',
+    reason: message,
+    records: [makeRecord('agent-model-pin', file, null, 'UNKNOWN', message)],
+  });
+
+  const agentRes = walkMarkdown(opts.root, RUBRIC_AGENT_DIR);
+  if (agentRes.error) {
+    return unknown(RUBRIC_AGENT_DIR, `cannot list ${RUBRIC_AGENT_DIR}/: ${agentRes.error}`);
+  }
+  const agentFiles = agentRes.files.filter((f) => f.endsWith(RUBRIC_AGENT_SUFFIX));
+  // An empty corpus is vacuous, not passing: a PASS here would read identically to "every reviewer
+  // is pinned correctly" on a tree where the reviewers had been moved or renamed away.
+  if (agentFiles.length === 0) {
+    return unknown(RUBRIC_AGENT_DIR, `no *${RUBRIC_AGENT_SUFFIX} files in ${RUBRIC_AGENT_DIR}/`);
+  }
+
+  for (const file of agentFiles) {
+    const lr = readLines(opts.root, file);
+    if (lr.error) {
+      records.push(makeRecord('agent-model-pin', file, null, 'UNKNOWN', `cannot read file: ${lr.error}`));
+      continue;
+    }
+    const expected = AGENT_MODEL_EXCEPTIONS.get(path.basename(file)) ?? AGENT_MODEL_EXPECTED_DEFAULT;
+    // Bounded to the YAML frontmatter block. Scanning the whole file would let a `model:`-prefixed
+    // line in body prose or an example block stand in for a dropped frontmatter key — the very
+    // absence this check reports as a FAIL. No frontmatter fence at all leaves `found` null, which
+    // takes the same FAIL path.
+    let found = null;
+    const fmStart = lr.lines.findIndex((l) => l.trim() === '---');
+    const fmEnd = fmStart === -1 ? -1 : lr.lines.findIndex((l, i) => i > fmStart && l.trim() === '---');
+    for (let i = fmStart + 1; fmEnd !== -1 && i < fmEnd; i += 1) {
+      const m = lr.lines[i].match(AGENT_MODEL_ANY_VALUE);
+      if (m) {
+        found = { line: i + 1, value: m[1].trim() };
+        break;
+      }
+    }
+    // Absence is a FAIL, not a skip: a dropped `model:` key is exactly how the prior drift would
+    // have read, and it leaves the reviewer's model undefined rather than merely unchecked.
+    if (found == null) {
+      records.push(
+        makeRecord('agent-model-pin', file, null, 'FAIL', `no \`model:\` key; expected \`model: ${expected}\``),
+      );
+      continue;
+    }
+    if (found.value === expected) continue;
+    records.push(
+      makeRecord(
+        'agent-model-pin',
+        file,
+        found.line,
+        'FAIL',
+        `model pinned to \`${found.value}\`, expected \`${expected}\``,
+      ),
+    );
+  }
+
+  return {
+    subjectCount: agentFiles.length,
+    subjectNoun: 'reviewer agent files',
+    reason: `${agentFiles.length} reviewer agent(s) checked against the model pin map (${AGENT_MODEL_EXPECTED_DEFAULT} by default, ${[...AGENT_MODEL_EXCEPTIONS.entries()].map(([f, v]) => `${f} → ${v}`).join(', ')})`,
+    records,
+  };
+}
+
+function tokenGrammarMirrorCheck(opts) {
+  const records = [];
+  const unknown = (file, message) => ({
+    subjectCount: 0,
+    subjectNoun: 'token-grammar spans',
+    reason: message,
+    records: [makeRecord('token-grammar-mirror', file, null, 'UNKNOWN', message)],
+  });
+
+  const sources = [];
+  for (const file of TOKEN_GRAMMAR_FILES) {
+    const lr = readLines(opts.root, file);
+    if (lr.error) return unknown(file, `cannot read ${file}: ${lr.error}`);
+    sources.push({ file, lines: lr.lines });
+  }
+
+  // Extracted between explicit anchors rather than by paragraph, because the pinned span runs to
+  // several paragraphs and a table — a blank-line bound would silently pin only its first block.
+  const extract = ({ file, lines }, span) => {
+    const startIdx = lines.findIndex((l) => l.trim() === span.start);
+    if (startIdx === -1) return null;
+    const endIdx = lines.findIndex((l, i) => i > startIdx && l.trim() === span.end);
+    if (endIdx === -1) return null;
+    return { file, line: startIdx + 1, text: lines.slice(startIdx + 1, endIdx).join('\n') };
+  };
+
+  let compared = 0;
+  for (const span of TOKEN_GRAMMAR_SPANS) {
+    const found = sources.map((src) => extract(src, span)).filter(Boolean);
+    // One copy is nothing to mirror, and that is vacuous rather than passing: a PASS would read
+    // identically to "both copies agree" on a tree where one skill's anchor had been deleted.
+    if (found.length < 2) {
+      const missing = TOKEN_GRAMMAR_FILES.filter((f) => !found.some((b) => b.file === f));
+      records.push(
+        makeRecord(
+          'token-grammar-mirror',
+          missing[0] ?? TOKEN_GRAMMAR_FILES[0],
+          null,
+          'UNKNOWN',
+          `expected the \`${span.name}\` span in both review skills, found ${found.length} (missing in ${missing.join(', ') || 'none'})`,
+        ),
+      );
+      continue;
+    }
+    compared += found.length;
+    const [first, ...rest] = found;
+    for (const other of rest) {
+      if (other.text === first.text) continue;
+      records.push(
+        makeRecord(
+          'token-grammar-mirror',
+          other.file,
+          other.line,
+          'FAIL',
+          `\`${span.name}\` span differs from the copy at ${first.file}:${first.line}; the copies must be byte-identical (not whitespace-normalised)`,
+        ),
+      );
+    }
+  }
+
+  return {
+    subjectCount: compared,
+    subjectNoun: 'token-grammar spans',
+    reason: `${compared} span(s) across ${TOKEN_GRAMMAR_FILES.length} review skill(s) compared for byte-identity`,
+    records,
+  };
+}
+
 const CHECKS = [
   { id: 'sentinels', run: sentinelsCheck },
   { id: 'references', run: referencesCheck },
@@ -681,6 +841,8 @@ const CHECKS = [
   { id: 'version-bump', run: versionBumpCheck },
   { id: 'rubric-mirror', run: rubricMirrorCheck },
   { id: 'load-site-mirror', run: loadSiteMirrorCheck },
+  { id: 'agent-model-pin', run: agentModelPinCheck },
+  { id: 'token-grammar-mirror', run: tokenGrammarMirrorCheck },
 ];
 
 function runChecks(opts) {

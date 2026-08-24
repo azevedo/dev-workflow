@@ -658,7 +658,7 @@ const CASES = [
     expectSubstring: 'cannot read rubric owner skills/ba-review/SKILL.md',
   },
   {
-    name: 'no --only: all five checks run and their verdicts fold with FAIL outranking UNKNOWN',
+    name: 'no --only: every registered check runs and their verdicts fold with FAIL outranking UNKNOWN',
     checkId: null,
     build(root) {
       write(
