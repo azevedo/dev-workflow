@@ -555,11 +555,11 @@ Reference numbers #1–#14 are Lynch's menu (see `docs/research/2026-05-17-shipp
 |---|---|---|---|---|
 | 1 | Title | typo | — | See 3.3 (title rewriting). Always present. |
 | 2 | Impact | small | — | One sentence: what was impossible/broken before, what's possible/fixed now. Falls back to commit log when motivation is thin. |
-| 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` when `issue_context` is present; else derive from `diff.commit_log` and changed file paths. Composition reads only composition-owned fields; the Linear-shape mapping lives in Step 2b. |
+| 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` **when each is non-empty**; else derive from `diff.commit_log` and changed file paths. A `ref-only` context (read failed — see 2b) has both empty and therefore takes the `diff.commit_log` fallback, exactly as a `None` context does. Composition reads only composition-owned fields — never the read's outcome flag, whose consumers are named at Step 2b; the per-tracker mapping lives there too. |
 | 4 | Breaking changes | large | `breaking_signal` is true (materialized once in Step 2g; review fix: this row previously named the raw diff signal instead of the shared `CompositionInputs` field, so it silently re-derived rather than reading what 2g already computed) | Name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation. |
 | 6 | Dependency justifications | large | Lockfile / dependency-manifest changes in diff | List lockfile-detected adds; one-line rationale per addition. |
-| 7 | Cross-refs | medium, large | `issue_context.ref` is present | `Fixes <issue_context.ref>` (normalized ref from Step 2b, e.g., `TO-1234`). Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or full URL). |
-| 8 | Bug summaries | large | `issue_context.body_text` is present | Paragraph form, never just `Fixes #N`. |
+| 7 | Cross-refs | medium, large | `issue_context.ref` is non-empty | Render `issue_context.ref_display` (Step 2b, e.g. `TO-1234` or `acme/widgets#123`) behind a verb chosen by route: **`Fixes` on the Linear route, `Refs` on the GitHub route.** `Refs` is deliberate and load-bearing — a GitHub closing keyword *closes the issue when the PR merges*, and this row exists to cross-reference, not to change another tracker's state; Linear keeps `Fixes` because it has always had it and the keyword is inert there. A `ref-only` context satisfies this row, so the cross-ref appears for a ref whose read failed — accepted deliberately: the ref came from an explicit `--issue` or a branch name the author chose, a transient read failure makes it correct, and a bogus ref makes it inert. Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or a full URL). |
+| 8 | Bug summaries | large | `issue_context.body_text` is **non-empty** | Paragraph form, never just `Fixes #N`. |
 | 9 | Testing instructions | medium (conditional), large | Automated tests don't exist for the change | Spell out the manual verification path. Give the manual path, not an enumeration of every unit case — "unit-covered; manual checks below" is enough. |
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
@@ -642,11 +642,31 @@ Action: <commit_push_create | commit_push_edit | edit_only | describe_only>  (Ho
 Title: <result.title>
        (rewritten from: <result.rewritten_from>)      [only if result.rewritten_from is not None]
 Body lines: <N>                                       (size-target prefix if result.size_warning is not None)
+Ticket: <target> → <Linear|GitHub>                    (or `Ticket: none`)
+        will post: <sanitized trailer texts, one per line>   [omitted when the target is `none`, or there are no trailers]
 Lead: <first two sentences of result.body>
 ─────────────────────────────────────────
 [full result.body printed below]
 ─────────────────────────────────────────
 ```
+
+**The `Ticket:` line reports the *attempt* decision, not the raw ref.** It names a target only when
+`## Ship-Time Ticket Write-Back` would actually attempt a write against it, and `none` otherwise — so
+a ref that routes nowhere, a guessed ref the provenance gate will refuse, an unconfirmed GitHub
+target, and a route with no reachable writer all read `none`. Rendering the raw ref instead would
+announce a post the write-back then refuses, which is worse than printing nothing because it reads as
+a promise. This is a **pointer, not a copy**: the decision is the one that section specifies, and
+every fact it turns on (ref shape, the read's outcome, provenance, `HOST`, `gh` on `PATH`,
+`REPO_SLUG`) is settled before Step 4, so the preview reads the same state rather than re-deriving a
+second ladder. The tracker is spelled `Linear` or `GitHub`, matching that section's two literals.
+
+**And it renders the payload, not just the target.** Naming the target says *where* the comment goes,
+not *what it says*. At typo tier the trailer texts appear nowhere in the PR body, so the ticket
+comment is the only place that prose is published — the single output with the widest reach, and the
+only published output that would otherwise skip this preview entirely. Render the texts **after**
+sanitization, so the preview shows what will actually be posted.
+
+Neither line is a gate: `REVIEW_MODE` does not touch them, and nothing here asks for a confirmation.
 
 Tier observability is deliberately omitted from the preview — exposing the seam-internal vocabulary would break the "tier never named at call site" invariant from Step 3. If tier debugging becomes a real pain point, add an optional `ComposedBody.trace` field per the brainstorm's *Locked Design > Trade-offs*.
 
