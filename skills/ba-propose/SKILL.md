@@ -55,6 +55,38 @@ This replaces an earlier ladder design (`gh api /meta` probe → `glab config ge
 
 If `HOST=unknown`, announce: "Remote `<URL>` is not GitHub or GitLab. `ba-propose` will still commit and push, but cannot open the PR/MR — paste the composed body into your platform's web UI when prompted. (Self-hosted? Set `BA_PROPOSE_HOST=ghes` or `BA_PROPOSE_HOST=gitlab-self`.)"
 
+**`REPO_SLUG` — the repository the PR will be opened on.** On `HOST ∈ {github, ghes}`, materialize
+the base repo `gh` itself resolves — the same one `gh pr create` will use in 5d — and **never** parse
+it out of `REMOTE_URL`:
+
+```bash
+REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")
+```
+
+`origin` is the wrong source, and the fork workflow is exactly where it breaks: `gh pr create` opens
+the PR on the upstream repo while `origin` is the fork, so an `--issue 123` naming an *upstream*
+issue would be pinned to the fork — and if the fork has issues enabled, `123` resolves there and the
+write lands on the wrong repository, reported as posted. When `REPO_SLUG` is empty, downstream steps
+that need it degrade rather than falling back to `origin`: a target we cannot name is not a usable
+one. `REPO_SLUG` is read by Step 2b's GitHub issue read and by `## Ship-Time Ticket Write-Back`.
+
+**`ghes` needs the fully-qualified form.** `gh --repo` accepts `[HOST/]OWNER/REPO`, and a bare
+`owner/repo` resolves against **github.com** whenever `GH_HOST` is unset or points elsewhere. Since
+`gh` needs no write permission to comment on a public repo's issue, a bare internal slug can publish
+a PR URL and deviation prose to an unrelated public tracker. `REPO_SLUG` itself is always a bare
+`OWNER/REPO`; the host is added **at the `-R` flag and nowhere else**, so on the `ghes` route pass
+`-R "$GH_HOST/$REPO_SLUG"`. When `HOST=ghes` and no host is available, treat `REPO_SLUG` as
+unusable — a missing host is a **local-presence** fact, so deciding this needs no network call.
+
+`ghes` is a fifth `HOST` value, and it is the one host where a numeric issue ref targets a
+non-github.com tracker.
+
+**How this value crosses tool-call boundaries.** Each Bash tool call is a fresh shell, so `REPO_SLUG`
+— like `CREATED_PR_URL` — is a **model-held value re-interpolated as a literal into each new call**,
+never referenced as `$VAR` across calls. 5d's `$BODY_FILE` gets a whole paragraph precisely *because*
+it does not survive; copying that notation without this warning builds a step that silently loses the
+value.
+
 ### 0b. Resolve ACTION
 
 Compute a single `ACTION` value that drives the rest of the orchestration. Every state the rest of the command cares about — describe vs apply, commit-push-then-PR vs PR-edit-only — collapses into one named enum so Step 5 dispatches on one dimension instead of a cross-product:
