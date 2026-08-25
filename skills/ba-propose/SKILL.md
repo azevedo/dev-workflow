@@ -27,7 +27,7 @@ Recognized flags:
 
 **`REVIEW_MODE`** — a run-local orchestrator variable (alongside `ACTION`, `HOST`; it never enters `CompositionInputs`) that gates the Step 0b edit-only confirm and the Step 4 Apply menu (see U2 in those steps). Resolved as an OR, not an AND: `REVIEW_MODE = (--review present) OR (BA_PROPOSE_REVIEW is set to a non-empty, non-"0" value)`. Either signal alone is sufficient — a flag or an env var must never be silently ignored, since silently dropping an explicit safety opt-in on an apply-by-default command is the worst failure mode. `BA_PROPOSE_REVIEW=0` and an empty value are treated as unset. `BA_PROPOSE_REVIEW=1` set once in a shell profile is the persistent equivalent of always passing `--review`.
 
-**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f capture dispatch** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is a non-blocking, mode-independent consumer of the capture disposition that 5e resolved and printed, firing identically with or without `--review` — it runs after the ship has already succeeded and can never change the ship's exit status. **Step 5's completion invariant is that the receipt printed**, not that 5f ran: the disposition rides 5e's contiguous block (see 5e for the closed six-value enum), so a dispatch that never fires is still observable.
+**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f capture dispatch** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is a non-blocking, mode-independent consumer of the capture disposition that 5e resolved and printed, firing identically with or without `--review` — it runs after the ship has already succeeded and can never change the ship's exit status. **Step 5's completion invariant is that the receipt printed**, not that 5f ran: the capture disposition rides 5e's receipt on a line of its own (see 5e for the closed six-literal **capture** enum — 5e prints two six-literal enums, so never name one by its cardinal alone), so a dispatch that never fires is still observable.
 
 Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b (skipped by default — see `REVIEW_MODE`). One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
 
@@ -705,7 +705,7 @@ Step 5 dispatches on the single `ACTION` value resolved in Step 0b. The `HOST=un
 
 | `ACTION` | Actions |
 |---|---|
-| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output: the receipt — three lines, or two when the URL is unresolved — whose last line is the capture disposition) → 5f (dispatch on it) |
+| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output: the receipt — four lines, or three when the ship URL is unresolved — whose last line is the ticket disposition) → 5f (dispatch on the *capture* one) |
 | `commit_push_edit` | 5a (stage) → 5b (commit) → 5c (push) → 5d (edit existing PR/MR) |
 | `edit_only` | 5d only (edit existing PR/MR description; no commit, no push) |
 | `describe_only` | Print body to stdout; exit zero. |
@@ -855,33 +855,45 @@ glab mr update "$OPEN_PR_URL" \
 
 ### 5e. Output — the terminal receipt
 
-On success, print **one contiguous block**. Line 1 is the success line, line 2 the PR/MR URL captured
-in 5d (`CREATED_PR_URL`), line 3 the **capture disposition** resolved here:
+On success, print **four lines in fixed order**. Line 1 is the success line, line 2 the PR/MR URL
+captured in 5d (`CREATED_PR_URL`), line 3 the **capture disposition** resolved here, line 4 the
+**ticket disposition** returned by `## Ship-Time Ticket Write-Back`:
 
 ```
 ✓ <title>
   $CREATED_PR_URL
   capture: <value>
+  ticket: <value>
 ```
 
-**The `<value>` set is CLOSED — exactly these six literals:** `judged-reusable`,
+The block is no longer contiguous by construction: `record-ship` makes a network round-trip between
+lines 3 and 4, which can interleave rendering. The **order** is the guarantee, not the contiguity.
+
+**The capture `<value>` set is CLOSED — exactly these six literals:** `judged-reusable`,
 `suppressed — ship-url-unresolved`, `suppressed — non-interactive`, `suppressed — already-captured`,
 `suppressed — judged-not-reusable`, `unavailable`.
 
-**This section is the canonical site for the enum.** Two other sites **restate the literals** and must
-be updated with it: 5f's dispatch paragraph, and `README.md`'s `/ba-compound` and `/ba-propose` feature
-lists — README's is the highest-drift site, since it paraphrases every disposition in prose rather than
-citing them. The `REVIEW_MODE`-touches-two-confirmations paragraph under Arguments, the Step 5 action
-table, and the **Code-shape decision** block below are **pointers, not copies** — they name at most one
-literal and defer here, so a rename does not oblige an edit there. **No CI check pins any of this**, and
-a literal grep for a retired token reports green while prose elsewhere still describes the deleted
-machinery.
+**This section is the canonical site for the capture enum.** Two other sites **restate the literals**
+and must be updated with it: 5f's dispatch paragraph, and `README.md`'s `/ba-compound` and
+`/ba-propose` feature lists — README's is the highest-drift site, since it paraphrases every
+disposition in prose rather than citing them. The `REVIEW_MODE`-touches-two-confirmations paragraph
+under Arguments, the Step 5 action table, and the **Code-shape decision** block below are **pointers,
+not copies** — they name at most one literal and defer here, so a rename does not oblige an edit
+there. **No CI check pins any of this**, and a literal grep for a retired token reports green while
+prose elsewhere still describes the deleted machinery.
+
+**Line 4's value set is a different closed six-literal enum**, owned by
+`## Ship-Time Ticket Write-Back` and restated nowhere here. Because this step now prints **two**
+six-literal enums, no reference anywhere in this file may name either one by its cardinal alone
+("the closed six-value enum") or by a bare definite article ("the enum") — say **which**.
 
 **Unparseable-URL guard.** If the create call in 5d exits 0 but `CREATED_PR_URL` is empty or not a
 URL (a transient CLI/output-format hiccup), omit the URL line and print
-`  capture: suppressed — ship-url-unresolved` as line 2 of a two-line receipt. That two-line form is
-the one legitimate sub-three-line receipt, and it is distinguished from a partial print by the
-`capture:` line being **present** — a genuine partial print emits the `✓` line alone. A successful
+`  capture: suppressed — ship-url-unresolved` as line 2. The receipt is then **three** lines, because
+the guard **falls through to the `record-ship` call** rather than returning before it — which is what
+makes the ticket enum's own `skipped — ship-url-unresolved` reachable. That three-line form is the one
+legitimate sub-four-line receipt, and it is distinguished from a partial print by the `capture:` line
+being **present** — a genuine partial print emits the `✓` line alone. A successful
 `commit_push_create` ship that stayed silent must remain observable, never a byte-identical skip.
 **This observability standard scopes to routes that reach 5e**; routes that exit before it
 (`HOST=unknown`, any pre-5e failure exit, and the three edit paths) emit no receipt fragment at all.
@@ -889,35 +901,43 @@ the one legitimate sub-three-line receipt, and it is distinguished from a partia
 **Code-shape decision:** the resolver's ordering is the load-bearing decision and re-deriving it from
 prose plausibly produces a wrong structure — URL validation inside the exception boundary (making
 `ship-url-unresolved` unreachable and `unavailable` win), the interactivity check after the
-assessment (paying for a judgment that cannot be offered), or `judged-reusable` restored as a
-forward-looking promise. The enum literals are the contract and are not paraphrased. It is a shape
-sketch, not literal command text — the file is a prose spec — and the paragraphs below elaborate each
-branch.
+assessment (paying for a judgment that cannot be offered), `judged-reusable` restored as a
+forward-looking promise, or the ticket write placed before the URL line and stalling it. The enum
+literals are the contract and are not paraphrased. It is a shape sketch, not literal command text —
+the file is a prose spec — and the paragraphs below elaborate each branch.
 
 ```
-# 5e. Output — one contiguous receipt. Line 3's value set is CLOSED (six literals; see above).
+# 5e. Output — four lines in fixed order. Line 3 and line 4 are DIFFERENT closed six-literal enums.
 print(f"✓ {title}")
 if is_url(CREATED_PR_URL): print(f"  {CREATED_PR_URL}")
 
-# Validity is judged HERE — empty OR malformed — outside the resolver's exception boundary, and it
-# RETURNS before the try, so ship-url-unresolved and unavailable can never both fire.
+# Validity is judged HERE — empty OR malformed — outside the resolver's exception boundary. It skips
+# the capture resolver so ship-url-unresolved and unavailable can never both fire, but it FALLS
+# THROUGH to record-ship, which judges the same value for itself.
 if not is_url(CREATED_PR_URL):
-    print("  capture: suppressed — ship-url-unresolved"); decision = None; return   # → 5f no-ops
+    print("  capture: suppressed — ship-url-unresolved"); decision = None   # → 5f no-ops
+else:
+    try:                                     # resolver boundary #1 → degrades to `unavailable`
+        if not interactive_session():         # model-judged; deliberately unspecified (steering)
+            decision = "suppressed — non-interactive"
+        elif solutions:                       # 2c: entries the user ACCEPTED, not files on disk
+            decision = "suppressed — already-captured"
+        elif not assess_reusable_learning(deviation_trailers, conversation_arc,
+                                          commit_type, risk, proof):
+            decision = "suppressed — judged-not-reusable"   # negative OR uncertain → lean-silent
+        else:
+            decision = "judged-reusable"      # a DECISION, not a promise: no later failure falsifies it
+    except Exception:
+        decision = "unavailable"              # exit status was fixed by 5c/5d; nothing here alters it
+    print(f"  capture: {decision}")
 
-try:                                     # resolver boundary #1 → degrades to `unavailable`
-    if not interactive_session():         # model-judged; deliberately unspecified (steering)
-        decision = "suppressed — non-interactive"
-    elif solutions:                       # 2c: entries the user ACCEPTED, not files on disk
-        decision = "suppressed — already-captured"
-    elif not assess_reusable_learning(deviation_trailers, conversation_arc,
-                                      commit_type, risk, proof):
-        decision = "suppressed — judged-not-reusable"   # negative OR uncertain → lean-silent
-    else:
-        decision = "judged-reusable"      # a DECISION, not a promise: no later failure falsifies it
-except Exception:
-    decision = "unavailable"              # exit status was fixed by 5c/5d; nothing here alters it
-print(f"  capture: {decision}")
-# 5f dispatch: judged-reusable → fire the offer. Every other value → no-op.
+# The ticket write-back. The network round-trip lands HERE, after the URL and capture lines are
+# already flushed, so a slow tracker delays only line 4. See `## Ship-Time Ticket Write-Back`.
+record = record-ship(ship={"url": CREATED_PR_URL, "repo_slug": REPO_SLUG,
+                           "host": HOST, "trailers": deviation_trailers},
+                     opts={"issue_context": issue_context})
+print(record.receipt_line)                    # pre-rendered, indent included — printed verbatim
+# 5f dispatch: judged-reusable → fire the offer. Every other value → no-op. 5f never reads `record`.
 ```
 
 **`interactive_session()` is deliberately model-judged.** Per the trust gradient this is steering,
@@ -928,35 +948,13 @@ then no answerer for an offer — and stop. It is **not** a dead branch.
 verdict, not a promise that the offer will be answered or that `/ba-compound` will succeed — so no
 later failure of the `AskUserQuestion` or the invoke can contradict a receipt already flushed.
 
+**Line 4 states an outcome already observed**, which is why the write precedes the print rather than
+the print promising a write.
+
 **Exit status.** A resolver exception prints `capture: unavailable`, still prints the `✓` line, and
-leaves the ship's exit status zero. The ground is that **exit status is already determined before 5e
-runs at all** — 5c's push and 5d's create decide it, and 5e/5f contain no statement that can alter
-it.
-
-**Assessment (best-effort, blended, read-only).** Not a rigid rubric. Read already-materialized
-orchestrator state plus the conversation; mutate nothing. Weigh:
-
-- (a) `deviation_trailers` from Step 2f — *strongest* signal ("reality diverged from the plan,
-  here's why").
-- (b) A problem → investigation → fix arc visible in the conversation.
-- (c) Commit type / motivation — a `fix:` for a gotcha/workaround weighs positive; a clean `feat:`
-  or a docs/config-only change weighs toward routine.
-- (d) Lightly: `risk` (2h), `proof` (2e), `sensitive_paths_touched` (2g).
-
-Lean-silent: a genuinely ambiguous change (e.g. a `fix:` with no deviation trailer and no clear
-problem→fix arc) is judged **uncertain** and resolves to `suppressed — judged-not-reusable`.
-Precision over recall.
-
-**`already-captured` is keyed on a user choice, not a fact.** `solutions` holds the entries the user
-*accepted* at 2c; choosing "Skip all" yields an empty tuple even when `docs/solutions/` files ride
-the PR.
-
-**Ordering.** Every assessment input is settled well before 5e: `deviation_trailers` (2f), `risk`
-(2h), `proof` (2e), `sensitive_paths_touched` (2g), `solutions` (2c), commit type (Step 3), and the
-conversation arc (ambient). The resolver runs *after* the `✓` and URL lines are printed, so a slow
-assessment delays only the `capture:` line, never the URL; the `try` guards a *thrown* exception, not a
-hung one.
-There is no timeout — accepted, since the assessment reads only already-materialized state.
+leaves the ship's exit status zero. A ticket write that fails prints its own literal on line 4 and
+likewise changes nothing. The ground is that **exit status is already determined before 5e runs at
+all** — 5c's push and 5d's create decide it, and 5e/5f contain no statement that can alter it.
 
 ### 5f. Capture dispatch
 

@@ -208,7 +208,7 @@ Commit, push, and open a PR/MR with a composed title and body.
 - Commit message and PR/MR body share the same composed markdown — no separate render path
 - `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
 - **Apply-by-default** — every `ACTION` applies without a confirmation prompt by default; pass `--review` (alias `--interactive`) or set `BA_PROPOSE_REVIEW=1` to restore the Apply / edit / regenerate-with-hint / exit menu and the Step 0b edit-only confirm
-- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba-compound` on the just-shipped learning; the terminal receipt names the capture disposition on its own line (line 3, or line 2 when the ship URL is unresolved) on every route that reaches it — offered, or suppressed as routine, uncertain, already-captured, non-interactive, or URL-unresolved, or reported `unavailable` when the assessment itself failed — while edit/describe-only/unknown-host paths print no receipt at all
+- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba-compound` on the just-shipped learning; the terminal receipt names the capture disposition on its own line (line 3, or line 2 when the ship URL is unresolved — the receipt is four lines, three on that guard) on every route that reaches it — offered, or suppressed as routine, uncertain, already-captured, non-interactive, or URL-unresolved, or reported `unavailable` when the assessment itself failed — while edit/describe-only/unknown-host paths print no receipt at all
 
 ### `/ba-handoff [focus]`
 
