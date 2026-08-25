@@ -132,9 +132,57 @@ The change is decided. Build it.
 
 ## U9 — live observation
 
-_Pending. To be appended by the U9 run in a fresh session (`claude --plugin-dir <repo>`), per the
-plan: the observed receipt lines and the scratch-issue URLs for both runs. Until this section carries
-a real observed receipt line, AC17 is unverified and must not be reported as met._
+Two runs, 2026-08-26, in fresh sessions via `claude --plugin-dir <repo>` — a session cannot dry-run
+the skill body it loaded at start, so neither was driven from the session that wrote the change.
+
+**Run 1 — confirmed write.** Branch `u9-scratch-1`, `/ba-propose --issue 95`, PR
+<https://github.com/azevedo/dev-workflow/pull/97> (targeting `issue-92`, the detected stack parent).
+
+```
+✓ chore: exercise the ship-time ticket write-back against a live issue
+  https://github.com/azevedo/dev-workflow/pull/97
+  capture: suppressed — judged-not-reusable
+  ticket: posted — azevedo/dev-workflow#95
+```
+
+Scratch issue: <https://github.com/azevedo/dev-workflow/issues/95>. Comment landed at
+`issues/95#issuecomment-5418500030`, carrying the PR URL and one `- ` item.
+
+**Run 2 — pre-check declines.** Branch `u9-scratch-2`, a session started with
+`--mcp-config '{"mcpServers":{}}' --strict-mcp-config` so no Linear issue-comment tool exists,
+`/ba-propose --issue TO-1234`, PR <https://github.com/azevedo/dev-workflow/pull/96>.
+
+```
+✓ chore: U9 scratch diff for the tracker-unconfigured negative control
+  https://github.com/azevedo/dev-workflow/pull/96
+  capture: suppressed — judged-not-reusable
+  ticket: skipped — tracker-unconfigured
+```
+
+No write attempted and no network call made to decide it. Run 2 needed no scratch issue: the
+per-run-new-target rule exists because the behaviour writes, and this run writes nothing.
+
+**Run ordering was load-bearing.** Run 1 is the positive control for run 2 — without an observed
+confirmed write, "nothing was posted" is indistinguishable from "this seam never posts anything."
+Run 1 was executed first and re-run to completion after an initial session stopped at the
+`--describe-only` pre-flight.
+
+**Sanitization, verified against the rendered comment.** The planted trailer carried an unbalanced
+backtick, `#99999`, `@zzz-not-a-real-user`, `fixes TO-9`, `[see here](…)`, a bare `TO-999` and a full
+issue URL. All landed inert: the ref-shaped tokens and the URL sit inside code spans, the mention is
+wrapped, `fixes` is broken from its ref, and `[`/`]` are escaped. The unbalanced backtick escaped to
+`` \` `` *before* wrapping ran, so it did not close a span early and take the following tokens live —
+the escape-first-then-wrap ordering doing exactly the job it was specified for. Confirmed no
+cross-reference was created: issue 1's newest cross-reference event is still 2026-06-06.
+
+**Tier note.** Both runs classified the 3-line added file as `small`, overriding the literal `is_typo`
+predicate on the grounds that a file addition is not a typo. The typo-tier path — where Risk and Proof
+are suppressed and the receipt is the only output — was therefore *not* exercised live; it rests on
+A/B cell (d). See the follow-up issue on `is_typo` and added files.
+
+**What these runs did not cover.** `failed — tracker-rejected` and `unavailable` remain unobserved:
+both need a tracker that accepts the pre-check and then fails, which no local configuration produces
+on demand. They stay defensive literals, as the disposition table already states.
 
 **Do not write a verbatim `posted` receipt line anywhere in this file except here.** U9's `Verify:`
 greps this file for that exact receipt-line spelling, and U1 shares the file with it — so any earlier
