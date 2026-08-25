@@ -21,7 +21,7 @@ Recognized flags:
 
 - `--describe-only` — Compose and print the body; do not commit, push, or create/edit a PR/MR. Useful as a dry run.
 - `--review` (alias `--interactive`) — Restore the interactive confirmation gates (Step 0b edit-only confirm, Step 4 Apply menu) that are otherwise skipped by default. See `REVIEW_MODE` below.
-- `--issue <ID>` — Explicitly bind a Linear issue ID. Overrides branch-name detection.
+- `--issue <ID>` — Explicitly bind an issue on either tracker: a Linear key (`TO-1234`), or a GitHub issue (`#123` or a bare `123`). Overrides branch-name detection, which stays Linear-shaped only — a numeric ref is accepted **only** here, never guessed from a branch name (see Step 2b).
 - `--target <branch>` — Override the resolved MR/PR target branch. Flows into `resolve-stack-base` opts as `target_override` (wins unconditionally for `target`; the foreign-U-ID guard still runs). Validated as an existing local/`origin/` ref.
 - `--base <ref>` — Override the resolved diff base. Flows into `resolve-stack-base` opts as `base_override` (wins unconditionally for `base`; must be an ancestor of HEAD; the foreign-U-ID guard still runs).
 
@@ -224,38 +224,119 @@ If `git diff --stat` is non-empty but unreadable (returns non-zero with no diff)
 > **CompositionInputError: diff unreadable.**
 > `git diff $DIFF_BASE..HEAD` returned non-zero. Check the repository state.
 
-### 2b. Linear issue context (optional)
+### 2b. Issue context (optional, two-tracker)
 
-Determine the issue ID:
+Determine the issue ref, and **carry how it was obtained** — provenance decides whether an
+unconfirmed ref may later be written to:
 
-1. If `--issue <ID>` was passed, use it.
+1. If `--issue <ID>` was passed, use it. `--issue` binds **either** tracker: a `TO-1234` shape (a
+   Linear key), a `#123` shape, or a bare number (a GitHub issue). Provenance: **explicit**.
 2. Else, regex-extract from branch name: `[A-Z]{2,5}-[0-9]+` (e.g., `bru/TO-1234-fix-x` → `TO-1234`).
-3. Else, no issue ID — skip MCP entirely, `issue_context = None`.
+   Provenance: **guessed**. The regex is unchanged, and **no numeric extraction is added**:
+   `feature/123-add-thing`, `fix/500-error`, `release/2024-01` and `bru/1234-x` all over-match any
+   plausible numeric branch pattern, and a mis-guessed ref is an un-retractable comment on an
+   unrelated issue. A numeric ref is accepted **only** from an explicit `--issue`.
+3. Else, no issue ref — skip the read entirely, `issue_context = None`.
 
-If an ID is present, attempt the MCP call:
+**Provenance rule.** A ref from an explicit `--issue` is a human assertion. A ref **extracted from a
+branch name** is a guess: the uppercase regex also matches `fix/UTF-8-encoding` → `UTF-8`,
+`bru/ISO-8601-dates` → `ISO-8601`, `feat/RFC-7231-compliance` → `RFC-7231`, `spike/GH-1234-repro` →
+`GH-1234`, `chore/AES-256-rotate` → `AES-256`. Narrowing the regex would silently drop real Linear
+keys, so provenance, not spelling, is the discriminator. What it gates is stated once, at
+`## Ship-Time Ticket Write-Back`: a guessed ref is never written to unless the read confirmed it.
 
-```
-mcp__claude_ai_Linear__get_issue(id: <ID>)
-```
+If a ref is present, read the tracker its shape names:
 
-- **Success** → normalize the MCP payload into composition-owned vocabulary before passing it across the seam:
+- **Linear** (`[A-Z]{2,5}-[0-9]+`, case-insensitive):
+
+  ```
+  mcp__claude_ai_Linear__get_issue(id: <ref>)
+  ```
+
+- **GitHub** (`#<digits>` or bare `<digits>`), only when `HOST ∈ {github, ghes}`:
+
+  ```bash
+  gh issue view <N> -R "<REPO_SLUG>" --json title,body,state
+  ```
+
+  On `ghes` the `-R` value is `"$GH_HOST/<REPO_SLUG>"` — the host is added **here, at the flag**,
+  never baked into `REPO_SLUG` itself, which stays a bare `OWNER/REPO` everywhere. A numeric ref on a
+  GitLab host has no read here and no write later; the GitHub tracker route is simply unreachable
+  there.
+
+  **This read is also the issue-not-PR confirmation.** GitHub numbers issues and pull requests in one
+  sequence, and `gh issue comment <PR-number>` succeeds because a PR *is* an issue to that endpoint.
+  A successful `gh issue view` establishes that the number names an issue. It only runs when the read
+  succeeds, so it confirms nothing on the failure branch below — which is why the write side refuses
+  an unconfirmed GitHub target outright.
+
+- **Success** → normalize the tracker payload into composition-owned vocabulary before passing it
+  across the seam:
 
   ```
   issue_context = IssueContext(
-    ref         = <mcp_response>.identifier,        # e.g., "TO-1234"
-    summary     = <mcp_response>.title,             # short headline
-    body_text   = <mcp_response>.description,       # long-form description, possibly empty
-    priority    = <mcp_response>.priority,          # optional, opaque to composition
-    raw         = <full mcp_response, Mapping[str, Any]>,
+    ref          = <tracker-native handle>,       # Linear: .identifier ("TO-1234"). GitHub: "#<N>".
+    ref_display  = <how a reader should see it>,  # Linear: "TO-1234". GitHub: "<REPO_SLUG>#<N>".
+    summary      = <title>,                   # Linear: .title.        GitHub: .title
+    body_text    = <description>,             # Linear: .description.  GitHub: .body — possibly empty
+    priority     = <priority or None>,        # optional, opaque to composition
+    raw          = <full response, Mapping[str, Any]>,
+    resolution   = "linked",                  # the read succeeded
+    provenance   = "explicit" | "guessed",    # from the ID-resolution list above
   )
   ```
 
-  The normalizer is Step 2b's job, not composition's. If Linear renames `description` → `body` or `identifier` → `key` in a future MCP schema, that change lands here in Step 2b and never reaches Step 3. Composition reads `issue_context.ref`, `.summary`, `.body_text` — not Linear's field names. The `.raw` mapping is retained as an escape hatch but composition should not read it for production sections; reach for `.raw` only when prototyping a new section, then promote the field into the normalizer.
-- **Failure** (MCP not installed, server down, auth expired, ID not found) → `issue_context = None`, AND record `mcp_unavailable = True` so the preview can surface a warning: "Linear MCP unavailable — using diff-derived motivation."
+  The normalizer is Step 2b's job, not composition's. If Linear renames `description` → `body` or
+  `identifier` → `key`, or `gh` renames a `--json` field, that change lands here and never reaches
+  Step 3. Composition reads `issue_context.ref`, `.summary`, `.body_text` — not either tracker's
+  field names. The `.raw` mapping is retained as an escape hatch but composition should not read it
+  for production sections; reach for `.raw` only when prototyping a new section, then promote the
+  field into the normalizer.
 
-The orchestrator never raises on MCP failure. Linear is optional.
+  **Two ref fields, because they answer different questions.** `ref` is the **tracker-native
+  handle** and is the *only* thing the write-back routes on — `TO-1234`, or `#<N>` for GitHub (a
+  bare `123` normalizes to the single spelling `#123`). `ref_display` is what a **reader** should
+  see, so a GitHub ref is repo-qualified there and nowhere else. The normalizer **never mints an
+  `org/repo#N` value into `ref`**: that shape is a *cross-repo input* the router deliberately
+  refuses, and minting it would leave the GitHub route unroutable on every path. Neither field
+  repeats the host — on `ghes` it is already visible in the PR URL.
+- **Failure** (MCP or `gh` not installed, server down, **timed out**, auth expired, ref not
+  found) → return a **populated** context, not `None`:
 
-`mcp_unavailable` is **orchestrator-side state only** — it lives in the run-local variables alongside `DIFF_BASE`, `DEFAULT_BRANCH`, etc. It never flows into `CompositionInputs`; composition makes no decision based on it. The flag's sole consumer is the preview warning prefix in Step 4.
+  ```
+  issue_context = IssueContext(
+    ref          = <the extracted-or-passed string, exactly as obtained>,
+    ref_display  = <the same string>,        # nothing was read, so nothing can be qualified
+    summary      = "", body_text = "", priority = None, raw = {},
+    resolution   = "ref-only",
+    provenance   = "explicit" | "guessed",
+  )
+  ```
+
+  **`ref` is unnormalized on this branch** — the read that would have normalized it did not run — so
+  no normalization is claimed for it, and `ref_display` carries the same string rather than a
+  repo-qualified one. This matters only on the Linear route: the GitHub route refuses to write an
+  unconfirmed target at all.
+
+  **A read that never ran lands here too.** A numeric ref on a `gitlab`, `gitlab-self` or `unknown`
+  host has no read route at all, and neither does a GitHub ref when `REPO_SLUG` is unset. That is
+  not a read that *failed*, but it leaves the same evidence — a ref, and no details — so it
+  resolves `ref-only`. A fourth state would buy nothing: no consumer distinguishes "the read
+  failed" from "no read was possible", and both must leave `summary` and `body_text` empty.
+
+The orchestrator never raises on a tracker read failure. Both trackers are optional.
+
+**Three states, kept distinct.** `issue_context = None` means *no ref at all*. `resolution: linked`
+means *a ref, and the read succeeded*. `resolution: ref-only` means *a ref, and the read failed* —
+`summary` and `body_text` are empty. Collapsing any two of them reproduces the "absent evidence is
+not negative evidence" defect: a failed read would be indistinguishable from no ticket.
+
+**`resolution` is readable by the orchestrator, not by composition.** Its consumers are Step 4's
+preview warning and `## Ship-Time Ticket Write-Back`. No section-registry row reads `.resolution`;
+each row gates on **the field it renders being non-empty** (see 3.2), which is what keeps a
+`ref-only` context from making a section lead with nothing. `resolution` **supersedes the retired
+orchestrator-side MCP-availability flag** — that flag named Linear on a run whose read may have been
+`gh issue view`, and two representations of one fact invite drift.
 
 ### 2c. `docs/solutions/` auto-detection
 
@@ -571,7 +652,10 @@ Tier observability is deliberately omitted from the preview — exposing the sea
 
 Pre-prefix the block with warnings if any:
 
-- `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
+- `⚠ No issue details — using diff-derived motivation` (when the Step 2b context resolved
+  `ref-only`). Tracker-neutral, since the read may have been Linear or `gh issue view` — and
+  outcome-neutral, since `ref-only` also covers a ref whose route had no read at all (a numeric ref
+  off a GitHub host). "Read failed" would be false in that second case.
 - `⚠ Stack-base: <r.warning>` (printed verbatim when the `r.warning` captured in Step 2a is non-null — e.g. `⚠ Stack-base: target A came from the open-MR host signal; git's commit-count metric picked C (ambiguous)` or `⚠ Stack-base: FOREIGN_UID_IN_WINDOW — <detail>`. Surfacing this is why `/ba-propose` reads `r.confidence`/`r.warning` at all: an `ambiguous`/`low` base resolution must be visible before the MR opens against it. Never blocks — informational, like the size and MCP warnings.)
 - `⚠ <result.size_warning>` (printed verbatim when `result.size_warning is not None` — e.g. `⚠ Composed body is longer than typical for a change this size (target: ~one screen) — consider trimming`. The phrase names the target shape only; it never surfaces the tier label or the "Lynch's soft cap" source vocabulary.)
 
