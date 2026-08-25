@@ -378,6 +378,22 @@ const CASES = [
     expectSubstrings: ['skills/a.md:1', "retired invocation string '/ba:'"],
   },
   {
+    // A retired claim, not a retired spelling. It earns a needle because the surface it lives on has
+    // no other observable: the six #91 lines were walked by hand, and that walk under-counted once.
+    name: 'retired-invocations FAIL — planted Linear rollup claim is reported with its own hint',
+    checkId: 'retired-invocations',
+    build(root) {
+      write(root, 'skills/a.md', 'clean\n');
+      write(root, 'agents/b.md', 'clean\n');
+      write(root, 'references/foo.md', 'clean\n');
+      write(root, '.claude/agent_docs/c.md', 'clean\n');
+      write(root, 'README.md', 'the commit trailer and the Linear rollup are the guarantee\n');
+      write(root, 'CLAUDE.md', 'clean\n');
+    },
+    expectExit: 1,
+    expectSubstrings: ['README.md:1', "retired invocation string 'Linear rollup'", 'origin ticket comment'],
+  },
+  {
     name: 'retired-invocations FAIL — planted commands/ba/ path citation is reported',
     checkId: 'retired-invocations',
     build(root) {
