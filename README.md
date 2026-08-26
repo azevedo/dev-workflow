@@ -154,7 +154,7 @@ Implements an approved plan systematically: code changes, targeted testing, prog
 - **Three plan detail levels** — MINIMAL (per unit), STANDARD (per unit), COMPREHENSIVE (per phase with automated checkpoints)
 - **Targeted tests per task** — runs tests related to changed files, not the full suite; defers full suite + lint to completion or CI
 - **Resume across sessions via git** — U-ID commit subjects + per-unit `Verify:` against code; no plan-file mutations
-- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding; deviations surface in the MR/PR body and Linear ticket via `Deviation (U<n>):` commit trailers rolled up by `/ba-propose`, never the plan file
+- **Deviation handling** — reports in Expected/Found/Why format, asks before proceeding; deviations surface in the MR/PR body via `Deviation (U<n>):` commit trailers rolled up by `/ba-propose` — and, when that run opens the PR/MR, in a comment on the origin ticket — never the plan file
 - **VCS-agnostic completion** — detects GitHub/GitLab from git remote; discovers available MR/PR tools in the environment
 
 ### `/ba-review [ref range]`
@@ -167,6 +167,7 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 
 - **5 parallel subagents** — Context Analyzer, Solution Extractor, Related-Docs Finder, Prevention Strategist, Category Classifier
 - **Frictionless manual / model-proactive** — a deliberate run proceeds directly once a problem/solution pair is identifiable (no confirmation gate); best invoked right after solving a non-trivial, verified problem
+- **Ship-time ticket write-back** — after the PR/MR is open (and only on a run that opens it), one append-only comment goes to the origin ticket carrying the shipped PR URL and the deviation-trailer texts, so the ticket the team actually reads learns what the flow discovered. Routed by ref shape: a Linear key over an issue-comment MCP tool, a GitHub issue over `gh issue comment` with an explicit `-R`. It fires at **every** size tier including typo — the one tier where the deviation text reaches no other reader. Interpolated trailer prose is escaped before it is wrapped, so it cannot autolink an unrelated issue, mention a person, or pair a closing keyword with a ref. The receipt's fourth line names the outcome over a closed six-literal set — `posted` with the ticket it went to, `skipped` for no usable ref or no reachable writer, `failed` for a rejected, timed-out or unconfirmable write, or `unavailable` — and the write is never retried: `/ba-propose` writes outside the staged diff here, and a double-post is permanent. The Step 4 preview names the target **and** the sanitized payload before anything is written
 - **Ship-time capture offer** — after a successful create, `/ba-propose` may offer to run `/ba-compound` when the change looks like it carried a reusable learning; either way the ship's terminal receipt names the capture disposition on its own line (see the `/ba-propose` entry)
 - **Explicit invocation** — `/ba-compound` or `/ba-compound [context hint]` for immediate documentation
 - **Structured output** — YAML frontmatter with `category`, `tags`, `module`, and `symptom` for maximum discoverability by `learnings-researcher`
@@ -193,22 +194,22 @@ Documents solved problems into `docs/solutions/` so the `learnings-researcher` a
 
 Commit, push, and open a PR/MR with a composed title and body.
 
-- Pure-function body composition: orchestrator gathers inputs (diff, branch, Linear, docs/solutions, preserved blocks, proof, risk, focus areas) → composition reads value objects and returns title + body
+- Pure-function body composition: orchestrator gathers inputs (diff, branch, issue context from either tracker, docs/solutions, preserved blocks, proof, risk, focus areas) → composition reads value objects and returns title + body
 - Host-detected dispatch: GitHub `gh`, GitLab `glab`, graceful fallback for unknown hosts (compose + push only)
 - Body composition selects from Michael Lynch's 16-section menu, sized to the diff — the size-tier vocabulary is hidden behind the composition seam (no flag, no preview surface)
 - **U-ID preservation** — never strips or rewrites `/ba-execute`'s U-tagged commit subjects (`U<n>` per the convention in `execute.md`); PR/MR title is U-ID-free by design
 - **Proof** — always-on one-line signal, auto-detected from the diff (test file touched, visual evidence preserved from the PR body, docs-only, or pending); no blocking question
 - **Risk lead-line** — an always-on, un-headed `**Risk:** low/medium/high — <reason>` line at the top of the body, deterministically derived from sensitive paths, size, and breaking-change signals; absent at typo tier
 - **Where to look** — an earned `## Where to look` section naming 1–2 hotspot areas on medium+ diffs, omitted when there's no dominant hotspot
-- **Deviation fold** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and folds genuinely reviewer-relevant substance into the Impact prose (no standalone header, no `U<n>` shown); the commit trailer and Linear ticket rollup (when linked) are unchanged; warns on near-matches at preview
+- **Deviation fold** — scans `DIFF_BASE..HEAD` commit bodies for `Deviation (U<n>):` trailers and folds genuinely reviewer-relevant substance into the Impact prose (no standalone header, no `U<n>` shown); the commit trailer is unchanged, and the origin ticket comment carries the same texts when a usable ref resolved and a writer was reachable; warns on near-matches at preview
 - **Stacked-branch aware** — on a stacked branch (a feature branch built on another unmerged feature branch), `DIFF_BASE` and the MR/PR target come from `resolve-stack-base`, so the MR targets the parent branch and shows only this plan's commits; `--base`/`--target` override the resolution. `/ba-execute` and `/ba-handoff` resume correctly on stacked branches too — the parent plan's commits fall outside the resume window, so their U-IDs no longer swallow the current plan's units
-- Linear MCP optional with diff-derived fallback; clear preview warning when MCP is unavailable
+- **Two-tracker issue context** — a Linear key (`TO-1234`) reads over MCP, a GitHub issue (`#123`, or a bare number via `--issue`) reads over `gh issue view`, which doubles as the confirmation that the number names an issue and not a pull request. Either read is optional: a failure keeps the ref, falls back to diff-derived motivation, and warns at preview. A numeric ref is never guessed from a branch name
 - `docs/solutions/` auto-detection on current-branch-touched entries; per-entry confirm to splice as "What I learned"
 - Cursor BugBot block and existing `## Demo` / `## Screenshots` preserved byte-identical
 - Commit message and PR/MR body share the same composed markdown — no separate render path
 - `--body-file` discipline (temp file + quoted-sentinel heredoc); no `git add -A`/`.`; no `--no-verify`; `--force-with-lease` only
 - **Apply-by-default** — every `ACTION` applies without a confirmation prompt by default; pass `--review` (alias `--interactive`) or set `BA_PROPOSE_REVIEW=1` to restore the Apply / edit / regenerate-with-hint / exit menu and the Step 0b edit-only confirm
-- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba-compound` on the just-shipped learning; the terminal receipt names the capture disposition on its own line (line 3, or line 2 when the ship URL is unresolved) on every route that reaches it — offered, or suppressed as routine, uncertain, already-captured, non-interactive, or URL-unresolved, or reported `unavailable` when the assessment itself failed — while edit/describe-only/unknown-host paths print no receipt at all
+- **Ship-time capture offer** — after a successful create (and only then), a best-effort read-only assessment may offer to run `/ba-compound` on the just-shipped learning; the terminal receipt names the capture disposition on its own line (line 3, or line 2 when the ship URL is unresolved — the receipt is four lines, three on that guard) on every route that reaches it — offered, or suppressed as routine, uncertain, already-captured, non-interactive, or URL-unresolved, or reported `unavailable` when the assessment itself failed — while edit/describe-only/unknown-host paths print no receipt at all
 
 ### `/ba-handoff [focus]`
 

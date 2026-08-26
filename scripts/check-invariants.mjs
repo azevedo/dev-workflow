@@ -86,7 +86,15 @@ const ALLOWED_AUTO_SCORE_KEYWORDS = new Set(['clean', 'weak', 'error']);
 
 // A stale colon invocation does not throw — it burns a round-trip while the model narrates "run it
 // yourself" — so only a standing check catches a reintroduction.
-const RETIRED_INVOCATION_NEEDLES = ['/ba:', 'commands/ba/'];
+// `Linear rollup` is a retired *claim* rather than a retired spelling: row 13 promised a rollup that
+// no step implemented. It is pinned here because the hand-walk that was supposed to catch it is not
+// self-correcting — the documented one-pass mirror walk under-counted by four sites in this feature's
+// own planning round, and a review gate caught it rather than the walk.
+const RETIRED_INVOCATION_NEEDLES = [
+  { needle: '/ba:', hint: 'use the hyphen form' },
+  { needle: 'commands/ba/', hint: 'use the hyphen form' },
+  { needle: 'Linear rollup', hint: 'the ship-time write-back is two-tracker — name the origin ticket comment' },
+];
 // docs/ is excluded by construction, not by allowlist; scripts/ so this cannot flag the line above.
 const RETIRED_INVOCATION_DIRS = [...PROMPT_SURFACE_DIRS, 'references', '.claude/agent_docs'];
 const RETIRED_INVOCATION_FILES = ['README.md', 'CLAUDE.md'];
@@ -426,10 +434,10 @@ function retiredInvocationsCheck(opts) {
 
   for (const { file, lines } of entries) {
     lines.forEach((line, idx) => {
-      for (const needle of RETIRED_INVOCATION_NEEDLES) {
+      for (const { needle, hint } of RETIRED_INVOCATION_NEEDLES) {
         if (line.includes(needle)) {
           records.push(
-            makeRecord('retired-invocations', file, idx + 1, 'FAIL', `retired invocation string '${needle}' — use the hyphen form`),
+            makeRecord('retired-invocations', file, idx + 1, 'FAIL', `retired invocation string '${needle}' — ${hint}`),
           );
         }
       }
@@ -439,7 +447,7 @@ function retiredInvocationsCheck(opts) {
   return {
     subjectCount: entries.length,
     subjectNoun: 'scanned files',
-    reason: `${entries.length} file(s) scanned for ${RETIRED_INVOCATION_NEEDLES.join(' and ')}`,
+    reason: `${entries.length} file(s) scanned for ${RETIRED_INVOCATION_NEEDLES.map((n) => n.needle).join(', ')}`,
     records,
   };
 }

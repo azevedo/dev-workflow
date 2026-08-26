@@ -21,13 +21,13 @@ Recognized flags:
 
 - `--describe-only` — Compose and print the body; do not commit, push, or create/edit a PR/MR. Useful as a dry run.
 - `--review` (alias `--interactive`) — Restore the interactive confirmation gates (Step 0b edit-only confirm, Step 4 Apply menu) that are otherwise skipped by default. See `REVIEW_MODE` below.
-- `--issue <ID>` — Explicitly bind a Linear issue ID. Overrides branch-name detection.
+- `--issue <ID>` — Explicitly bind an issue on either tracker: a Linear key (`TO-1234`), or a GitHub issue (`#123` or a bare `123`). Overrides branch-name detection, which stays Linear-shaped only — a numeric ref is accepted **only** here, never guessed from a branch name (see Step 2b).
 - `--target <branch>` — Override the resolved MR/PR target branch. Flows into `resolve-stack-base` opts as `target_override` (wins unconditionally for `target`; the foreign-U-ID guard still runs). Validated as an existing local/`origin/` ref.
 - `--base <ref>` — Override the resolved diff base. Flows into `resolve-stack-base` opts as `base_override` (wins unconditionally for `base`; must be an ancestor of HEAD; the foreign-U-ID guard still runs).
 
 **`REVIEW_MODE`** — a run-local orchestrator variable (alongside `ACTION`, `HOST`; it never enters `CompositionInputs`) that gates the Step 0b edit-only confirm and the Step 4 Apply menu (see U2 in those steps). Resolved as an OR, not an AND: `REVIEW_MODE = (--review present) OR (BA_PROPOSE_REVIEW is set to a non-empty, non-"0" value)`. Either signal alone is sufficient — a flag or an env var must never be silently ignored, since silently dropping an explicit safety opt-in on an apply-by-default command is the worst failure mode. `BA_PROPOSE_REVIEW=0` and an empty value are treated as unset. `BA_PROPOSE_REVIEW=1` set once in a shell profile is the persistent equivalent of always passing `--review`.
 
-**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f capture dispatch** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is a non-blocking, mode-independent consumer of the capture disposition that 5e resolved and printed, firing identically with or without `--review` — it runs after the ship has already succeeded and can never change the ship's exit status. **Step 5's completion invariant is that the receipt printed**, not that 5f ran: the disposition rides 5e's contiguous block (see 5e for the closed six-value enum), so a dispatch that never fires is still observable.
+**`REVIEW_MODE` touches exactly two confirmations** — the Step 0b edit-only confirm and the Step 4 `Apply?` menu — and nothing else. The Step 5b hook-failure surface-and-exit (never `--no-verify`), the Step 5c non-fast-forward `--force-with-lease` confirmation, and the `describe_only` short-circuit are unaffected by `REVIEW_MODE` regardless of how it resolves. The **Step 5f capture dispatch** is likewise **not** a `REVIEW_MODE`-gated confirmation: it is a non-blocking, mode-independent consumer of the capture disposition that 5e resolved and printed, firing identically with or without `--review` — it runs after the ship has already succeeded and can never change the ship's exit status. **Step 5's completion invariant is that the receipt printed**, not that 5f ran: the capture disposition rides 5e's receipt on a line of its own (see 5e for the closed six-literal **capture** enum — 5e prints two six-literal enums, so never name one by its cardinal alone), so a dispatch that never fires is still observable.
 
 Note: there is no explicit `--describe-update` flag. Step 0b resolves a single `ACTION` enum (one of `commit_push_create` / `commit_push_edit` / `edit_only` / `describe_only`) from the args and the branch state; Steps 5a-5d dispatch on `ACTION`. The "nothing to push + open PR" case resolves to `edit_only` via a single confirmation prompt in 0b (skipped by default — see `REVIEW_MODE`). One arg flag, one `ACTION` enum, no cross-product of mode + skip flags.
 
@@ -54,6 +54,38 @@ Parse `REMOTE_URL` to classify:
 This replaces an earlier ladder design (`gh api /meta` probe → `glab config get` probe → unknown). The probe ladder was rejected at plan-review time as YAGNI for v0.18.0 — the repo has no documented GHES / self-hosted GitLab users today, the probes have unspecified failure semantics (CLI-missing vs probe-error), and probe #2 had the side effect of mutating `GH_HOST` in the caller's environment. Re-add auto-detection in a future plan when a real user reports the escape hatch is insufficient.
 
 If `HOST=unknown`, announce: "Remote `<URL>` is not GitHub or GitLab. `ba-propose` will still commit and push, but cannot open the PR/MR — paste the composed body into your platform's web UI when prompted. (Self-hosted? Set `BA_PROPOSE_HOST=ghes` or `BA_PROPOSE_HOST=gitlab-self`.)"
+
+**`REPO_SLUG` — the repository the PR will be opened on.** On `HOST ∈ {github, ghes}`, materialize
+the base repo `gh` itself resolves — the same one `gh pr create` will use in 5d — and **never** parse
+it out of `REMOTE_URL`:
+
+```bash
+REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")
+```
+
+`origin` is the wrong source, and the fork workflow is exactly where it breaks: `gh pr create` opens
+the PR on the upstream repo while `origin` is the fork, so an `--issue 123` naming an *upstream*
+issue would be pinned to the fork — and if the fork has issues enabled, `123` resolves there and the
+write lands on the wrong repository, reported as posted. When `REPO_SLUG` is empty, downstream steps
+that need it degrade rather than falling back to `origin`: a target we cannot name is not a usable
+one. `REPO_SLUG` is read by Step 2b's GitHub issue read and by `## Ship-Time Ticket Write-Back`.
+
+**`ghes` needs the fully-qualified form.** `gh --repo` accepts `[HOST/]OWNER/REPO`, and a bare
+`owner/repo` resolves against **github.com** whenever `GH_HOST` is unset or points elsewhere. Since
+`gh` needs no write permission to comment on a public repo's issue, a bare internal slug can publish
+a PR URL and deviation prose to an unrelated public tracker. `REPO_SLUG` itself is always a bare
+`OWNER/REPO`; the host is added **at the `-R` flag and nowhere else**, so on the `ghes` route pass
+`-R "$GH_HOST/$REPO_SLUG"`. When `HOST=ghes` and no host is available, treat `REPO_SLUG` as
+unusable — a missing host is a **local-presence** fact, so deciding this needs no network call.
+
+`ghes` is a fifth `HOST` value, and it is the one host where a numeric issue ref targets a
+non-github.com tracker.
+
+**How this value crosses tool-call boundaries.** Each Bash tool call is a fresh shell, so `REPO_SLUG`
+— like `CREATED_PR_URL` — is a **model-held value re-interpolated as a literal into each new call**,
+never referenced as `$VAR` across calls. 5d's `$BODY_FILE` gets a whole paragraph precisely *because*
+it does not survive; copying that notation without this warning builds a step that silently loses the
+value.
 
 ### 0b. Resolve ACTION
 
@@ -192,38 +224,119 @@ If `git diff --stat` is non-empty but unreadable (returns non-zero with no diff)
 > **CompositionInputError: diff unreadable.**
 > `git diff $DIFF_BASE..HEAD` returned non-zero. Check the repository state.
 
-### 2b. Linear issue context (optional)
+### 2b. Issue context (optional, two-tracker)
 
-Determine the issue ID:
+Determine the issue ref, and **carry how it was obtained** — provenance decides whether an
+unconfirmed ref may later be written to:
 
-1. If `--issue <ID>` was passed, use it.
+1. If `--issue <ID>` was passed, use it. `--issue` binds **either** tracker: a `TO-1234` shape (a
+   Linear key), a `#123` shape, or a bare number (a GitHub issue). Provenance: **explicit**.
 2. Else, regex-extract from branch name: `[A-Z]{2,5}-[0-9]+` (e.g., `bru/TO-1234-fix-x` → `TO-1234`).
-3. Else, no issue ID — skip MCP entirely, `issue_context = None`.
+   Provenance: **guessed**. The regex is unchanged, and **no numeric extraction is added**:
+   `feature/123-add-thing`, `fix/500-error`, `release/2024-01` and `bru/1234-x` all over-match any
+   plausible numeric branch pattern, and a mis-guessed ref is an un-retractable comment on an
+   unrelated issue. A numeric ref is accepted **only** from an explicit `--issue`.
+3. Else, no issue ref — skip the read entirely, `issue_context = None`.
 
-If an ID is present, attempt the MCP call:
+**Provenance rule.** A ref from an explicit `--issue` is a human assertion. A ref **extracted from a
+branch name** is a guess: the uppercase regex also matches `fix/UTF-8-encoding` → `UTF-8`,
+`bru/ISO-8601-dates` → `ISO-8601`, `feat/RFC-7231-compliance` → `RFC-7231`, `spike/GH-1234-repro` →
+`GH-1234`, `chore/AES-256-rotate` → `AES-256`. Narrowing the regex would silently drop real Linear
+keys, so provenance, not spelling, is the discriminator. What it gates is stated once, at
+`## Ship-Time Ticket Write-Back`: a guessed ref is never written to unless the read confirmed it.
 
-```
-mcp__claude_ai_Linear__get_issue(id: <ID>)
-```
+If a ref is present, read the tracker its shape names:
 
-- **Success** → normalize the MCP payload into composition-owned vocabulary before passing it across the seam:
+- **Linear** (`[A-Z]{2,5}-[0-9]+`, case-insensitive):
+
+  ```
+  mcp__claude_ai_Linear__get_issue(id: <ref>)
+  ```
+
+- **GitHub** (`#<digits>` or bare `<digits>`), only when `HOST ∈ {github, ghes}`:
+
+  ```bash
+  gh issue view <N> -R "<REPO_SLUG>" --json title,body,state
+  ```
+
+  On `ghes` the `-R` value is `"$GH_HOST/<REPO_SLUG>"` — the host is added **here, at the flag**,
+  never baked into `REPO_SLUG` itself, which stays a bare `OWNER/REPO` everywhere. A numeric ref on a
+  GitLab host has no read here and no write later; the GitHub tracker route is simply unreachable
+  there.
+
+  **This read is also the issue-not-PR confirmation.** GitHub numbers issues and pull requests in one
+  sequence, and `gh issue comment <PR-number>` succeeds because a PR *is* an issue to that endpoint.
+  A successful `gh issue view` establishes that the number names an issue. It only runs when the read
+  succeeds, so it confirms nothing on the failure branch below — which is why the write side refuses
+  an unconfirmed GitHub target outright.
+
+- **Success** → normalize the tracker payload into composition-owned vocabulary before passing it
+  across the seam:
 
   ```
   issue_context = IssueContext(
-    ref         = <mcp_response>.identifier,        # e.g., "TO-1234"
-    summary     = <mcp_response>.title,             # short headline
-    body_text   = <mcp_response>.description,       # long-form description, possibly empty
-    priority    = <mcp_response>.priority,          # optional, opaque to composition
-    raw         = <full mcp_response, Mapping[str, Any]>,
+    ref          = <tracker-native handle>,       # Linear: .identifier ("TO-1234"). GitHub: "#<N>".
+    ref_display  = <how a reader should see it>,  # Linear: "TO-1234". GitHub: "<REPO_SLUG>#<N>".
+    summary      = <title>,                   # Linear: .title.        GitHub: .title
+    body_text    = <description>,             # Linear: .description.  GitHub: .body — possibly empty
+    priority     = <priority or None>,        # optional, opaque to composition
+    raw          = <full response, Mapping[str, Any]>,
+    resolution   = "linked",                  # the read succeeded
+    provenance   = "explicit" | "guessed",    # from the ID-resolution list above
   )
   ```
 
-  The normalizer is Step 2b's job, not composition's. If Linear renames `description` → `body` or `identifier` → `key` in a future MCP schema, that change lands here in Step 2b and never reaches Step 3. Composition reads `issue_context.ref`, `.summary`, `.body_text` — not Linear's field names. The `.raw` mapping is retained as an escape hatch but composition should not read it for production sections; reach for `.raw` only when prototyping a new section, then promote the field into the normalizer.
-- **Failure** (MCP not installed, server down, auth expired, ID not found) → `issue_context = None`, AND record `mcp_unavailable = True` so the preview can surface a warning: "Linear MCP unavailable — using diff-derived motivation."
+  The normalizer is Step 2b's job, not composition's. If Linear renames `description` → `body` or
+  `identifier` → `key`, or `gh` renames a `--json` field, that change lands here and never reaches
+  Step 3. Composition reads `issue_context.ref`, `.summary`, `.body_text` — not either tracker's
+  field names. The `.raw` mapping is retained as an escape hatch but composition should not read it
+  for production sections; reach for `.raw` only when prototyping a new section, then promote the
+  field into the normalizer.
 
-The orchestrator never raises on MCP failure. Linear is optional.
+  **Two ref fields, because they answer different questions.** `ref` is the **tracker-native
+  handle** and is the *only* thing the write-back routes on — `TO-1234`, or `#<N>` for GitHub (a
+  bare `123` normalizes to the single spelling `#123`). `ref_display` is what a **reader** should
+  see, so a GitHub ref is repo-qualified there and nowhere else. The normalizer **never mints an
+  `org/repo#N` value into `ref`**: that shape is a *cross-repo input* the router deliberately
+  refuses, and minting it would leave the GitHub route unroutable on every path. Neither field
+  repeats the host — on `ghes` it is already visible in the PR URL.
+- **Failure** (MCP or `gh` not installed, server down, **timed out**, auth expired, ref not
+  found) → return a **populated** context, not `None`:
 
-`mcp_unavailable` is **orchestrator-side state only** — it lives in the run-local variables alongside `DIFF_BASE`, `DEFAULT_BRANCH`, etc. It never flows into `CompositionInputs`; composition makes no decision based on it. The flag's sole consumer is the preview warning prefix in Step 4.
+  ```
+  issue_context = IssueContext(
+    ref          = <the extracted-or-passed string, exactly as obtained>,
+    ref_display  = <the same string>,        # nothing was read, so nothing can be qualified
+    summary      = "", body_text = "", priority = None, raw = {},
+    resolution   = "ref-only",
+    provenance   = "explicit" | "guessed",
+  )
+  ```
+
+  **`ref` is unnormalized on this branch** — the read that would have normalized it did not run — so
+  no normalization is claimed for it, and `ref_display` carries the same string rather than a
+  repo-qualified one. This matters only on the Linear route: the GitHub route refuses to write an
+  unconfirmed target at all.
+
+  **A read that never ran lands here too.** A numeric ref on a `gitlab`, `gitlab-self` or `unknown`
+  host has no read route at all, and neither does a GitHub ref when `REPO_SLUG` is unset. That is
+  not a read that *failed*, but it leaves the same evidence — a ref, and no details — so it
+  resolves `ref-only`. A fourth state would buy nothing: no consumer distinguishes "the read
+  failed" from "no read was possible", and both must leave `summary` and `body_text` empty.
+
+The orchestrator never raises on a tracker read failure. Both trackers are optional.
+
+**Three states, kept distinct.** `issue_context = None` means *no ref at all*. `resolution: linked`
+means *a ref, and the read succeeded*. `resolution: ref-only` means *a ref, and the read failed* —
+`summary` and `body_text` are empty. Collapsing any two of them reproduces the "absent evidence is
+not negative evidence" defect: a failed read would be indistinguishable from no ticket.
+
+**`resolution` is readable by the orchestrator, not by composition.** Its consumers are Step 4's
+preview warning and `## Ship-Time Ticket Write-Back`. No section-registry row reads `.resolution`;
+each row gates on **the field it renders being non-empty** (see 3.2), which is what keeps a
+`ref-only` context from making a section lead with nothing. `resolution` **supersedes the retired
+orchestrator-side MCP-availability flag** — that flag named Linear on a run whose read may have been
+`gh issue view`, and two representations of one fact invite drift.
 
 ### 2c. `docs/solutions/` auto-detection
 
@@ -406,7 +519,7 @@ Read `diff.file_stats` and `diff.commit_log`. Compute totals:
 - `lines_changed = sum(additions + deletions across all files)`
 - `files_changed = count of files`
 - `is_perf = (lines_changed >= 30 AND any commit message in branch matches /perf|performance/) OR (diff includes a benchmark or measurement file — paths matching *bench*, *benchmark*, *measure*, *perf-test*, or files with `.bench.` infix)`
-- `is_typo = files_changed == 1 AND lines_changed <= 4 AND the change is pure string/comment/whitespace — no operators, no conditionals, no call expressions, no type annotations`
+- `is_typo = files_changed == 1 AND its `diff.file_status` is `M` AND lines_changed <= 4 AND the change is pure string/comment/whitespace — no operators, no conditionals, no call expressions, no type annotations`. **An added file (`A`) is never a typo**, however short: a typo is an edit to text that already exists, and the tier decides real output — at `typo` the Risk lead-line, the Proof line and the deviation fold are all suppressed, so a new file would ship with the receipt as its only trace. `diff.file_status` is already materialized in 2a and already read by Proof detection for exactly this add-vs-modify distinction.
 
 Tier table (first match wins):
 
@@ -442,16 +555,16 @@ Reference numbers #1–#14 are Lynch's menu (see `docs/research/2026-05-17-shipp
 |---|---|---|---|---|
 | 1 | Title | typo | — | See 3.3 (title rewriting). Always present. |
 | 2 | Impact | small | — | One sentence: what was impossible/broken before, what's possible/fixed now. Falls back to commit log when motivation is thin. |
-| 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` when `issue_context` is present; else derive from `diff.commit_log` and changed file paths. Composition reads only composition-owned fields; the Linear-shape mapping lives in Step 2b. |
+| 3 | Motivation | small (when non-obvious), medium+, perf | — | Lead with `issue_context.summary` and expand from `issue_context.body_text` **when each is non-empty**; else derive from `diff.commit_log` and changed file paths. A `ref-only` context (read failed — see 2b) has both empty and therefore takes the `diff.commit_log` fallback, exactly as a `None` context does. Composition reads only composition-owned fields — never the read's outcome flag, whose consumers are named at Step 2b; the per-tracker mapping lives there too. |
 | 4 | Breaking changes | large | `breaking_signal` is true (materialized once in Step 2g; review fix: this row previously named the raw diff signal instead of the shared `CompositionInputs` field, so it silently re-derived rather than reading what 2g already computed) | Name the breaking surface (removed API, schema migration, etc.) under a `**BREAKING:**` line. Never use `!` in the title or `BREAKING CHANGE:` trailer without explicit user confirmation. |
 | 6 | Dependency justifications | large | Lockfile / dependency-manifest changes in diff | List lockfile-detected adds; one-line rationale per addition. |
-| 7 | Cross-refs | medium, large | `issue_context.ref` is present | `Fixes <issue_context.ref>` (normalized ref from Step 2b, e.g., `TO-1234`). Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or full URL). |
-| 8 | Bug summaries | large | `issue_context.body_text` is present | Paragraph form, never just `Fixes #N`. |
+| 7 | Cross-refs | medium, large | `issue_context.ref` is non-empty | Render `issue_context.ref_display` (Step 2b, e.g. `TO-1234` or `acme/widgets#123`) behind a verb chosen by route: **`Fixes` on the Linear route, `Refs` on the GitHub route.** `Refs` is deliberate and load-bearing — a GitHub closing keyword *closes the issue when the PR merges*, and this row exists to cross-reference, not to change another tracker's state; Linear keeps `Fixes` because it has always had it and the keyword is inert there. A `ref-only` context satisfies this row, so the cross-ref appears for a ref whose read failed — accepted deliberately: the ref came from an explicit `--issue` or a branch name the author chose, a transient read failure makes it correct, and a bogus ref makes it inert. Never prefix list items with `#` (auto-links `#1` — use `org/repo#N` or a full URL). |
+| 8 | Bug summaries | large | `issue_context.body_text` is **non-empty** | Paragraph form, never just `Fixes #N`. |
 | 9 | Testing instructions | medium (conditional), large | Automated tests don't exist for the change | Spell out the manual verification path. Give the manual path, not an enumeration of every unit case — "unit-covered; manual checks below" is enough. |
 | 10 | Testing limitations | large | — | Disclose what wasn't tested. |
 | 11 | What I learned | medium (conditional), large | `solutions` is non-empty | For each `solutions` entry, render as a bullet linking to the file with the entry's `.summary`. |
 | 12 | Alternatives considered | large | Diff isn't self-explanatory | Brief notes on rejected approaches. Cap at ~2–3 notes; include only those that pre-empt a likely reviewer flag. Fold a lone note into Impact/Scope rather than giving it its own section. |
-| 13 | Deviations (fold) | small | `deviation_trailers` is non-empty (gathered in Step 2f) | No standalone header — this row does not occupy its own position in the ordering sequence below. When genuinely reviewer-relevant, fold the substance of `deviation_trailers` into the **Impact** prose (#2) as one clause, rewritten in plain change terms — no "plan" reference, no `U<n>`. Composition owns the fold; Step 2f's job is unchanged (capture the raw, deduped, U-ID-stripped trailer text). Non-reviewer-relevant trailers are simply not surfaced in the body. At **typo tier** (no Impact section; Risk/Proof suppressed) a deviation surfaces **nowhere** in the reviewer body — the durable `Deviation (U<n>):` commit trailer and the Linear rollup (unchanged, mirrored when `issue_context` is present) are the guarantee. If `deviation_trailers` is empty, nothing folds — Impact reads as normal. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
+| 13 | Deviations (fold) | small | `deviation_trailers` is non-empty (gathered in Step 2f) | No standalone header — this row does not occupy its own position in the ordering sequence below. When genuinely reviewer-relevant, fold the substance of `deviation_trailers` into the **Impact** prose (#2) as one clause, rewritten in plain change terms — no "plan" reference, no `U<n>`. Composition owns the fold; Step 2f's job is unchanged (capture the raw, deduped, U-ID-stripped trailer text). Non-reviewer-relevant trailers are simply not surfaced in the body. At **typo tier** (no Impact section; Risk/Proof suppressed) a deviation surfaces **nowhere** in the reviewer body. Two things carry it instead: the durable `Deviation (U<n>):` commit trailer, always; and the **origin ticket comment** written at 5e, *when* a usable ref resolved and a writer was reachable — see `## Ship-Time Ticket Write-Back`, which prints its own disposition on the receipt either way. The second is conditional, and the receipt is where you read whether it happened. If `deviation_trailers` is empty, nothing folds — Impact reads as normal. Near-match warnings are surfaced by Step 4's preview (see Step 2f), not here. |
 | 14 | Screenshots / Demo | medium (conditional), large, perf | `preserved_blocks` contains `demo`/`screenshots` | Splice the `preserved_blocks` `demo`/`screenshots` content byte-identical. For perf tier, render as a before/after table. Wrap screenshot/demo blocks in a `<details>` element with one-line captions — a supplement, not an image wall. |
 | 15 | Proof | small | — (always renders; absolutely suppressed at typo tier) | One compact line by `proof.kind`: `automated` → `**Proof:** unit-covered — <test file>`; `visual` → `**Proof:** screenshots below` (pointer to row #14's `<details>`); `na` → `**Proof:** n/a`; `pending` → `**Proof:** _pending — add tests / QA notes / screenshots before merge_`. Placement: after the testing rows (#9/#10), before What-I-learned (#11); a standalone line when those rows are absent. |
 | 16 | Risk lead-line | small | — (always renders; absolutely suppressed at typo tier — no carve-out) | `**Risk:** <level> — <reason>` as an un-headed line, the first line of the body, above Impact (#2). No wrapper section header — the line stands alone. |
@@ -529,17 +642,43 @@ Action: <commit_push_create | commit_push_edit | edit_only | describe_only>  (Ho
 Title: <result.title>
        (rewritten from: <result.rewritten_from>)      [only if result.rewritten_from is not None]
 Body lines: <N>                                       (size-target prefix if result.size_warning is not None)
+Ticket: <target> → <Linear|GitHub>                    (or `Ticket: none`)
+        will post: <sanitized trailer texts, one per line>   [omitted when the target is `none`, or there are no trailers]
 Lead: <first two sentences of result.body>
 ─────────────────────────────────────────
 [full result.body printed below]
 ─────────────────────────────────────────
 ```
 
+**The `Ticket:` line reports the *attempt* decision, not the raw ref.** It names a target only when
+`## Ship-Time Ticket Write-Back` would actually attempt a write against it, and `none` otherwise — so
+a ref that routes nowhere, a guessed ref the provenance gate will refuse, an unconfirmed GitHub
+target, and a route with no reachable writer all read `none`. Rendering the raw ref instead would
+announce a post the write-back then refuses, which is worse than printing nothing because it reads as
+a promise. This is a **pointer, not a copy**: the decision is the one that section specifies, and
+every fact it turns on (ref shape, the read's outcome, provenance, `HOST`, `gh` on `PATH`,
+`REPO_SLUG`) is settled before Step 4, so the preview reads the same state rather than re-deriving a
+second ladder. **The ship-URL row is deliberately not part of this predicate.** No route has a
+`CREATED_PR_URL` at Step 4 — it is produced in 5d — and on `--describe-only` 5e never runs at all, so
+folding that row in would print `none` on every dry run and make the line dead exactly where a human
+most wants it. Evaluate the locally-known facts only. The tracker is spelled `Linear` or `GitHub`, matching that section's two literals.
+
+**And it renders the payload, not just the target.** Naming the target says *where* the comment goes,
+not *what it says*. At typo tier the trailer texts appear nowhere in the PR body, so the ticket
+comment is the only place that prose is published — the single output with the widest reach, and the
+only published output that would otherwise skip this preview entirely. Render the texts **after**
+sanitization, so the preview shows what will actually be posted.
+
+Neither line is a gate: `REVIEW_MODE` does not touch them, and nothing here asks for a confirmation.
+
 Tier observability is deliberately omitted from the preview — exposing the seam-internal vocabulary would break the "tier never named at call site" invariant from Step 3. If tier debugging becomes a real pain point, add an optional `ComposedBody.trace` field per the brainstorm's *Locked Design > Trade-offs*.
 
 Pre-prefix the block with warnings if any:
 
-- `⚠ Linear MCP unavailable — using diff-derived motivation` (from `mcp_unavailable` orchestrator flag set in Step 2b)
+- `⚠ No issue details — using diff-derived motivation` (when the Step 2b context resolved
+  `ref-only`). Tracker-neutral, since the read may have been Linear or `gh issue view` — and
+  outcome-neutral, since `ref-only` also covers a ref whose route had no read at all (a numeric ref
+  off a GitHub host). "Read failed" would be false in that second case.
 - `⚠ Stack-base: <r.warning>` (printed verbatim when the `r.warning` captured in Step 2a is non-null — e.g. `⚠ Stack-base: target A came from the open-MR host signal; git's commit-count metric picked C (ambiguous)` or `⚠ Stack-base: FOREIGN_UID_IN_WINDOW — <detail>`. Surfacing this is why `/ba-propose` reads `r.confidence`/`r.warning` at all: an `ambiguous`/`low` base resolution must be visible before the MR opens against it. Never blocks — informational, like the size and MCP warnings.)
 - `⚠ <result.size_warning>` (printed verbatim when `result.size_warning is not None` — e.g. `⚠ Composed body is longer than typical for a change this size (target: ~one screen) — consider trimming`. The phrase names the target shape only; it never surfaces the tier label or the "Lynch's soft cap" source vocabulary.)
 
@@ -569,7 +708,7 @@ Step 5 dispatches on the single `ACTION` value resolved in Step 0b. The `HOST=un
 
 | `ACTION` | Actions |
 |---|---|
-| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output: the receipt — three lines, or two when the URL is unresolved — whose last line is the capture disposition) → 5f (dispatch on it) |
+| `commit_push_create` | 5a (stage) → 5b (commit) → 5c (push) → 5d (create PR/MR) → 5e (output: the receipt — four lines, or three when the ship URL is unresolved — whose last line is the ticket disposition) → 5f (dispatch on the *capture* one) |
 | `commit_push_edit` | 5a (stage) → 5b (commit) → 5c (push) → 5d (edit existing PR/MR) |
 | `edit_only` | 5d only (edit existing PR/MR description; no commit, no push) |
 | `describe_only` | Print body to stdout; exit zero. |
@@ -719,33 +858,45 @@ glab mr update "$OPEN_PR_URL" \
 
 ### 5e. Output — the terminal receipt
 
-On success, print **one contiguous block**. Line 1 is the success line, line 2 the PR/MR URL captured
-in 5d (`CREATED_PR_URL`), line 3 the **capture disposition** resolved here:
+On success, print **four lines in fixed order**. Line 1 is the success line, line 2 the PR/MR URL
+captured in 5d (`CREATED_PR_URL`), line 3 the **capture disposition** resolved here, line 4 the
+**ticket disposition** returned by `## Ship-Time Ticket Write-Back`:
 
 ```
 ✓ <title>
   $CREATED_PR_URL
   capture: <value>
+  ticket: <value>
 ```
 
-**The `<value>` set is CLOSED — exactly these six literals:** `judged-reusable`,
+The block is no longer contiguous by construction: `record-ship` makes a network round-trip between
+lines 3 and 4, which can interleave rendering. The **order** is the guarantee, not the contiguity.
+
+**The capture `<value>` set is CLOSED — exactly these six literals:** `judged-reusable`,
 `suppressed — ship-url-unresolved`, `suppressed — non-interactive`, `suppressed — already-captured`,
 `suppressed — judged-not-reusable`, `unavailable`.
 
-**This section is the canonical site for the enum.** Two other sites **restate the literals** and must
-be updated with it: 5f's dispatch paragraph, and `README.md`'s `/ba-compound` and `/ba-propose` feature
-lists — README's is the highest-drift site, since it paraphrases every disposition in prose rather than
-citing them. The `REVIEW_MODE`-touches-two-confirmations paragraph under Arguments, the Step 5 action
-table, and the **Code-shape decision** block below are **pointers, not copies** — they name at most one
-literal and defer here, so a rename does not oblige an edit there. **No CI check pins any of this**, and
-a literal grep for a retired token reports green while prose elsewhere still describes the deleted
-machinery.
+**This section is the canonical site for the capture enum.** Two other sites **restate the literals**
+and must be updated with it: 5f's dispatch paragraph, and `README.md`'s `/ba-compound` and
+`/ba-propose` feature lists — README's is the highest-drift site, since it paraphrases every
+disposition in prose rather than citing them. The `REVIEW_MODE`-touches-two-confirmations paragraph
+under Arguments, the Step 5 action table, and the **Code-shape decision** block below are **pointers,
+not copies** — they name at most one literal and defer here, so a rename does not oblige an edit
+there. **No CI check pins any of this**, and a literal grep for a retired token reports green while
+prose elsewhere still describes the deleted machinery.
+
+**Line 4's value set is a different closed six-literal enum**, owned by
+`## Ship-Time Ticket Write-Back` and restated nowhere here. Because this step now prints **two**
+six-literal enums, no reference anywhere in this file may name either one by its cardinal alone
+("the closed six-value enum") or by a bare definite article ("the enum") — say **which**.
 
 **Unparseable-URL guard.** If the create call in 5d exits 0 but `CREATED_PR_URL` is empty or not a
 URL (a transient CLI/output-format hiccup), omit the URL line and print
-`  capture: suppressed — ship-url-unresolved` as line 2 of a two-line receipt. That two-line form is
-the one legitimate sub-three-line receipt, and it is distinguished from a partial print by the
-`capture:` line being **present** — a genuine partial print emits the `✓` line alone. A successful
+`  capture: suppressed — ship-url-unresolved` as line 2. The receipt is then **three** lines, because
+the guard **falls through to the `record-ship` call** rather than returning before it — which is what
+makes the ticket enum's own `skipped — ship-url-unresolved` reachable. That three-line form is the one
+legitimate sub-four-line receipt, and it is distinguished from a partial print by the `capture:` line
+being **present** — a genuine partial print emits the `✓` line alone. A successful
 `commit_push_create` ship that stayed silent must remain observable, never a byte-identical skip.
 **This observability standard scopes to routes that reach 5e**; routes that exit before it
 (`HOST=unknown`, any pre-5e failure exit, and the three edit paths) emit no receipt fragment at all.
@@ -753,35 +904,43 @@ the one legitimate sub-three-line receipt, and it is distinguished from a partia
 **Code-shape decision:** the resolver's ordering is the load-bearing decision and re-deriving it from
 prose plausibly produces a wrong structure — URL validation inside the exception boundary (making
 `ship-url-unresolved` unreachable and `unavailable` win), the interactivity check after the
-assessment (paying for a judgment that cannot be offered), or `judged-reusable` restored as a
-forward-looking promise. The enum literals are the contract and are not paraphrased. It is a shape
-sketch, not literal command text — the file is a prose spec — and the paragraphs below elaborate each
-branch.
+assessment (paying for a judgment that cannot be offered), `judged-reusable` restored as a
+forward-looking promise, or the ticket write placed before the URL line and stalling it. The enum
+literals are the contract and are not paraphrased. It is a shape sketch, not literal command text —
+the file is a prose spec — and the paragraphs below elaborate each branch.
 
 ```
-# 5e. Output — one contiguous receipt. Line 3's value set is CLOSED (six literals; see above).
+# 5e. Output — four lines in fixed order. Line 3 and line 4 are DIFFERENT closed six-literal enums.
 print(f"✓ {title}")
 if is_url(CREATED_PR_URL): print(f"  {CREATED_PR_URL}")
 
-# Validity is judged HERE — empty OR malformed — outside the resolver's exception boundary, and it
-# RETURNS before the try, so ship-url-unresolved and unavailable can never both fire.
+# Validity is judged HERE — empty OR malformed — outside the resolver's exception boundary. It skips
+# the capture resolver so ship-url-unresolved and unavailable can never both fire, but it FALLS
+# THROUGH to record-ship, which judges the same value for itself.
 if not is_url(CREATED_PR_URL):
-    print("  capture: suppressed — ship-url-unresolved"); decision = None; return   # → 5f no-ops
+    print("  capture: suppressed — ship-url-unresolved"); decision = None   # → 5f no-ops
+else:
+    try:                                     # resolver boundary #1 → degrades to `unavailable`
+        if not interactive_session():         # model-judged; deliberately unspecified (steering)
+            decision = "suppressed — non-interactive"
+        elif solutions:                       # 2c: entries the user ACCEPTED, not files on disk
+            decision = "suppressed — already-captured"
+        elif not assess_reusable_learning(deviation_trailers, conversation_arc,
+                                          commit_type, risk, proof):
+            decision = "suppressed — judged-not-reusable"   # negative OR uncertain → lean-silent
+        else:
+            decision = "judged-reusable"      # a DECISION, not a promise: no later failure falsifies it
+    except Exception:
+        decision = "unavailable"              # exit status was fixed by 5c/5d; nothing here alters it
+    print(f"  capture: {decision}")
 
-try:                                     # resolver boundary #1 → degrades to `unavailable`
-    if not interactive_session():         # model-judged; deliberately unspecified (steering)
-        decision = "suppressed — non-interactive"
-    elif solutions:                       # 2c: entries the user ACCEPTED, not files on disk
-        decision = "suppressed — already-captured"
-    elif not assess_reusable_learning(deviation_trailers, conversation_arc,
-                                      commit_type, risk, proof):
-        decision = "suppressed — judged-not-reusable"   # negative OR uncertain → lean-silent
-    else:
-        decision = "judged-reusable"      # a DECISION, not a promise: no later failure falsifies it
-except Exception:
-    decision = "unavailable"              # exit status was fixed by 5c/5d; nothing here alters it
-print(f"  capture: {decision}")
-# 5f dispatch: judged-reusable → fire the offer. Every other value → no-op.
+# The ticket write-back. The network round-trip lands HERE, after the URL and capture lines are
+# already flushed, so a slow tracker delays only line 4. See `## Ship-Time Ticket Write-Back`.
+record = record-ship(ship={"url": CREATED_PR_URL, "repo_slug": REPO_SLUG,
+                           "host": HOST, "trailers": deviation_trailers},
+                     opts={"issue_context": issue_context})
+print(record.receipt_line)                    # pre-rendered, indent included — printed verbatim
+# 5f dispatch: judged-reusable → fire the offer. Every other value → no-op. 5f never reads `record`.
 ```
 
 **`interactive_session()` is deliberately model-judged.** Per the trust gradient this is steering,
@@ -792,35 +951,13 @@ then no answerer for an offer — and stop. It is **not** a dead branch.
 verdict, not a promise that the offer will be answered or that `/ba-compound` will succeed — so no
 later failure of the `AskUserQuestion` or the invoke can contradict a receipt already flushed.
 
+**Line 4 states an outcome already observed**, which is why the write precedes the print rather than
+the print promising a write.
+
 **Exit status.** A resolver exception prints `capture: unavailable`, still prints the `✓` line, and
-leaves the ship's exit status zero. The ground is that **exit status is already determined before 5e
-runs at all** — 5c's push and 5d's create decide it, and 5e/5f contain no statement that can alter
-it.
-
-**Assessment (best-effort, blended, read-only).** Not a rigid rubric. Read already-materialized
-orchestrator state plus the conversation; mutate nothing. Weigh:
-
-- (a) `deviation_trailers` from Step 2f — *strongest* signal ("reality diverged from the plan,
-  here's why").
-- (b) A problem → investigation → fix arc visible in the conversation.
-- (c) Commit type / motivation — a `fix:` for a gotcha/workaround weighs positive; a clean `feat:`
-  or a docs/config-only change weighs toward routine.
-- (d) Lightly: `risk` (2h), `proof` (2e), `sensitive_paths_touched` (2g).
-
-Lean-silent: a genuinely ambiguous change (e.g. a `fix:` with no deviation trailer and no clear
-problem→fix arc) is judged **uncertain** and resolves to `suppressed — judged-not-reusable`.
-Precision over recall.
-
-**`already-captured` is keyed on a user choice, not a fact.** `solutions` holds the entries the user
-*accepted* at 2c; choosing "Skip all" yields an empty tuple even when `docs/solutions/` files ride
-the PR.
-
-**Ordering.** Every assessment input is settled well before 5e: `deviation_trailers` (2f), `risk`
-(2h), `proof` (2e), `sensitive_paths_touched` (2g), `solutions` (2c), commit type (Step 3), and the
-conversation arc (ambient). The resolver runs *after* the `✓` and URL lines are printed, so a slow
-assessment delays only the `capture:` line, never the URL; the `try` guards a *thrown* exception, not a
-hung one.
-There is no timeout — accepted, since the assessment reads only already-materialized state.
+leaves the ship's exit status zero. A ticket write that fails prints its own literal on line 4 and
+likewise changes nothing. The ground is that **exit status is already determined before 5e runs at
+all** — 5c's push and 5d's create decide it, and 5e/5f contain no statement that can alter it.
 
 ### 5f. Capture dispatch
 
@@ -892,6 +1029,206 @@ can alter it. Manual `/ba-compound` remains the escape hatch for a **false-negat
 `suppressed — judged-not-reusable` receipt that should have been an offer — the assessment's
 precision, not its observability, is the accepted residual.
 
+## Ship-Time Ticket Write-Back
+
+This section is the single owner of `record-ship`. Its **only** caller is Step 5e, which calls it once
+per run, after the `capture:` line prints, and prints `record.receipt_line` verbatim as receipt line 4.
+No other step and no other file calls it or restates its rules.
+
+**Interface** — `record-ship(ship, opts) → record`.
+
+- `ship` — `{url, repo_slug, host, trailers}`.
+  - `url` — `CREATED_PR_URL` as 5d captured it, **unvalidated**: this operation judges it (first row
+    of the disposition table). 5e's unresolved-URL guard falls through to this call rather than
+    returning before it.
+  - `repo_slug` — the `OWNER/REPO` the PR was opened on, materialized in Step 0a, or unset. Never
+    `origin`'s slug.
+  - `host` — the `HOST` value from Step 0a, passed **explicitly**. Never derived from `url`.
+  - `trailers` — `deviation_trailers` from Step 2f: a tuple of unique trailer texts, `U<n>` label
+    already stripped at gather time. The label is not restored here; it is plan-scoped state a ticket
+    audience can decode even less than a reviewer can.
+- `opts` — `{issue_context}`: the Step 2b value (`None`, or an `IssueContext` carrying `.ref`,
+  `.resolution`, `.provenance`). Step 2b is the sole minting site for every tracker's handle; this
+  operation resolves no ref of its own and takes no override.
+- `record` — `{disposition, target, receipt_line}`. Where a tracker is named in user-facing output,
+  the two literals are **`Linear`** and **`GitHub`** — no other spelling.
+  - `disposition` — one of the six literals in the table below.
+  - `target` — the resolved ref, non-null **exactly when** `disposition == posted`.
+  - `receipt_line` — pre-rendered **including the two-space indent** that receipt lines 2-4 already
+    carry, so the caller does no formatting.
+
+**Routing table** — the ref's shape picks the tracker. **Match on `issue_context.ref`, the
+tracker-native handle Step 2b mints — never on `ref_display`**, which is a rendering and is
+repo-qualified on the GitHub route. Getting this backwards makes the GitHub route unroutable on
+every path, because `ref_display` has exactly the shape the third row refuses.
+
+| Ref shape (`issue_context.ref`) | Route | Reachable when |
+|---|---|---|
+| `[A-Z]{2,5}-[0-9]+`, case-insensitive | Linear, an issue-comment MCP tool | always |
+| `#<digits>` or bare `<digits>` | GitHub issue, `gh issue comment` | `HOST ∈ {github, ghes}` |
+| anything else, `org/repo#N` included | unroutable | — |
+
+An unroutable shape is `skipped — no-ticket-ref`, so that literal means **no *usable* ticket ref** —
+covering no ref at all, a ref that routes nowhere, and (below) a GitHub ref that cannot be confirmed
+to name an issue. `org/repo#N` is unroutable **as an input** — it is the cross-repo shape, which is
+out of scope — and the Step 2b normalizer never produces it in `ref`, so the third row rejects only
+what a user actually typed. A numeric ref on a GitLab host is `skipped — tracker-unconfigured` instead: `#123`
+there means a *GitLab* issue, and `glab issue note` is a third tracker this command does not have.
+
+**Provenance gate (from Step 2b).** A `guessed` ref — one the branch-name regex produced — is written
+to only when `resolution == linked`; unconfirmed, it is `skipped — no-ticket-ref`. An `explicit` ref
+from `--issue` may be written on `ref-only`. On the **GitHub** route an unconfirmed target is refused
+regardless of provenance, because the read is also the issue-not-PR confirmation (Step 2b). The Linear
+route has no equivalent hazard — a `TO-1234` key cannot name a pull request — so an explicit Linear
+ref still writes on `ref-only`.
+
+**Disposition table — evaluated in order, first match wins.** The ordering is load-bearing: the URL
+check runs first, mirroring 5e's existing precedence, and the pre-check runs before any write, so
+`tracker-unconfigured` and `tracker-rejected` can never collide.
+
+| Observable condition | `disposition` | `target` |
+|---|---|---|
+| `ship.url` empty or not a URL | `skipped — ship-url-unresolved` | null |
+| No usable ticket ref (no ref, unroutable shape, or a ref the provenance gate refuses) | `skipped — no-ticket-ref` | null |
+| Linear route; no issue-comment MCP tool in this session | `skipped — tracker-unconfigured` | null |
+| GitHub route; `HOST ∉ {github, ghes}`, or no `gh` on `PATH`, or `repo_slug` unset, or `HOST=ghes` with no host available | `skipped — tracker-unconfigured` | null |
+| GitHub route; target not confirmed to be an issue | `skipped — no-ticket-ref` | null |
+| Pre-check passed; write **confirmed** | `posted` | the resolved ref |
+| Pre-check passed; rejected, timed out, or outcome unknown | `failed — tracker-rejected` | null |
+| Any internal throw not named below | `unavailable` | null |
+
+**`unavailable` is a defensive catch-all with no expected production path.** Every named failure
+above resolves to its own literal *before* a throw can occur: the pre-check is local and cannot fail,
+an auth rejection is `tracker-rejected`, an expiry is `tracker-rejected`. What is left is genuinely
+unexpected — a `mktemp` failure, a malformed tool schema, a bug in the sanitization pass. It is
+stated rather than left for a reader to hunt a trigger for.
+
+**Classify an auth failure on the throw, not on intent.** An expired token may surface as a thrown
+exception rather than a non-zero exit, which would otherwise fall into the catch-all and print
+`unavailable`. So: a throw whose diagnostic names authentication, permission, or credentials resolves
+to `failed — tracker-rejected`. `unavailable` is reached **only** by a throw that does not.
+
+**"Confirmed" is defined, not left to the word.** `posted` is a claim about an irreversible external
+effect: the call exits zero **and** the response carries a comment id or URL. Anything else — a
+non-zero exit, a zero exit with no parseable id, a timeout after the request went out — is
+`failed — tracker-rejected`. This under-reports on an ambiguous success and never over-reports: a
+spurious `failed` costs a manual check, a spurious `posted` costs a silently lost record.
+
+**The pre-check observes local presence only and makes no network call.** For **Linear**: whether a
+Linear **issue-comment** MCP tool is in this session's own tool list. Match the *operation shape*, not
+a literal tool name — the `mcp__claude_ai_<server>__` prefix is per-user server naming. It must create
+a **comment on an issue**: explicitly **not** an issue-description update (the same server exposes
+one), not a diff/inline comment, not a comment deletion. For **GitHub**: `HOST ∈ {github, ghes}`, `gh`
+on `PATH`, `repo_slug` set, and on `ghes` a host to qualify it with. Do **not** use `gh auth status` —
+its exit code conflates not-logged-in with network-down. An **auth** failure is `tracker-rejected`,
+not `unconfigured`: "unconfigured" means *no writer at all*, never "go set up your token".
+
+**Bounded wait, and never interactive.** Network I/O now sits between receipt lines 3 and 4, so 5e's
+"no timeout" and "the `try` guards a thrown exception, not a hung one" no longer cover this call. Its
+expiry maps to `failed — tracker-rejected` — the honest literal, since the outcome is unknown and
+`posted` must never be printed on an unknown outcome. **Name the mechanism per route, because
+asserting a bound is not making one:** the `gh` route runs under `timeout <N>`; a missing `timeout`
+binary degrades to unbounded and is itself a local-presence fact the pre-check can see. The **MCP
+route exposes no timeout knob**, so its bound is explicitly **best-effort**. Every invocation is
+non-interactive: `gh issue comment` prompts for a body when given no body flag, so `--body-file` is
+required — never `-b`, never stdin, never a pipe.
+
+**Never retry.** As at 5d: do not retry automatically. A write that appears to fail is exactly where a
+retry is tempting, and append-only makes a double-post permanent. At-most-once rests on 5d creating at
+most one PR *plus* this rule.
+
+**The temp file obeys the single-call invariant** stated at 5d: the `mktemp`, the quoted-sentinel
+heredoc write and the `gh issue comment` run in **one** Bash tool call, under a **distinct** sentinel
+token from 5d's, and 5d's body file is never reused.
+
+**Code-shape decision:** *the GitHub write's exact flags are a machine boundary, and leaving them to
+re-derivation is what produced the two failure modes this operation exists to prevent — an
+unqualified `-R` that resolves against github.com from a `ghes` host, and a body passed any way other
+than `--body-file`. Spelling only the `ghes` form (as an earlier draft did) leaves the plain-`github`
+form inferred, which is the same gap one step down.*
+
+```bash
+BODY_FILE=$(mktemp "${TMPDIR:-/tmp}/ba-propose-ticket.XXXXXX")
+cat > "$BODY_FILE" <<'__BA_PROPOSE_TICKET_END__'
+<the comment body — PR URL, then one `- ` item per sanitized trailer>
+__BA_PROPOSE_TICKET_END__
+
+# --- then, in THIS SAME call, run exactly one of the following ---
+
+# HOST=github — repo-qualified, no host prefix
+timeout <N> gh issue comment <N> -R "<REPO_SLUG>" --body-file "$BODY_FILE"
+
+# HOST=ghes — fully qualified; a bare owner/repo here resolves against github.com
+timeout <N> gh issue comment <N> -R "$GH_HOST/<REPO_SLUG>" --body-file "$BODY_FILE"
+```
+
+`-R` is **never** omitted on either host: without it `gh` resolves the repo from the cwd's remotes,
+which can pick the fork rather than the PR target and can prompt interactively.
+
+**How these values cross tool-call boundaries.** Each Bash tool call is a fresh shell, so `REPO_SLUG`,
+`CREATED_PR_URL` and the trailer texts are **model-held values re-interpolated as literals into each
+new call** — never referenced as `$VAR` across calls. This is the same hazard 5d documents for
+`$BODY_FILE`, and copying that notation without this warning builds a seam that silently loses the
+value.
+
+**Comment body.** The PR URL, plus — when `trailers` is non-empty — the trailer texts as a `- ` list.
+Empty trailers still post, with the PR URL as the payload. This body is **not** `ComposedBody.body`;
+Step 3's purity and seam invariants do not apply to it.
+
+**The trust boundary.** Step 2f reads **every** commit body in the `DIFF_BASE..HEAD` window regardless
+of author — a shared branch, a rebased-in colleague's commits, a cherry-pick or a bot commit all
+contribute trailers. So this is untrusted input rendered into a comment posted under the shipper's
+identity. That is why the rules below are a contract specified to the character rather than steering.
+
+**Escape first, then wrap — the ordering is load-bearing.** A wrap-only contract is defeated by one
+unbalanced backtick: markdown pairs code-span runs left to right, so the span closes early and the
+token inside it goes live.
+
+1. **Neutralize the escape hatches** in the interpolated text **before** any wrap rule runs: escape
+   backslashes and backticks, and neutralize `[`, `]` and `<` (which is what forecloses
+   `[looks official](https://…)` and GitHub's allowed raw-HTML subset).
+2. **Then wrap tokens**, each in the interpolated text only:
+   - `#` immediately followed by a digit → wrap in backticks. A bare `#42` autolinks an unrelated
+     issue.
+   - `@` immediately followed by an alphanumeric → wrap in backticks. Linear resolves `@displayName`
+     to a real mention and GitHub notifies.
+   - A closing keyword (`close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved`) immediately
+     followed by a ref-shaped token → wrap **the ref**, breaking the pair on both trackers. A trailer
+     reading "fixes TO-999" must not move another issue's state.
+3. **Extend the first wrap rule to ref-*shaped* tokens generally**, not just the `#N` spelling: a bare
+   `TO-999`, an `org/repo#N`, and a full issue URL all stay inert under the rules above yet still
+   autolink and leave a **backlink on the target issue**. Cross-referencing an unrelated ticket is a
+   real effect, so wrap those too.
+4. **Never emit interpolated text at line-start unprefixed.** Every trailer renders as a `- ` list
+   item. This also forecloses a heredoc-terminator collision: a trailer whose text is exactly the
+   sentinel cannot end the heredoc early if it can never begin a line.
+
+At typo tier the trailer text appears **nowhere** in the PR body but does reach the ticket, so the
+comment is the first place that prose is published — possibly to a wider audience than the repo's.
+That is a consequence of the guarantee, not a defect, and it is why these rules are not optional.
+
+**Receipt line 4 renders the basis, not just the verdict** — `ticket: posted — TO-1234`,
+`ticket: posted — acme/widgets#123`, and the bare literal on every non-`posted` value. That is what
+makes `record.target` observable rather than state carried and never read. **`target` is
+`issue_context.ref_display`** — the repo-qualified form on the GitHub route, the bare key on the
+Linear one — never the routing handle, and never host-prefixed even on `ghes`, since line 2's PR URL
+already names the host.
+
+**This section is the canonical site for the ticket-disposition enum.** Its six literals —
+`posted`, `skipped — no-ticket-ref`, `skipped — tracker-unconfigured`, `skipped — ship-url-unresolved`,
+`failed — tracker-rejected`, `unavailable` — are restated at exactly two other sites, which must be
+updated with it: `## Failure Modes`'s write-side rows, and `README.md`'s `/ba-propose` feature list.
+5e's call site and the Step 4 preview line are **pointers, not copies**. **No CI check pins any of
+this.** Note that 5e now owns **two** closed six-literal enums; never name either by its cardinal
+alone.
+
+**Invariants.** Never raises — any internal throw resolves to `unavailable` (or, per the auth rule,
+`failed — tracker-rejected`). Never alters exit status, which 5c/5d fix before 5e runs. Called exactly
+once per run, only on routes that reach 5e. Degrade is decided by the pre-check before any write.
+`record.target` is non-null exactly when `disposition == posted`. `receipt_line` is printed verbatim.
+On the composition/`.resolution` boundary this section is a **pointer, not a copy**: the rule is
+stated once at Step 2b.
+
 ## Failure Modes
 
 | Failure | Where it surfaces | Recovery |
@@ -899,7 +1236,10 @@ precision, not its observability, is the accepted residual.
 | Invalid branch state (detached HEAD, default branch with or without work) | Step 1 | Interactive routing per Step 1's four-way decision table — offer create-branch or refuse. |
 | `HOST=unknown` | Step 0a | Skip 5d; commit + push only; print body for manual paste. |
 | Empty diff (base moved) | Step 2a | `CompositionInputError` with rebase-or-close message. |
-| Linear MCP failure with ID present | Step 2b | Warn at preview; fall back to diff-derived motivation. |
+| Tracker read fails with a ref present (either tracker) | Step 2b | Resolve `ref-only`; warn at preview; fall back to diff-derived motivation. The ref survives for cross-refs and, if provenance allows, for the ticket write. |
+| Ticket route has no reachable writer | Step 5e | `ticket: skipped — tracker-unconfigured` on the receipt. No write attempted, no network call made to decide it. PR is live; comment by hand if wanted. |
+| Ticket write rejected, or its outcome unknown | Step 5e | `ticket: failed — tracker-rejected`. Exit status unchanged and the PR URL is still printed. PR is live; post by hand. Never retried automatically — a double-post is permanent. |
+| Ticket write hangs | Step 5e | The bounded wait expires to `ticket: failed — tracker-rejected` — the honest literal, since the outcome is unknown. On the MCP route the bound is best-effort (no timeout knob); on the `gh` route it is `timeout <N>`. |
 | Preserved-block race window | Step 5d | Re-fetch + re-extract immediately before publish; published body uses the freshest remote read. No interactive recovery needed. |
 | Body overshoots its tier's soft target (3.1a) | Step 4 | Warn at preview with a phrase naming the target shape; user decides. No auto-trim. |
 | Hook failure on commit | Step 5b | Surface output, exit, never `--no-verify`. |
@@ -911,12 +1251,12 @@ precision, not its observability, is the accepted residual.
 
 - Composition is a pure contract — it consumes the value objects in `CompositionInputs` and reaches out to nothing. Add I/O? Add it to Step 2.
 - Never `git add -A` / `git add .`. Explicit paths only.
-- `/ba-propose` itself never writes source files outside the staged diff. The sole exception is the user-accepted `/ba-compound` **hand-off exception** (Step 5f): after the PR/MR is open, an accepted capture offer hands off to `/ba-compound`, which writes only to `docs/solutions/` — after the push, never in the pushed diff (mirrors the owning convention at `CLAUDE.md`; `README.md`'s `/ba-propose` feature list carries a user-facing summary of the same behavior — keep all three in sync).
+- `/ba-propose` itself never writes source files outside the staged diff. Two exceptions, both after the PR/MR is open and neither in the pushed diff: the user-accepted `/ba-compound` **hand-off exception** (Step 5f), which writes only to `docs/solutions/`; and the **second outward effect** — the append-only comment `## Ship-Time Ticket Write-Back` posts to the origin ticket at 5e, which writes no file at all but does publish outside this repository. (Mirrors the owning convention at `CLAUDE.md`; `README.md`'s `/ba-propose` feature list carries a user-facing summary of the same behavior — keep all three in sync.)
 - Never `--no-verify` unless the user has explicitly asked, with an audited reason.
 - Never silent force-push. `--force-with-lease` only, with explicit confirmation.
 - `--body-file` always points at a temp file written by a quoted-sentinel heredoc. Never `--body "$(cat ...)"`, never stdin, never pipes.
 - Preserved blocks (`<!-- CURSOR_SUMMARY -->`, `## Demo`, `## Screenshots`) are byte-identical in and out.
-- Linear is optional. Failure ≠ absence — warn at preview when MCP failed.
+- Both trackers are optional, and the read path is not Linear-only. Failure ≠ absence — a failed read resolves `ref-only` and warns at preview; it never collapses to "no ticket".
 - `docs/solutions/` absence is normal. Defensive empty-tuple.
 - The diff is visible on the platform; the body explains what the diff cannot show.
 - Match weight to weight — shorter wins; a bigger diff earns more selectivity, not more content. No what-changed play-by-play, no unit-test enumeration, screenshots in `<details>`. Required safety sections (breaking changes, dep justifications) are exempt from trimming.

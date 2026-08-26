@@ -532,9 +532,9 @@ When implementation diverges from the plan (different file path, changed API, mi
      2. **Update the plan** — Modify the plan to match reality, then continue
      3. **Pause execution** — Stop and let the user decide
 
-3. **Record** the deviation via an optional `Deviation (U<n>):` trailer in the commit body for the affected unit (see `## U-ID & Git-Derived State Convention`). `/ba-propose` rolls these trailers up into the MR/PR body and the Linear ticket when linked.
+3. **Record** the deviation via an optional `Deviation (U<n>):` trailer in the commit body for the affected unit (see `## U-ID & Git-Derived State Convention`). `/ba-propose` rolls these trailers up into the MR/PR body, and — on a run that opens the PR/MR — posts them to the origin ticket as an append-only comment. The ticket half is tracker-routed, not Linear-only, and its outcome is printed on `/ba-propose`'s receipt.
 
-   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. If that commit **fails** (pre-commit hook rejection, disk full, pre-push policy), do **not** silently pause — surface the commit error verbatim and ask the user to resolve it (fix the hook, free space, etc.) so the deviation is recorded before pausing; never drop to the pause with the trailer unpersisted, and never `--no-verify` around a hook to force it through. Once committed, fire a reminder: "Run `/ba-propose` to persist deviation(s) to the MR/ticket; they are not durable until then."
+   **Durability on pause:** because the trailer can only exist in a commit, commit the affected unit *with* its `Deviation (U<n>):` trailer **before** the "Pause execution" branch returns control — so the deviation is never lost if the user walks away. If that commit **fails** (pre-commit hook rejection, disk full, pre-push policy), do **not** silently pause — surface the commit error verbatim and ask the user to resolve it (fix the hook, free space, etc.) so the deviation is recorded before pausing; never drop to the pause with the trailer unpersisted, and never `--no-verify` around a hook to force it through. Once committed, fire a reminder: "Run `/ba-propose` to roll deviation(s) up into the MR/PR body — and, when that run opens the PR/MR, into a comment on the origin ticket. The trailers themselves are already durable in the commit; the rollup is not, and the ticket comment is written only on a run that *creates* the PR/MR — a later run that only edits one never posts it."
 
 ---
 
@@ -556,7 +556,7 @@ When all tasks are done:
 
 If verification fails, report and let the user decide before claiming completion.
 
-**Deviation-trailer reminder** (fire on any exit path — clean completion, "Pause execution", or early exit — when any `Deviation (U<n>):` trailer was written during this run): "Run `/ba-propose` to persist N deviation(s) to the MR/ticket; they are not durable until then. **Do not squash these commits before `/ba-propose` — squashing buries the `Deviation (U<n>):` trailers before propose can roll them up.**"
+**Deviation-trailer reminder** (fire on any exit path — clean completion, "Pause execution", or early exit — when any `Deviation (U<n>):` trailer was written during this run): "Run `/ba-propose` to roll N deviation(s) up into the MR/PR body — and, when that run opens the PR/MR, into a comment on the origin ticket. The trailers are already durable in the commits; the rollup is not, and the ticket comment is written only on a run that *creates* the PR/MR — a later edit-only run never posts it. **Do not squash these commits before `/ba-propose` — squashing buries the `Deviation (U<n>):` trailers before propose can roll them up.**"
 
 ### Summary
 
