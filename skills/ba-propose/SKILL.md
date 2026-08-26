@@ -519,7 +519,7 @@ Read `diff.file_stats` and `diff.commit_log`. Compute totals:
 - `lines_changed = sum(additions + deletions across all files)`
 - `files_changed = count of files`
 - `is_perf = (lines_changed >= 30 AND any commit message in branch matches /perf|performance/) OR (diff includes a benchmark or measurement file — paths matching *bench*, *benchmark*, *measure*, *perf-test*, or files with `.bench.` infix)`
-- `is_typo = files_changed == 1 AND lines_changed <= 4 AND the change is pure string/comment/whitespace — no operators, no conditionals, no call expressions, no type annotations`
+- `is_typo = files_changed == 1 AND its `diff.file_status` is `M` AND lines_changed <= 4 AND the change is pure string/comment/whitespace — no operators, no conditionals, no call expressions, no type annotations`. **An added file (`A`) is never a typo**, however short: a typo is an edit to text that already exists, and the tier decides real output — at `typo` the Risk lead-line, the Proof line and the deviation fold are all suppressed, so a new file would ship with the receipt as its only trace. `diff.file_status` is already materialized in 2a and already read by Proof detection for exactly this add-vs-modify distinction.
 
 Tier table (first match wins):
 
@@ -658,7 +658,10 @@ announce a post the write-back then refuses, which is worse than printing nothin
 a promise. This is a **pointer, not a copy**: the decision is the one that section specifies, and
 every fact it turns on (ref shape, the read's outcome, provenance, `HOST`, `gh` on `PATH`,
 `REPO_SLUG`) is settled before Step 4, so the preview reads the same state rather than re-deriving a
-second ladder. The tracker is spelled `Linear` or `GitHub`, matching that section's two literals.
+second ladder. **The ship-URL row is deliberately not part of this predicate.** No route has a
+`CREATED_PR_URL` at Step 4 — it is produced in 5d — and on `--describe-only` 5e never runs at all, so
+folding that row in would print `none` on every dry run and make the line dead exactly where a human
+most wants it. Evaluate the locally-known facts only. The tracker is spelled `Linear` or `GitHub`, matching that section's two literals.
 
 **And it renders the payload, not just the target.** Naming the target says *where* the comment goes,
 not *what it says*. At typo tier the trailer texts appear nowhere in the PR body, so the ticket
