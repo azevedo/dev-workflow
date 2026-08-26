@@ -590,15 +590,12 @@ Use **AskUserQuestion**:
 5. **Done** — Wrap up
 
 **Based on selection:**
-The two hand-off targets differ, and the difference is load-bearing — check before calling.
-`/ba-review` carries `disable-model-invocation`, so you **cannot** invoke it: the `Skill` tool
-refuses. Print its invocation for the user to type and stop. `/ba-propose` does **not** carry the
-flag and **is** invokable — but it pushes and opens a PR/MR, so confirm with the user before calling
-it rather than firing on the menu selection alone. For either target, never silently substitute your
-own review or PR flow in its place.
+Both handoff targets carry the `disable-model-invocation` flag, so you **cannot** invoke them — the
+`Skill` tool refuses. Print the invocation for the user to type and stop; do not attempt the call, and
+do not silently substitute your own review or PR flow in its place.
 
 - **Review code** → tell the user to type `/ba-review`, which auto-detects scope from the current branch.
-- **Create MR/PR** → confirm, then invoke `/ba-propose` (it is invokable — see above). If the user would rather run it themselves, print the invocation instead. Either way, say why it is preferred over an ad-hoc PR: it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, creates or updates as appropriate, and rolls up any `Deviation (U<n>):` trailers. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. Warn against squashing first — that buries the trailers before propose can read them. **Fallback**, only if the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command they prefer.
+- **Create MR/PR** → tell the user to type `/ba-propose`, and say why it is preferred over an ad-hoc PR: it composes the title and a reviewer-first body, detects GitHub/GitLab from the git remote, preserves protected PR/MR blocks, creates or updates as appropriate, and rolls up any `Deviation (U<n>):` trailers. It composes the body from the diff and any linked issue, so the plan's overview and acceptance criteria are not auto-injected. Warn against squashing first — that buries the trailers before propose can read them. **Fallback**, only if the user wants a one-off ad-hoc PR: detect the platform from the git remote (GitHub → `gh pr create`, GitLab → `glab mr create`), or use a project/personal PR command they prefer.
 - **Review changes** → Show the diff, then return to options.
 - **Continue working** → Ask what they want to work on. Exit structured execution flow.
 - **Done** → Display final summary and exit.
